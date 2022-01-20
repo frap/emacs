@@ -342,17 +342,17 @@ Configure grabage collection
   (:hide-mode))
 #+end_src
 
-*** MAC specific
+*** MAC PATH specific
 #+begin_src emacs-lisp
   ;;(cua-mode 1)
   ;; path stuff for macOS
-  (if IS-MAC
-      (setup (:pkg exec-path-from-shell)
+  ;;(if IS-MAC
+      (setup (:pkg-when exec-path-from-shell IS-MAC)
         ;;(dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "HOMEBREW_PREFIX"))
         ;;  (add-to-list 'exec-path-from-shell-variables var))
         (exec-path-from-shell-initialize)
         ;;(add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
-        ))
+        )
 #+end_src
 *** Auto compile and Benchmarking
 #+begin_src emacs-lisp
@@ -575,29 +575,35 @@ On Linux, I have a custom build of Iosevka that I like.
   (setup (:pkg unicode-fonts)
     (unicode-fonts-setup))
 
+  (setup (:pkg mixed-pitch)
+    (:with-mode mixed-pitch-mode
+      (:hook-into text-mode))
+
   ;; Set the font face based on platform
   (pcase system-type
     ((or 'gnu/linux 'windows-nt 'cygwin)
      (set-face-attribute 'default nil
                          :font "JetBrains Mono"
                          :weight 'light
-                         ;;   :height (dw/system-settings-get 'emacs/default-face-size)
+                         :height 120
                          ))
-    ('darwin (set-face-attribute 'default nil :font "Fira Mono" :height 150)))
+    ('darwin (set-face-attribute 'default nil :font "Fira Mono" :height 130)))
 
   ;; Set the fixed pitch face
   (set-face-attribute 'fixed-pitch nil
                       :font "JetBrains Mono"
                       :weight 'light
-                      ;;    :height (dw/system-settings-get 'emacs/fixed-face-size)
                       )
 
   ;; Set the variable pitch face
   (set-face-attribute 'variable-pitch nil
                       ;; :font "Cantarell"
                       :font "Iosevka Aile"
-                      ;;  :height (dw/system-settings-get 'emacs/variable-face-size)
-                      :weight 'light)
+                      :weight 'light))
+
+  ;; Required for proportional font in posframe
+  (setup (:pkg company-posframe)
+    (company-posframe-mode 1))
 
   (setup (:pkg default-text-scale)
     (:bind
@@ -642,7 +648,7 @@ On Linux, I have a custom build of Iosevka that I like.
     (doom-themes-org-config))
 
   (unless IS-TERMUX
-    (load-theme 'doom-palenight t)
+   ;; (load-theme 'doom-palenight t)
     (doom-themes-visual-bell-config))
 
   ;; Mode-line
@@ -776,150 +782,6 @@ and have made a custom fringe bitmap.
      #b00000000])
 #+end_src
 
-*** Emacs *Help* functions
-
- Help and which functions
-
-#+begin_src emacs-lisp :noweb-ref pkg-ui
-
-  (setup (:pkg helpful)
-  (:when-loaded
-    (:global-bind
-     "C-h f" helpful-callable
-     "C-h v" helpful-variable
-     "C-h k" helpful-key)
-    (:load-after link-hint
-        (:bind
-         "o" link-hint-open-link-at-point)
-      (setq helpful-switch-buffer-function
-            (lambda (x)
-              (if (eq major-mode 'helpful-mode)
-                  (switch-to-buffer x)
-                (pop-to-buffer x)))))))
-
-  (setup (:pkg which-key)
-   (which-key-mode 1)
-   (setq which-key-add-column-padding 2)
-   (setq which-key-idle-delay 0.5)
-   (setq which-key-idle-secondary-delay 0.1)
-   (setq which-key-max-display-columns nil)
-   (setq which-key-min-display-lines 6)
-   (setq which-key-replacement-alist
-         '((("left") . ("🡸"))
-           (("right") . ("🡺"))
-           (("up") . ("🡹"))
-           (("down") . ("🡻"))
-           (("delete") . ("DEL"))
-           (("\\`DEL\\'") . ("BKSP"))
-           (("RET") . ("⏎"))
-           (("next") . ("PgDn"))
-           (("prior") . ("PgUp"))))
-   (setq which-key-sort-order 'which-key-key-order-alpha)
-   (setq which-key-sort-uppercase-first nil)
-   (which-key-setup-minibuffer)
-   (:with-hook which-key-init-buffer-hook
-     (:hook (fn (setq line-spacing 4))))
-   (:hide-mode))
-#+end_src
-
-*** Navigation
-setup Marginalia for navigation
-#+begin_src emacs-lisp
-  (setup (:pkg marginalia)
-    (:load-after vertico
-      (marginalia-mode 1)))
-
-#+end_src
-keychords with hydra
-#+begin_src emacs-lisp
-  (setup (:pkg hydra)
-    (require 'hydra))
-#+end_src
-*** Completion
-Emacs completion parlava
-#+begin_src emacs-lisp :noweb-ref pkg-ompletion
-  (setup (:pkg company)
-    (global-company-mode 1)
-    (company-tng-mode 1)
-    (setq company-backends (remove 'company-dabbrev company-backends))
-    (setq company-idle-delay nil)
-    (setq company-minimum-prefix-length 2)
-    (setq company-selection-wrap-around t)
-    (setq company-tooltip-align-annotations t)
-    (:with-map company-active-map
-      (:bind
-       [tab] company-select-next
-       [backtab] company-select-previous))
-    (:hide-mode))
-
-  (setup (:pkg consult)
-    (setq consult-async-min-input 2)
-    (setq consult-preview-key (kbd "M-."))
-    (setq xref-show-definitions-function #'consult-xref)
-    (setq xref-show-xrefs-function #'consult-xref)
-    (advice-add #'completing-read-multiple
-                :override #'consult-completing-read-multiple)
-    (:load-after projectile
-      (setq consult-project-root-function #'projectile-project-root))
-    (:load-after vertico
-      (setq completion-in-region-function
-            (lambda (&rest args)
-              (apply (if vertico-mode
-                         #'consult-completion-in-region
-                       #'completion--in-region)
-                     args)))))
-
-  (setup (:pkg embark)
-    (:load-after which-key
-      (defun embark-which-key-indicator ()
-        (lambda (&optional keymap targets prefix)
-          (if (null keymap)
-              (which-key--hide-popup-ignore-command)
-            (which-key--show-keymap
-             (if (eq (plist-get (car targets) :type) 'embark-become)
-                 "Become"
-               (format "Act on %s '%s'%s"
-                       (plist-get (car targets) :type)
-                       (embark--truncate-target (plist-get (car targets) :target))
-                       (if (cdr targets) "…" "")))
-             (if prefix
-                 (pcase (lookup-key keymap prefix 'accept-default)
-                   ((and (pred keymapp) km) km)
-                   (_ (key-binding prefix 'accept-default)))
-               keymap)
-             nil nil t (lambda (binding)
-                         (not (string-suffix-p "-argument" (cdr binding))))))))
-      (setq prefix-help-command #'embark-prefix-help-command)
-      (setq embark-indicators '(embark-which-key-indicator
-                                embark-highlight-indicator
-                                embark-isearch-highlight-indicator))
-      (:advise embark-completing-read-prompter :around (fn &rest args)
-        (when-let ((win (get-buffer-window which-key--buffer 'visible)))
-          (quit-window 'kill-buffer win)
-          (let ((embark-indicators (delq #'embark-which-key-indicator
-                                         embark-indicators)))
-            (apply fn args))))
-      (:global "C-," embark-act)))
-
-  (setup (:pkg embark-consult)
-    (:load-after (embark consult)
-      (:with-mode embark-collect-mode
-        (:hook consult-preview-at-point-mode))))
-
-  (setup (:pkg orderless)
-    (setq completion-category-defaults nil)
-    (setq completion-category-overrides '((file (styles partial-completion))))
-    (setq completion-styles '(orderless)))
-
-  (setup (:pkg (vertico :files (:defaults "extensions/*")))
-    (:also-load vertico-repeat)
-    (setq vertico-count 15)
-    (setq vertico-resize t)
-    (vertico-mode 1)
-    (:with-hook minibuffer-setup-hook
-      (:hook vertico-repeat-save)))
-
-#+end_src
 *** Window Setup
 
 #+begin_src emacs-lisp :noweb-ref pkg-window
@@ -1054,46 +916,401 @@ filesystem paths.
 :PROPERTIES:
 :header-args: :noweb-ref pkg-editor
 :END:
-Setup undo , whitespace, expand, indenataion and avy
+The visual-line-mode function enables line-wrapping. You can run the function separately for each buffer, but ideally, you hook it to all text modes.
+
+When you select (mark) a section of text and start typing, Emacs will not replace the selected text. To enable Emacs deleting selected text, you set the delete-selection-mode variable, as below.
+
+One last sensible default is to enure that Emacs lets you use the page-up and page-down buttons to
+go to the first and last line in the buffer.
 #+begin_src emacs-lisp
-      (setup (:pkg aggressive-indent)
-        (:hook-into prog-mode)
-        (:hide-mode))
+    ;; Sensible line breaking
+  (add-hook 'text-mode-hook 'visual-line-mode)
 
-      (setup (:pkg avy)
-        (setq avy-all-windows nil)
-        (setq avy-background t)
-        (setq avy-keys (nconc (number-sequence ?a ?z)
-                              (number-sequence ?A ?Z)
-                              (number-sequence ?1 ?9)))
-        (setq avy-style 'pre))
+  ;; Overwrite selected text
+  (setup (:require delsel)
+    (delete-selection-mode t))
 
-      (setup (:pkg hungry-delete)
-      (:load-after smartparens
-        (setq hungry-delete-join-reluctantly t)
-        (global-hungry-delete-mode 1)
-        (:hook-into smartparens-enabled)
+  ;; Scroll to the first and last line of the buffer
+  (setq scroll-error-top-bottom t)
+#+end_src
+The configuration below enables Flyspell for all text modes and sets Hunspell as the default checking program. The M-F7 key checks the spelling for all words in the buffer and F7 checks the word that you cursor is standing on.
+
+A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
+#+begin_src emacs-lisp
+    (setup flyspell
+      (:hook-into text-mode-hook)
+      (:bind "M-<f7>"  flyspell-buffer
+             "<f7>"    flyspell-word
+             "C-;"     flyspell-auto-correct-previous-word
+             )
+      (progn
+        (cond
+         ((executable-find "aspell")
+          (setq ispell-program-name "aspell")
+          (setq ispell-extra-args   '("--sug-mode=ultra"
+                                      "--lang=en_AU")))
+         ((executable-find "hunspell")
+          (setq ispell-program-name "hunspell")
+          (setq ispell-extra-args   '("-d en_AU"))))
+
+        ;; Save a new word to personal dictionary without asking
+        (setq ispell-silently-savep t)
+        (setq ispell-default-dictionary "en_AU"))
+
+      (defun avy-action-flyspell (pt)
+        (save-excursion
+          (goto-char pt)
+          (when (require 'flyspell nil t)
+            (flyspell-auto-correct-word)))
+        (select-window
+         (cdr (ring-ref avy-ring 0)))
+        t)
+
+      ;; Bind to semicolon (flyspell uses C-;)
+      (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
+
+      (:when-loaded
         (:hide-mode)))
+#+end_src
+
+I use the dictionary package for Emacs, and I’m lazy about it:
+#+begin_src emacs-lisp
+(setup (:pkg dictionary)
+
+(defun dictionary-search-dwim (&optional arg)
+  "Search for definition of word at point. If region is active,
+search for contents of region instead. If called with a prefix
+argument, query for word to search."
+  (interactive "P")
+  (if arg
+      (dictionary-search nil)
+    (if (use-region-p)
+        (dictionary-search (buffer-substring-no-properties
+                            (region-beginning)
+                            (region-end)))
+      (if (thing-at-point 'word)
+          (dictionary-lookup-definition)
+        (dictionary-search-dwim '(4))))))
+
+(defun avy-action-define (pt)
+  (save-excursion
+    (goto-char pt)
+    (dictionary-search-dwim))
+  (select-window
+   (cdr (ring-ref avy-ring 0)))
+  t)
+
+(setf (alist-get ?= avy-dispatch-alist) 'dictionary-search-dwim))
+#+end_src
+
+Setup avy in filter, select, act mode
+#+begin_src emacs-lisp
+  (setup (:pkg avy)
+    (:global  "M-j"  'avy-goto-char-timer
+              "C-M-s" 'isearch-forward-other-window
+              "C-M-r" 'isearch-backward-other-window)
+    (setq avy-keys '(?q ?e ?r ?y ?u ?o ?p
+                        ?a ?s ?d ?f ?g ?h ?j
+                        ?k ?l ?' ?x ?c ?v ?b
+                        ?n ?, ?/))
+    (defun avy-show-dispatch-help ()
+      (let* ((len (length "avy-action-"))
+             (fw (frame-width))
+             (raw-strings (mapcar
+                           (lambda (x)
+                             (format "%2s: %-19s"
+                                     (propertize
+                                      (char-to-string (car x))
+                                      'face 'aw-key-face)
+                                     (substring (symbol-name (cdr x)) len)))
+                           avy-dispatch-alist))
+             (max-len (1+ (apply #'max (mapcar #'length raw-strings))))
+             (strings-len (length raw-strings))
+             (per-row (floor fw max-len))
+             display-strings)
+        (cl-loop for string in raw-strings
+                 for N from 1 to strings-len do
+                 (push (concat string " ") display-strings)
+                 (when (= (mod N per-row) 0) (push "\n" display-strings)))
+        (message "%s" (apply #'concat (nreverse display-strings)))))
+
+    ;; Kill text
+    (defun avy-action-kill-whole-line (pt)
+      (save-excursion
+        (goto-char pt)
+        (kill-whole-line))
+      (select-window
+       (cdr
+        (ring-ref avy-ring 0)))
+      t)
+
+    (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
+          (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
+
+    ;; Copy text
+    (defun avy-action-copy-whole-line (pt)
+      (save-excursion
+        (goto-char pt)
+        (cl-destructuring-bind (start . end)
+            (bounds-of-thing-at-point 'line)
+          (copy-region-as-kill start end)))
+      (select-window
+       (cdr
+        (ring-ref avy-ring 0)))
+      t)
+
+    (setf (alist-get ?w avy-dispatch-alist) 'avy-action-copy
+          (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line)
+
+    ;; Yank text
+    (defun avy-action-yank-whole-line (pt)
+      (avy-action-copy-whole-line pt)
+      (save-excursion (yank))
+      t)
+
+    (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
+          (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
+
+    ;; Transpose/Move text
+    (defun avy-action-teleport-whole-line (pt)
+      (avy-action-kill-whole-line pt)
+      (save-excursion (yank)) t)
+
+    (setf (alist-get ?t avy-dispatch-alist) 'avy-action-teleport
+          (alist-get ?T avy-dispatch-alist) 'avy-action-teleport-whole-line)
+
+    ;; Mark text
+    (defun avy-action-mark-to-char (pt)
+      (activate-mark)
+      (goto-char pt))
+
+    (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
+
+    ;; Avy + Isearch
+    (define-key isearch-mode-map (kbd "M-j") 'avy-isearch)
+
+    ;; Isearch in other windows
+    (defun isearch-forward-other-window (prefix)
+      "Function to isearch-forward in other-window."
+      (interactive "P")
+      (unless (one-window-p)
+        (save-excursion
+          (let ((next (if prefix -1 1)))
+            (other-window next)
+            (isearch-forward)
+            (other-window (- next))))))
+
+    (defun isearch-backward-other-window (prefix)
+      "Function to isearch-backward in other-window."
+      (interactive "P")
+      (unless (one-window-p)
+        (save-excursion
+          (let ((next (if prefix 1 -1)))
+            (other-window next)
+            (isearch-backward)
+            (other-window (- next))))))
+
+    (setq avy-all-windows t)
+    )
+
+#+end_src
+Setup undo , whitespace, expand, indentation and avy
+#+begin_src emacs-lisp
+  (setup (:pkg aggressive-indent)
+    (:hook-into prog-mode)
+    (:hide-mode))
+
+
+
+  (setup (:pkg hungry-delete)
+    (:load-after smartparens
+      (setq hungry-delete-join-reluctantly t)
+      (global-hungry-delete-mode 1)
+      (:hook-into smartparens-enabled)
+      (:hide-mode)))
 
 
   (setup (:pkg expand-region)
     (:require expand-region)
     )
 
-    (setup (:pkg undo-fu undo-fu-session)
-      (:with-map (prog-mode-map text-mode-map)
-          (:bind
-           "u" undo-fu-only-undo
-           "C-r" undo-fu-only-redo))
-      (setq undo-fu-session-incompatible-files
-            '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
-      (global-undo-fu-session-mode 1))
+  (setup (:pkg undo-fu undo-fu-session)
+    (:with-map (prog-mode-map text-mode-map)
+      (:bind
+       "u" undo-fu-only-undo
+       "C-r" undo-fu-only-redo))
+    (setq undo-fu-session-incompatible-files
+          '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+    (global-undo-fu-session-mode 1))
 
-    (setup (:pkg whitespace-cleanup-mode)
-      (global-whitespace-cleanup-mode 1)
-      (:with-hook before-save-hook
-        (:hook delete-trailing-whitespace))
-      (:hide-mode))
+  (setup (:pkg whitespace-cleanup-mode)
+    (global-whitespace-cleanup-mode 1)
+    (:with-hook before-save-hook
+      (:hook delete-trailing-whitespace))
+    (:hide-mode))
+#+end_src
+*** Emacs *Help* functions
+
+ Help and which functions
+
+#+begin_src emacs-lisp :noweb-ref pkg-ui
+
+  (setup (:pkg helpful)
+    (:when-loaded
+      (:global-bind
+       "C-h f" helpful-callable
+       "C-h v" helpful-variable
+       "C-h k" helpful-key)
+      (defun avy-action-helpful (pt)
+        (save-excursion
+          (goto-char pt)
+          (helpful-at-point))
+        (select-window
+         (cdr (ring-ref avy-ring 0)))
+        t)
+      ;; set H as avy dispatch to Help
+      (setf (alist-get ?H avy-dispatch-alist) 'avy-action-helpful)
+
+      (:load-after link-hint
+        (:bind
+         "o" link-hint-open-link-at-point)
+        (setq helpful-switch-buffer-function
+              (lambda (x)
+                (if (eq major-mode 'helpful-mode)
+                    (switch-to-buffer x)
+                  (pop-to-buffer x)))))))
+
+  (setup (:pkg which-key)
+    (which-key-mode 1)
+    (setq which-key-add-column-padding 2)
+    (setq which-key-idle-delay 0.5)
+    (setq which-key-idle-secondary-delay 0.1)
+    (setq which-key-max-display-columns nil)
+    (setq which-key-min-display-lines 6)
+    (setq which-key-replacement-alist
+          '((("left") . ("🡸"))
+            (("right") . ("🡺"))
+            (("up") . ("🡹"))
+            (("down") . ("🡻"))
+            (("delete") . ("DEL"))
+            (("\\`DEL\\'") . ("BKSP"))
+            (("RET") . ("⏎"))
+            (("next") . ("PgDn"))
+            (("prior") . ("PgUp"))))
+    (setq which-key-sort-order 'which-key-key-order-alpha)
+    (setq which-key-sort-uppercase-first nil)
+    (which-key-setup-minibuffer)
+    (:with-hook which-key-init-buffer-hook
+      (:hook (fn (setq line-spacing 4))))
+    (:hide-mode))
+#+end_src
+
+*** Navigation
+setup Marginalia for navigation
+#+begin_src emacs-lisp
+  (setup (:pkg marginalia)
+    (:load-after vertico
+      (marginalia-mode 1)))
+
+#+end_src
+keychords with hydra
+#+begin_src emacs-lisp
+  (setup (:pkg hydra)
+    (require 'hydra))
+#+end_src
+*** Completion
+Emacs completion parlava
+#+begin_src emacs-lisp :noweb-ref pkg-ompletion
+  (setup (:pkg company)
+    (global-company-mode 1)
+    (company-tng-mode 1)
+    (setq company-backends (remove 'company-dabbrev company-backends))
+    (setq company-idle-delay nil)
+    (setq company-minimum-prefix-length 2)
+    (setq company-selection-wrap-around t)
+    (setq company-tooltip-align-annotations t)
+    (:with-map company-active-map
+      (:bind
+       [tab] company-select-next
+       [backtab] company-select-previous))
+    (:hide-mode))
+
+  (setup (:pkg consult)
+    (setq consult-async-min-input 2)
+    (setq consult-preview-key (kbd "M-."))
+    (setq xref-show-definitions-function #'consult-xref)
+    (setq xref-show-xrefs-function #'consult-xref)
+    (advice-add #'completing-read-multiple
+                :override #'consult-completing-read-multiple)
+    (:load-after projectile
+      (setq consult-project-root-function #'projectile-project-root))
+    (:load-after vertico
+      (setq completion-in-region-function
+            (lambda (&rest args)
+              (apply (if vertico-mode
+                         #'consult-completion-in-region
+                       #'completion--in-region)
+                     args)))))
+
+  (setup (:pkg embark)
+    (:load-after which-key
+      (defun embark-which-key-indicator ()
+        (lambda (&optional keymap targets prefix)
+          (if (null keymap)
+              (which-key--hide-popup-ignore-command)
+            (which-key--show-keymap
+             (if (eq (plist-get (car targets) :type) 'embark-become)
+                 "Become"
+               (format "Agir sur %s '%s'%s"
+                       (plist-get (car targets) :type)
+                       (embark--truncate-target (plist-get (car targets) :target))
+                       (if (cdr targets) "…" "")))
+             (if prefix
+                 (pcase (lookup-key keymap prefix 'accept-default)
+                   ((and (pred keymapp) km) km)
+                   (_ (key-binding prefix 'accept-default)))
+               keymap)
+             nil nil t (lambda (binding)
+                         (not (string-suffix-p "-argument" (cdr binding))))))))
+      (setq prefix-help-command #'embark-prefix-help-command)
+      (setq embark-indicators '(embark-which-key-indicator embark-highlight-indicator embark-isearch-highlight-indicator))
+      (defun avy-action-embark (pt)
+        (unwind-protect
+            (save-excursion
+              (goto-char pt)
+              (embark-act))
+          (select-window
+           (cdr (ring-ref avy-ring 0))))
+        t)
+
+      (setf (alist-get ?. avy-dispatch-alist) 'avy-action-embark)
+
+      (:advise embark-completing-read-prompter :around (fn &rest args)
+        (when-let ((win (get-buffer-window which-key--buffer 'visible)))
+          (quit-window 'kill-buffer win)
+          (let ((embark-indicators (delq #'embark-which-key-indicator
+                                         embark-indicators)))
+            (apply fn args))))
+      (:global "C-," embark-act)))
+
+  (setup (:pkg embark-consult)
+    (:load-after (embark consult)
+      (:with-mode embark-collect-mode
+        (:hook consult-preview-at-point-mode))))
+
+  (setup (:pkg orderless)
+    (setq completion-category-defaults nil)
+    (setq completion-category-overrides '((file (styles partial-completion))))
+    (setq completion-styles '(orderless)))
+
+  (setup (:pkg (vertico :files (:defaults "extensions/*")))
+    (:also-load vertico-repeat)
+    (setq vertico-count 15)
+    (setq vertico-resize t)
+    (vertico-mode 1)
+    (:with-hook minibuffer-setup-hook
+      (:hook vertico-repeat-save)))
+
 #+end_src
 
 ** Note Taking
@@ -1102,151 +1319,152 @@ Setup undo , whitespace, expand, indenataion and avy
 :END:
 #+BEGIN_SRC elisp :noweb-ref pkg-org
 
-    (defvar enfer/dir-notes
-      (file-name-as-directory (expand-file-name "~/org")))
+  (defvar enfer/dir-notes
+    (file-name-as-directory (expand-file-name "~/org")))
 
-    ;; Turn on indentation and auto-fill mode for Org files
-    (defun frap/org-mode-setup ()
-      (org-indent-mode)   ;; turn on org indent
-      (variable-pitch-mode 1) ;; turn on variable-pitch
-      (auto-fill-mode 0)   ;; turn off auto-fill
-      (visual-line-mode 1) ;; turn on visual-line-mode
-      )
+  ;; Turn on indentation and auto-fill mode for Org files
+  (defun frap/org-mode-setup ()
+    (org-indent-mode)   ;; turn on org indent
+    (variable-pitch-mode 1) ;; turn on variable-pitch
+    (auto-fill-mode 0)   ;; turn off auto-fill
+    (visual-line-mode 1) ;; turn on visual-line-mode
+    )
 
-    (setup (:pkg org)
-      (:also-load org-tempo)
-     ;; (:hook frap/org-mode-setup)
-      (:global "C-c a"   org-agenda)
-      (:bind "C-c c"  org-capture
-             "C-c l"   org-link)
-      (setq org-ellipsis " …"
-            org-directory enfer/dir-notes
-            ;;org-adapt-indentation nil ; don't indent things
-            org-capture-bookmark nil
-            org-cycle-separator-lines 2
-            org-catch-invisible-edits 'show-and-error;'smart ; let's try this
-            org-edit-src-content-indentation 2
-            org-export-coding-system 'utf-8-unix
-            org-export-headline-levels 8
-            org-export-with-section-numbers nil
-            org-export-with-smart-quotes t
-            org-export-with-sub-superscripts t
-            org-export-with-toc t
-            org-fontify-quote-and-verse-blocks t
-            org-fontify-whole-heading-line t
-            org-hide-block-startup nil
-            org-hide-emphasis-markers t
-            org-html-coding-system 'utf-8-unix
-            org-html-todo-kwd-class-prefix "keyword "
-            org-id-link-to-org-use-id 'create-if-interactive
-            org-id-locations-file (expand-file-name ".orgids" enfer/dir-notes)
-            org-outline-path-complete-in-steps nil
-            org-pretty-entities t
-            org-return-follows-link t
-            org-src-tab-acts-natively t
-            org-src-fontify-natively t
-            org-src-preserve-indentation nil
-            org-startup-folded 'content
-            org-startup-indented t ;; must have
-            org-startup-with-inline-images t
-            ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behavior in headings.
-            org-special-ctrl-a/e t
-            org-special-ctrl-k t)
+  (setup (:pkg org)
+    (:also-load org-tempo)
+   ;; (:hook frap/org-mode-setup)
+    (:global "C-c a"   org-agenda)
+    (:bind "C-c c"  org-capture
+           "C-c l"   org-store-link)
+    (setq org-ellipsis " …"
+          org-directory enfer/dir-notes
+          ;;org-adapt-indentation nil ; don't indent things
+          org-capture-bookmark nil
+          org-cycle-separator-lines 2
+          org-catch-invisible-edits 'show-and-error;'smart ; let's try this
+          org-edit-src-content-indentation 2
+          org-export-coding-system 'utf-8-unix
+          org-export-headline-levels 8
+          org-export-with-section-numbers nil
+          org-export-with-smart-quotes t
+          org-export-with-sub-superscripts t
+          org-export-with-toc t
+          org-fontify-quote-and-verse-blocks t
+          org-fontify-whole-heading-line t
+          org-hide-block-startup nil
+          org-hide-emphasis-markers t  ;;so dont see text markers aka bold italic
+          org-html-coding-system 'utf-8-unix
+          org-html-todo-kwd-class-prefix "keyword "
+          org-id-link-to-org-use-id 'create-if-interactive
+          org-id-locations-file (expand-file-name ".orgids" enfer/dir-notes)
+          org-image-actual-width '(300)
+          org-outline-path-complete-in-steps nil
+          org-pretty-entities t  ;; special symbols, latex
+          org-return-follows-link t
+          org-src-tab-acts-natively t
+          org-src-fontify-natively t
+          org-src-preserve-indentation nil
+          org-startup-folded 'content
+          org-startup-indented t ;; removed leading * for nicer view
+          org-startup-with-inline-images t
+          ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behavior in headings.
+          org-special-ctrl-a/e t
+          org-special-ctrl-k t)
 
-      (setq org-modules
-            '(org-crypt
-              org-habit
-              org-bookmark
-              org-eshell
-              ;;org-irc
-              ))
+    (setq org-modules
+          '(org-crypt
+            org-habit
+            org-bookmark
+            org-eshell
+            ;;org-irc
+            ))
 
-      (setq org-refile-targets '((nil :maxlevel . 3)
-                                 (org-agenda-files :maxlevel . 3))
-            org-refile-use-outline-path t)
+    (setq org-refile-targets '((nil :maxlevel . 3)
+                               (org-agenda-files :maxlevel . 3))
+          org-refile-use-outline-path t)
 
-      (org-babel-do-load-languages
-       'org-babel-load-languages
-       '((emacs-lisp . t)
-         (clojure . t)
-         (shell . t)
-         (python . t)
-         ;;(ledger . t)
-         ))
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (clojure . t)
+       (shell . t)
+       (python . t)
+       ;;(ledger . t)
+       ))
 
-      (with-no-warnings
-        (custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
-        (custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
-        (custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
-        (custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) ""))
+    (with-no-warnings
+      (custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+      (custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+      (custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
+      (custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) ""))
 
-      (setq org-todo-keywords
-            '((sequence
-               "TODO(t)"  ; A task that needs doing & is ready to do
-               "PROJ(p)"  ; A project, which usually contains other tasks
-               "SUIV(s)"  ; A task that is in progress
-               "ATTE(w)"  ; Something external is holding up this task
-               "SUSP(h)"  ; This task is paused/on hold because of me
-               "|"
-               "FINI(d)"  ; Task successfully completed
-               "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
-              (sequence
-               "[ ](T)"   ; A task that needs doing
-               "[-](S)"   ; Task is in progress
-               "[?](W)"   ; Task is being held up or paused
-               "|"
-               "[X](D)")  ; Task was completed
-              (sequence
-               "|"
-               "OKAY(o)"
-               "YES(y)"
-               "NO(n)"))
-            org-todo-keyword-faces
-            '(("[-]"   . +org-todo-active)
-              ("SUIV" . +org-todo-active)
-              ("[?]"  . +org-todo-onhold)
-              ("ATTE" . +org-todo-onhold)
-              ("SUSP" . +org-todo-onhold)
-              ("PROJ" . +org-todo-project)
-              ("NO"   . +org-todo-cancel)
-              ("KILL" . +org-todo-cancel)))
-      (setq org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕"))
-      (setq  org-capture-templates
-             '(("x" "Note" entry
-                (file+olp+datetree "journal.org")
-                "**** [ ] %U %?" :prepend t :kill-buffer t)
-               ("t" "Tâches" entry
-                (file+headline "todo.org" "Boîte de réception")
-                "* [ ] %?\n%i" :prepend t :kill-buffer t)))
-      ;;  (setq org-capture-templates
-      ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-      ;;          "* TODO %?")
-      ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
-      ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
-      ;;               :immediate-finish t)
-      ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-      ;;               "* TODO [[%:link][%:description]]\n\n %i"
-      ;;               :immediate-finish t)
-      ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
-      ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
-      ;;           ))
+    (setq org-todo-keywords
+          '((sequence
+             "TODO(t)"  ; A task that needs doing & is ready to do
+             "PROJ(p)"  ; A project, which usually contains other tasks
+             "SUIV(s)"  ; A task that is in progress
+             "ATTE(w)"  ; Something external is holding up this task
+             "SUSP(h)"  ; This task is paused/on hold because of me
+             "|"
+             "FINI(d)"  ; Task successfully completed
+             "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
+            (sequence
+             "[ ](T)"   ; A task that needs doing
+             "[-](S)"   ; Task is in progress
+             "[?](W)"   ; Task is being held up or paused
+             "|"
+             "[X](D)")  ; Task was completed
+            (sequence
+             "|"
+             "OKAY(o)"
+             "YES(y)"
+             "NO(n)"))
+          org-todo-keyword-faces
+          '(("[-]"   . +org-todo-active)
+            ("SUIV" . +org-todo-active)
+            ("[?]"  . +org-todo-onhold)
+            ("ATTE" . +org-todo-onhold)
+            ("SUSP" . +org-todo-onhold)
+            ("PROJ" . +org-todo-project)
+            ("NO"   . +org-todo-cancel)
+            ("KILL" . +org-todo-cancel)))
+    (setq org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕"))
+    (setq  org-capture-templates
+           '(("x" "Note" entry
+              (file+olp+datetree "journal.org")
+              "**** [ ] %U %?" :prepend t :kill-buffer t)
+             ("t" "Tâches" entry
+              (file+headline "todo.org" "Boîte de réception")
+              "* [ ] %?\n%i" :prepend t :kill-buffer t)))
+    ;;  (setq org-capture-templates
+    ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;          "* TODO %?")
+    ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
+    ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
+    ;;               :immediate-finish t)
+    ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;               "* TODO [[%:link][%:description]]\n\n %i"
+    ;;               :immediate-finish t)
+    ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
+    ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
+    ;;           ))
 
 
-      (push '("conf-unix" . conf-unix) org-src-lang-modes)
-      (:load-after hl-fill-column
-        (:hook (fn (auto-fill-mode 0)
-                   (hl-fill-column-mode 0)
-                   (visual-line-mode 1)
-                   (variable-pitch-mode 1)))))
-    ;;   (require 'org)
-    ;;   (add-to-list 'org-modules 'org-tempo)
-    ;;   (setq org-startup-folded nil
-    ;;         org-hide-emphasis-markers nil
-    ;;         org-edit-src-content-indentation 0
-    ;;         org-confirm-babel-evaluate nil
-    ;;         org-support-shift-select 'always)
+    (push '("conf-unix" . conf-unix) org-src-lang-modes)
+    (:load-after hl-fill-column
+      (:hook (fn (auto-fill-mode 0)
+                 (hl-fill-column-mode 0)
+                 (visual-line-mode 1)
+                 (variable-pitch-mode 1)))))
+  ;;   (require 'org)
+  ;;   (add-to-list 'org-modules 'org-tempo)
+  ;;   (setq org-startup-folded nil
+  ;;         org-hide-emphasis-markers nil
+  ;;         org-edit-src-content-indentation 0
+  ;;         org-confirm-babel-evaluate nil
+  ;;         org-support-shift-select 'always)
 
-    ;;   (add-hook 'org-mode-hook 'show-paren-mode)
+  ;;   (add-hook 'org-mode-hook 'show-paren-mode)
 
 #+END_SRC
 
@@ -1271,6 +1489,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
      (setup (:pkg org-superstar)
        (:load-after org
          (:option org-superstar-remove-leading-stars t
+                  org-superstar-special-todo-items t
                   org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●"))
          (:hook-into org-mode)))
 
@@ -1544,7 +1763,7 @@ different formats
         "* %?"
         :if-new (file+head ,dw/daily-note-filename
                            ,dw/daily-note-header))
-       ("t" "task" entry
+       ("t" "tâche" entry
         "* TODO %?\n  %U\n  %a\n  %i"
         :if-new (file+head+olp ,dw/daily-note-filename
                                ,dw/daily-note-header
@@ -1577,6 +1796,27 @@ different formats
 
 #+end_src
 
+*** Distraction Free
+setup olivetti to have a distraction free editing mode
+#+begin_src emacs-lisp
+  ;; Distraction-free screen
+    (setup (:pkg olivetti)
+      (setq olivetti-body-width .67)
+      (defun distraction-free ()
+        "Distraction-free writing environment"
+        (interactive)
+        (if (equal olivetti-mode nil)
+            (progn
+              (window-configuration-to-register 1)
+              (delete-other-windows)
+              (text-scale-increase 2)
+              (olivetti-mode t))
+          (progn
+            (jump-to-register 1)
+            (olivetti-mode 0)
+            (text-scale-decrease 2))))
+      (:bind "<f9>"  #'distraction-free))
+#+end_src
 *** angle-bracket-hack
 #+begin_src elisp
 (defun my-angle-bracket-fix ()
@@ -2154,157 +2394,132 @@ Setup Emacs builtins
 *** Contents enfer-pkg-builtin
 
 #+begin_src emacs-lisp
-      ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
-      <<disclaimer>>
-      ;;; Code:
+        ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
+        <<disclaimer>>
+        ;;; Code:
 
-     (setup auto-fill
-      (:with-feature simple
-        (:with-mode (text-mode org-mode)
-          (:hook turn-on-auto-fill))
+       (setup auto-fill
+        (:with-feature simple
+          (:with-mode (text-mode org-mode)
+            (:hook turn-on-auto-fill))
+          (:with-mode prog-mode
+            (:hook (fn (setq-local comment-auto-fill-only-comments t)
+                       (auto-fill-mode 1))))
+          (:hide-mode auto-fill-function)))
+
+      (setup (:require autorevert)
+        (setq auto-revert-check-vc-info t)
+        (setq auto-revert-remote-files t)
+        (setq global-auto-revert-non-file-buffers t)
+        (setq auto-revert-verbose nil)
+        (global-auto-revert-mode 1)
+        (:hide-mode auto-revert))
+
+      (setup comint
+        (setq ansi-color-for-comint-mode t)
+        (setq comint-buffer-maximum-size 4096)
+        (setq comint-prompt-read-only t))
+
+      (setup compile
+        (setq compilation-always-kill t)
+        (setq compilation-ask-about-save nil)
+        (setq compilation-scroll-output 'first-error))
+
+      (setup dired
+        (:also-load dired-x)
+        (:pkg dired-collapse
+              dired-git-info
+              dired-single
+              dired-subtree
+              diredfl)
+        (:with-map dired-mode-map
+          (:bind
+           [tab] dired-subtree-cycle
+           "i" dired-subtree-toggle
+           "q" quit-window))
+        (:hook dired-collapse-mode)
+        (setq dired-recursive-copies 'top)
+        (setq dired-recursive-deletes 'top)
+        (diredfl-global-mode 1))
+
+      (setup (:require eldoc)
+        (setq eldoc-echo-area-use-multiline-p nil)
+        (setq eldoc-idle-delay 0.1)
         (:with-mode prog-mode
-          (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                     (auto-fill-mode 1))))
-        (:hide-mode auto-fill-function)))
+          (:hook turn-on-eldoc-mode))
+        (:hide-mode))
 
-    (setup (:require autorevert)
-      (setq auto-revert-check-vc-info t)
-      (setq auto-revert-remote-files t)
-      (setq global-auto-revert-non-file-buffers t)
-      (setq auto-revert-verbose nil)
-      (global-auto-revert-mode 1)
-      (:hide-mode auto-revert))
+      (setup (:require elec-pair)
+        (electric-pair-mode 1))
 
-    (setup comint
-      (setq ansi-color-for-comint-mode t)
-      (setq comint-buffer-maximum-size 4096)
-      (setq comint-prompt-read-only t))
+      (setup executable
+        (setq executable-prefix-env t)
+        (:with-hook after-save-hook
+          (:hook executable-make-buffer-file-executable-if-script-p)))
 
-    (setup compile
-      (setq compilation-always-kill t)
-      (setq compilation-ask-about-save nil)
-      (setq compilation-scroll-output 'first-error))
+      (setup (:require goto-addr)
+        (:with-mode prog-mode
+          (:hook goto-address-prog-mode))
+        (:with-mode text-mode
+          (:hook goto-address-mode)))
 
-    (setup (:require delsel)
-      (delete-selection-mode 1))
+      (setup (:require help-mode)
+        (setq help-window-select t))
 
-    (setup dired
-      (:also-load dired-x)
-      (:pkg dired-collapse
-            dired-git-info
-            dired-single
-            dired-subtree
-            diredfl)
-      (:with-map dired-mode-map
-        (:bind
-         [tab] dired-subtree-cycle
-         "i" dired-subtree-toggle
-         "q" quit-window))
-      (:hook dired-collapse-mode)
-      (setq dired-recursive-copies 'top)
-      (setq dired-recursive-deletes 'top)
-      (diredfl-global-mode 1))
+      (setup (:require recentf)
+        (setq recentf-auto-cleanup 'mode)
+        (setq recentf-exclude `(,#'enfer/cache-dir-p
+                                "^/tmp/"
+                                "COMMIT_EDITMSG$"
+                                ".gz$"))
+        (setq recentf-filename-handlers '(abbreviate-file-name))
+        (setq recentf-max-menu-items 100)
+        (setq recentf-max-saved-items nil)
+        (recentf-mode 1)
+        (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
+        (:with-hook kill-emacs-hook
+          (:hook recentf-cleanup recentf-save-list)))
 
-    (setup (:require eldoc)
-      (setq eldoc-echo-area-use-multiline-p nil)
-      (setq eldoc-idle-delay 0.1)
-      (:with-mode prog-mode
-        (:hook turn-on-eldoc-mode))
-      (:hide-mode))
+      (setup (:require savehist)
+        (setq history-delete-duplicates t)
+        (setq history-length t)
+        (setq savehist-additional-variables
+              '(extended-command-history
+                global-mark-ring
+                kill-ring
+                mark-ring
+                regexp-search-ring
+                search-ring))
+        (setq savehist-autosave-interval 60)
+        (setq savehist-file (enfer/etc-file "history"))
+        (setq savehist-save-minibuffer-history t)
+        (savehist-mode 1))
 
-    (setup (:require elec-pair)
-      (electric-pair-mode 1))
+      (setup (:require saveplace)
+        (setq save-place-file (enfer/etc-file "places"))
+        (setq save-place-forget-unreadable-files nil)
+        (save-place-mode 1))
 
-    (setup executable
-      (setq executable-prefix-env t)
-      (:with-hook after-save-hook
-        (:hook executable-make-buffer-file-executable-if-script-p)))
+      (setup (:require server)
+        (unless (server-running-p)
+          (server-start)))
 
-  (setup ispell
-    :if (not (bound-and-true-p disable-pkg-ispell))
-    :defer 15
-    :config
-    (progn
-      (cond
-       ((executable-find "aspell")
-        (setq ispell-program-name "aspell")
-        (setq ispell-extra-args   '("--sug-mode=ultra"
-                                    "--lang=en_NZ")))
-       ((executable-find "hunspell")
-        (setq ispell-program-name "hunspell")
-        (setq ispell-extra-args   '("-d en_NZ"))))
+      (setup (:require subword)
+        (global-subword-mode 1)
+        (:hide-mode))
 
-      ;; Save a new word to personal dictionary without asking
-      (setq ispell-silently-savep t)))
+      (setup (:require uniquify)
+        (setq uniquify-after-kill-buffer-p t)
+        (setq uniquify-buffer-name-style 'forward))
 
-    (setup flyspell
-      (:hook-into text-mode-hook)
-      (:when-loaded
-        (:hide-mode)))
+      (setup (:require url)
+        (setq url-cookie-file (enfer/etc-file "url-cookies")))
 
-    (setup (:require goto-addr)
-      (:with-mode prog-mode
-        (:hook goto-address-prog-mode))
-      (:with-mode text-mode
-        (:hook goto-address-mode)))
+      (setup (:require visual-line-mode)
+        (:hide-mode))
 
-    (setup (:require help-mode)
-      (setq help-window-select t))
-
-    (setup (:require recentf)
-      (setq recentf-auto-cleanup 'mode)
-      (setq recentf-exclude `(,#'enfer/cache-dir-p
-                              "^/tmp/"
-                              "COMMIT_EDITMSG$"
-                              ".gz$"))
-      (setq recentf-filename-handlers '(abbreviate-file-name))
-      (setq recentf-max-menu-items 100)
-      (setq recentf-max-saved-items nil)
-      (recentf-mode 1)
-      (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
-      (:with-hook kill-emacs-hook
-        (:hook recentf-cleanup recentf-save-list)))
-
-    (setup (:require savehist)
-      (setq history-delete-duplicates t)
-      (setq history-length t)
-      (setq savehist-additional-variables
-            '(extended-command-history
-              global-mark-ring
-              kill-ring
-              mark-ring
-              regexp-search-ring
-              search-ring))
-      (setq savehist-autosave-interval 60)
-      (setq savehist-file (enfer/etc-file "history"))
-      (setq savehist-save-minibuffer-history t)
-      (savehist-mode 1))
-
-    (setup (:require saveplace)
-      (setq save-place-file (enfer/etc-file "places"))
-      (setq save-place-forget-unreadable-files nil)
-      (save-place-mode 1))
-
-    (setup (:require server)
-      (unless (server-running-p)
-        (server-start)))
-
-    (setup (:require subword)
-      (global-subword-mode 1)
-      (:hide-mode))
-
-    (setup (:require uniquify)
-      (setq uniquify-after-kill-buffer-p t)
-      (setq uniquify-buffer-name-style 'forward))
-
-    (setup (:require url)
-      (setq url-cookie-file (enfer/etc-file "url-cookies")))
-
-    (setup (:require visual-line-mode)
-      (:hide-mode))
-
-      (provide 'enfer-pkg-builtin)
-       ;;; enfer-pkg-builtin.el ends here
+        (provide 'enfer-pkg-builtin)
+         ;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Utility package
 :PROPERTIES:
