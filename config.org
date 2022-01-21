@@ -134,24 +134,24 @@ setting dome default settings on early-init
 :END:
 Need to setup some constants and try to keep state in a "clean" directory structure
 #+begin_src emacs-lisp
-;; For the rest of the Emacs configuration, set this directory to something
-;; inside the standard cache directory, so we do not pollute our emacs.d
-;; directory with files that we would then have to ignore with Git.
-(setq user-emacs-directory
-      (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/")))
+  ;; For the rest of the Emacs configuration, set this directory to something
+  ;; inside the standard cache directory, so we do not pollute our emacs.d
+  ;; directory with files that we would then have to ignore with Git.
+  (setq user-emacs-directory
+	(expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/")))
 
-;; Add our custom lisp modules to the Emacs load path so they can be discovered.
-(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+  ;; Add our custom lisp modules to the Emacs load path so they can be discovered.
+  (push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
 
-;; For the list of native compilation ELN cache directories, delete all but the
-;; last element, which is always assumed to be the system path, and then cons a
-;; new path in our cache directory to the front. This effectively removes the
-;; entry for the original ~/.emacs.d/eln-cache/ and any others that are
-;; unwanted.
-(setq native-comp-eln-load-path
-      (cons (expand-file-name "eln-cache/" user-emacs-directory)
-            (last native-comp-eln-load-path)))
-
+  ;; For the list of native compilation ELN cache directories, delete all but the
+  ;; last element, which is always assumed to be the system path, and then cons a
+  ;; new path in our cache directory to the front. This effectively removes the
+  ;; entry for the original ~/.emacs.d/eln-cache/ and any others that are
+  ;; unwanted.
+  (if (fboundp 'native-comp-available-p)
+       (setq native-comp-eln-load-path
+	(cons (expand-file-name "eln-cache/" user-emacs-directory)
+	      (last native-comp-eln-load-path))))
 
 #+end_src
 
@@ -194,6 +194,7 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 :END:
 Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage packages as alternative to use-package
 #+begin_src emacs-lisp
+  (require 'subr-x)
   (straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
   (require 'setup)
 
@@ -275,7 +276,7 @@ package.  This macro is not repeatable."
        (let ((body `(progn
                       (require ',(setup-get 'feature))
                       ,@body)))
-         (dolist (feature (nreverse (ensure-list features)))
+         (dolist (feature (nreverse (doom-enlist features)))
            (setq body `(with-eval-after-load ',feature ,body)))
          body))
 
@@ -391,52 +392,184 @@ Some constants that I use.
 (defconst IS-TERMUX
   (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
 #+end_src
-time to load hook
-#+begin_src emacs-lisp :noweb-ref sanity
-  ;; Profile emacs startup
-    (add-hook 'emacs-startup-hook
-              (lambda ()
-                (message "*** Emacs chargé en %s secondes avec %d ramasse-miettes."
-                         (emacs-init-time "%.2f")
-                         gcs-done)))
-#+end_src
+
 * Emacs Packages
 ** Utility Functions & macros
 
-These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-util.el][mifano]]
+These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-util.el][mifano]] and doom
 
 *** Macros
 :PROPERTIES:
 :header-args: :noweb-ref macros
 :END:
 #+begin_src emacs-lisp
+    (require 'cl-lib)
 
-  (defmacro fn (&rest body)
-    `(lambda () ,@body))
+    (defmacro letenv! (envvars &rest body)
+    "Lexically bind ENVVARS in BODY, like `let' but for `process-environment'."
+    (declare (indent 1))
+    `(let ((process-environment (copy-sequence process-environment)))
+       (dolist (var (list ,@(cl-loop for (var val) in envvars
+                                     collect `(cons ,var ,val))))
+         (setenv (car var) (cdr var)))
+       ,@body))
 
-  (defmacro fn! (&rest body)
-    `(lambda () (interactive) ,@body))
+  (defmacro letf! (bindings &rest body)
+    "Temporarily rebind function, macros, and advice in BODY.
 
-  (defmacro quiet! (&rest forms)
-  `(cond
-    (noninteractive
-     (let ((old-fn (symbol-function 'write-region)))
-       (cl-letf ((standard-output (lambda (&rest _)))
-                 ((symbol-function 'load-file)
-                  (lambda (file) (load file nil t)))
-                 ((symbol-function 'message) (lambda (&rest _)))
-                 ((symbol-function 'write-region)
-                  (lambda (start end filename &optional append visit lockname
-                                 mustbenew)
-                    (unless visit (setq visit 'no-message))
-                    (funcall old-fn start end filename append visit lockname
-                             mustbenew))))
-         ,@forms)))
-    ((or debug-on-error debug-on-quit)
-     ,@forms)
-    ((let ((inhibit-message t)
-           (save-silently t))
-       (prog1 ,@forms (message ""))))))
+  Intended as syntax sugar for `cl-letf', `cl-labels', `cl-macrolet', and
+  temporary advice.
+
+  BINDINGS is either:
+
+    A list of, or a single, `defun', `defun*', `defmacro', or `defadvice' forms.
+    A list of (PLACE VALUE) bindings as `cl-letf*' would accept.
+
+  TYPE is one of:
+
+    `defun' (uses `cl-letf')
+    `defun*' (uses `cl-labels'; allows recursive references),
+    `defmacro' (uses `cl-macrolet')
+    `defadvice' (uses `defadvice!' before BODY, then `undefadvice!' after)
+
+  NAME, ARGLIST, and BODY are the same as `defun', `defun*', `defmacro', and
+  `defadvice!', respectively.
+
+  \(fn ((TYPE NAME ARGLIST &rest BODY) ...) BODY...)"
+    (declare (indent defun))
+    (setq body (macroexp-progn body))
+    (when (memq (car bindings) '(defun defun* defmacro defadvice))
+      (setq bindings (list bindings)))
+    (dolist (binding (reverse bindings) body)
+      (let ((type (car binding))
+            (rest (cdr binding)))
+        (setq
+         body (pcase type
+                (`defmacro `(cl-macrolet ((,@rest)) ,body))
+                (`defadvice `(progn (defadvice! ,@rest)
+                                    (unwind-protect ,body (undefadvice! ,@rest))))
+                ((or `defun `defun*)
+                 `(cl-letf ((,(car rest) (symbol-function #',(car rest))))
+                    (ignore ,(car rest))
+                    ,(if (eq type 'defun*)
+                         `(cl-labels ((,@rest)) ,body)
+                       `(cl-letf (((symbol-function #',(car rest))
+                                   (fn! ,(cadr rest) ,@(cddr rest))))
+                          ,body))))
+                (_
+                 (when (eq (car-safe type) 'function)
+                   (setq type (list 'symbol-function type)))
+                 (list 'cl-letf (list (cons type rest)) body)))))))
+
+      (defmacro fn (&rest body)
+        `(lambda () ,@body))
+
+      (defmacro fn! (&rest body)
+        `(lambda () (interactive) ,@body))
+
+        ;;; Closure factories
+      (defmacro fn!! (arglist &rest body)
+        "Returns (cl-function (lambda ARGLIST BODY...))
+      The closure is wrapped in `cl-function', meaning ARGLIST will accept anything
+      `cl-defun' will. Implicitly adds `&allow-other-keys' if `&key' is present in
+      ARGLIST."
+        (declare (indent defun) (doc-string 1) (pure t) (side-effect-free t))
+        `(cl-function
+          (lambda
+            ,(letf! (defun* allow-other-keys (args)
+                      (mapcar
+                       (lambda (arg)
+                         (cond ((nlistp (cdr-safe arg)) arg)
+                               ((listp arg) (allow-other-keys arg))
+                               (arg)))
+                       (if (and (memq '&key args)
+                                (not (memq '&allow-other-keys args)))
+                           (if (memq '&aux args)
+                               (let (newargs arg)
+                                 (while args
+                                   (setq arg (pop args))
+                                   (when (eq arg '&aux)
+                                     (push '&allow-other-keys newargs))
+                                   (push arg newargs))
+                                 (nreverse newargs))
+                             (append args (list '&allow-other-keys)))
+                         args)))
+                    (allow-other-keys arglist))
+            ,@body)))
+
+      (defmacro cmd! (&rest body)
+        "Returns (lambda () (interactive) ,@body)
+      A factory for quickly producing interaction commands, particularly for keybinds
+      or aliases."
+        (declare (doc-string 1) (pure t) (side-effect-free t))
+        `(lambda (&rest _) (interactive) ,@body))
+
+      (defmacro quiet! (&rest forms)
+        `(cond
+          (noninteractive
+           (let ((old-fn (symbol-function 'write-region)))
+             (cl-letf ((standard-output (lambda (&rest _)))
+                       ((symbol-function 'load-file)
+                        (lambda (file) (load file nil t)))
+                       ((symbol-function 'message) (lambda (&rest _)))
+                       ((symbol-function 'write-region)
+                        (lambda (start end filename &optional append visit lockname
+                                       mustbenew)
+                          (unless visit (setq visit 'no-message))
+                          (funcall old-fn start end filename append visit lockname
+                                   mustbenew))))
+               ,@forms)))
+          ((or debug-on-error debug-on-quit)
+           ,@forms)
+          ((let ((inhibit-message t)
+                 (save-silently t))
+             (prog1 ,@forms (message ""))))))
+
+    ;;; Mutation
+    (defmacro appendq! (sym &rest lists)
+      "Append LISTS to SYM in place."
+      `(setq ,sym (append ,sym ,@lists)))
+
+    (defmacro setq! (&rest settings)
+      "A stripped-down `customize-set-variable' with the syntax of `setq'.
+
+    This can be used as a drop-in replacement for `setq'. Particularly when you know
+    a variable has a custom setter (a :set property in its `defcustom' declaration).
+    This triggers setters. `setq' does not."
+      (macroexp-progn
+       (cl-loop for (var val) on settings by 'cddr
+                collect `(funcall (or (get ',var 'custom-set) #'set)
+                                  ',var ,val))))
+
+    (defmacro delq! (elt list &optional fetcher)
+      "`delq' ELT from LIST in-place.
+
+    If FETCHER is a function, ELT is used as the key in LIST (an alist)."
+      `(setq ,list
+             (delq ,(if fetcher
+                        `(funcall ,fetcher ,elt ,list)
+                      elt)
+                   ,list)))
+
+    (defmacro pushnew! (place &rest values)
+      "Push VALUES sequentially into PLACE, if they aren't already present.
+    This is a variadic `cl-pushnew'."
+      (let ((var (make-symbol "result")))
+        `(dolist (,var (list ,@values) (with-no-warnings ,place))
+           (cl-pushnew ,var ,place :test #'equal))))
+
+    (defmacro prependq! (sym &rest lists)
+      "Prepend LISTS to SYM in place."
+      `(setq ,sym (append ,@lists ,sym)))
+
+    ;;; Loading
+    (defmacro add-load-path! (&rest dirs)
+      "Add DIRS to `load-path', relative to the current file.
+    The current file is the file from which `add-to-load-path!' is used."
+      `(let ((default-directory ,(dir!))
+             file-name-handler-alist)
+         (dolist (dir (list ,@dirs))
+           (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
 
  #+end_src
 *** Variables
@@ -457,10 +590,10 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 :header-args: :noweb-ref functions
 :END:
 #+begin_src emacs-lisp
- (defun enfer/show-startup-time ()
-      (message "Heure de démarrage d'Emacs: %.2fs (%d GCs)"
-               (float-time (time-subtract after-init-time before-init-time))
-               gcs-done))
+  (defun enfer/show-startup-time ()
+    (message "Heure de démarrage d'Emacs: %.2fs (%d GCs (ramasse-miettes))"
+             (float-time (time-subtract after-init-time before-init-time))
+             gcs-done))
 
   (defun enfer/etc-file (file-name)
     (expand-file-name (format "etc/%s" file-name) user-emacs-directory))
@@ -468,57 +601,125 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
   (defun enfer/cache-dir-p (path)
     (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
 
-   (defun mf/smarter-move-beginning-of-line (arg)
-      (interactive "^p")
-      (setq arg (or arg 1))
-      (when (/= arg 1)
-        (let ((line-move-visual nil))
-          (forward-line (1- arg))))
-      (let ((orig-point (point)))
-        (back-to-indentation)
-        (when (= orig-point (point))
-          (move-beginning-of-line 1))))
+  (defun mf/smarter-move-beginning-of-line (arg)
+    (interactive "^p")
+    (setq arg (or arg 1))
+    (when (/= arg 1)
+      (let ((line-move-visual nil))
+        (forward-line (1- arg))))
+    (let ((orig-point (point)))
+      (back-to-indentation)
+      (when (= orig-point (point))
+        (move-beginning-of-line 1))))
 
-    (defun mf/yank-primary-selection ()
-      (interactive)
-      (let ((primary (or (gui-get-primary-selection) (gui-get-selection))))
-        (when primary
-          (push-mark (point))
-          (insert-for-yank primary))))
+  (defun mf/yank-primary-selection ()
+    (interactive)
+    (let ((primary (or (gui-get-primary-selection) (gui-get-selection))))
+      (when primary
+        (push-mark (point))
+        (insert-for-yank primary))))
 
-    (defun mf/delete-file (filename)
-      (interactive "f")
-      (when (and filename (file-exists-p filename))
-        (let ((buffer (find-buffer-visiting filename)))
-          (when buffer
-            (kill-buffer buffer)))
-        (delete-file filename)))
+  (defun mf/delete-file (filename)
+    (interactive "f")
+    (when (and filename (file-exists-p filename))
+      (let ((buffer (find-buffer-visiting filename)))
+        (when buffer
+          (kill-buffer buffer)))
+      (delete-file filename)))
 
-    (defun mf/rename-file ()
-      (interactive)
-      (let ((name (buffer-name))
-            (filename (buffer-file-name)))
-        (if (not (and filename (file-exists-p filename)))
-            (error "Buffer '%s' n'a ​​pas de fichier associé!" name)
-          (let* ((dir (file-name-directory filename))
-                 (new-name (read-file-name "Nouveau nom de fichier: " dir)))
-            (cond ((get-buffer new-name)
-                   (error "Un Buffer nommé '%s' existe déjà!" new-name))
-                  (t
-                   (let ((dir (file-name-directory new-name)))
-                     (when (and (not (file-exists-p dir))
-                                (yes-or-no-p (format "Créer le répertoire '%s'?"
-                                                     dir)))
-                       (make-directory dir t)))
-                   (rename-file filename new-name 1)
-                   (rename-buffer new-name)
-                   (set-visited-file-name new-name)
-                   (set-buffer-modified-p nil)
-                   (when (fboundp 'recentf-add-file)
-                     (recentf-add-file new-name)
-                     (recentf-remove-if-non-kept filename))
-                   (message "Fichier '%s' renommé avec succès en '%s'" name
-                            (file-name-nondirectory new-name))))))))
+  (defun mf/rename-file ()
+    (interactive)
+    (let ((name (buffer-name))
+          (filename (buffer-file-name)))
+      (if (not (and filename (file-exists-p filename)))
+          (error "Buffer '%s' n'a ​​pas de fichier associé!" name)
+        (let* ((dir (file-name-directory filename))
+               (new-name (read-file-name "Nouveau nom de fichier: " dir)))
+          (cond ((get-buffer new-name)
+                 (error "Un Buffer nommé '%s' existe déjà!" new-name))
+                (t
+                 (let ((dir (file-name-directory new-name)))
+                   (when (and (not (file-exists-p dir))
+                              (yes-or-no-p (format "Créer le répertoire '%s'?"
+                                                   dir)))
+                     (make-directory dir t)))
+                 (rename-file filename new-name 1)
+                 (rename-buffer new-name)
+                 (set-visited-file-name new-name)
+                 (set-buffer-modified-p nil)
+                 (when (fboundp 'recentf-add-file)
+                   (recentf-add-file new-name)
+                   (recentf-remove-if-non-kept filename))
+                 (message "Fichier '%s' renommé avec succès en '%s'" name
+                          (file-name-nondirectory new-name))))))))
+
+  (defun doom-unquote (exp)
+    "Return EXP unquoted."
+    (declare (pure t) (side-effect-free t))
+    (while (memq (car-safe exp) '(quote function))
+      (setq exp (cadr exp)))
+    exp)
+
+  (defun doom-enlist (exp)
+    "Return EXP wrapped in a list, or as-is if already a list."
+    (declare (pure t) (side-effect-free t))
+    (if (proper-list-p exp) exp (list exp)))
+
+  (defun doom-keyword-intern (str)
+    "Converts STR (a string) into a keyword (`keywordp')."
+    (declare (pure t) (side-effect-free t))
+    (cl-check-type str string)
+    (intern (concat ":" str)))
+
+  (defun doom-keyword-name (keyword)
+    "Returns the string name of KEYWORD (`keywordp') minus the leading colon."
+    (declare (pure t) (side-effect-free t))
+    (cl-check-type keyword keyword)
+    (substring (symbol-name keyword) 1))
+
+
+  (defun doom-load-envvars-file (file &optional noerror)
+    "Read and set envvars from FILE.
+  If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
+  unreadable. Returns the names of envvars that were changed."
+    (if (null (file-exists-p file))
+        (unless noerror
+          (signal 'file-error (list "No envvar file exists" file)))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (when-let (env (read (current-buffer)))
+          (let ((tz (getenv-internal "TZ")))
+            (setq-default
+             process-environment
+             (append env (default-value 'process-environment))
+             exec-path
+             (append (split-string (getenv "PATH") path-separator t)
+                     (list exec-directory))
+             shell-file-name
+             (or (getenv "SHELL")
+                 (default-value 'shell-file-name)))
+            (when-let (newtz (getenv-internal "TZ"))
+              (unless (equal tz newtz)
+                (set-time-zone-rule newtz))))
+          env))))
+
+;;
+;;; Sugars
+
+(defun dir! ()
+  "Returns the directory of the emacs lisp file this macro is called from."
+  (when-let (path (file!))
+    (directory-file-name (file-name-directory path))))
+
+(defun file! ()
+  "Return the emacs lisp file this macro is called from."
+  (cond ((bound-and-true-p byte-compile-current-file))
+        (load-file-name)
+        ((stringp (car-safe current-load-list))
+         (car current-load-list))
+        (buffer-file-name)
+        ((error "Cannot get this file-path"))))
+
 #+end_src
 ** Setup if exists Executable
 ripgrep and gist
@@ -605,8 +806,7 @@ On Linux, I have a custom build of Iosevka that I like.
     (unicode-fonts-setup))
 
   (setup (:pkg mixed-pitch)
-    (:with-mode mixed-pitch-mode
-      (:hook-into text-mode))
+      (:hook-into text-mode)
 
   ;; Set the font face based on platform
   (pcase system-type
@@ -1929,9 +2129,9 @@ setup olivetti to have a distraction free editing mode
 
 ** Coding Settings
 I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP setup
-*** LISP
+*** LISP Paren Setup
 Setup smartparens and rainbow delimiters
-#+begin_src emacs-lisp :noweb-ref code-lisp
+#+begin_src emacs-lisp :noweb-ref code-paren
   (setup (:pkg rainbow-delimiters)
     (setq rainbow-delimiters-max-face-count 2)
     (:hook-into emacs-lisp-mode-hook
@@ -1946,10 +2146,17 @@ Setup smartparens and rainbow delimiters
   (setup (:pkg smartparens)
   (:require smartparens)
   (setq sp-cancel-autoskip-on-backward-movement nil)
+  ;; Overlays are too distracting and not terribly helpful. show-parens does
+  ;; this for us already (and is faster), so...
   (setq sp-highlight-pair-overlay nil)
   (setq sp-highlight-wrap-overlay nil)
   (setq sp-highlight-wrap-tag-overlay nil)
+  ;; No pair has any business being longer than 4 characters; if they must, set
+  ;; it buffer-locally. It's less work for smartparens.
   (setq sp-max-pair-length 2)
+  ;; The default is 100, because smartparen's scans are relatively expensive
+  ;; (especially with large pair lists for some modes), we reduce it, as a
+  ;; better compromise between performance and accuracy.
   (setq sp-max-prefix-length 32)
   (setq sp-message-width nil)
   (setq sp-navigate-consider-sgml-tags nil)
@@ -1958,6 +2165,58 @@ Setup smartparens and rainbow delimiters
   (sp-pair "'" nil :actions :rem)
   (sp-pair "`" nil :actions :rem)
   (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
+
+  ;; Define a hydra
+  (defhydra hydra-smartparens (:idle 1 :hint nil)
+    "
+  Sexps (quit with _q_)
+
+  ^Nav^            ^Barf/Slurp^          ^Depth^
+  ^---^------------^----------^----------^-----^-----------------------
+  _f_: forward     _s_:  slurp forward   _R_:      splice
+  _b_: backward    _S_:  barf forward    _r_:      raise
+  _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
+  _e_: end         _D_:  barf backward   _<down>_: raise forward
+  _m_: mark
+
+  ^Kill^           ^Misc^                       ^Wrap^
+  ^----^-----------^----^-----------------------^----^------------------
+  _w_: copy        _j_: join                    _(_: wrap with ( )
+  _k_: kill        _s_: split                   _{_: wrap with { }
+  ^^               _t_: transpose               _'_: wrap with ' '
+  ^^               _c_: convolute               _\"_: wrap with \" \"
+  ^^               _i_: indent defun"
+    ("q" nil)
+    ;; Wrapping
+    ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
+    ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
+    ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
+    ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
+    ;; Navigation
+    ("f" sp-beginning-of-next-sexp)
+    ("b" sp-beginning-of-previous-sexp)
+    ("a" sp-beginning-of-sexp)
+    ("e" sp-end-of-sexp)
+    ("m" sp-mark-sexp)
+    ;; Kill/copy
+    ("w" sp-copy-sexp :exit t)
+    ("k" sp-kill-sexp :exit t)
+    ;; Misc
+    ("t" sp-transpose-sexp)
+    ("j" sp-join-sexp)
+    ("c" sp-convolute-sexp)
+    ("i" sp-indent-defun)
+    ;; Depth changing
+    ("R" sp-splice-sexp)
+    ("r" sp-splice-sexp-killing-around)
+    ("<up>" sp-splice-sexp-killing-backward)
+    ("<down>" sp-splice-sexp-killing-forward)
+    ;; Barfing/slurping
+    ("s" sp-forward-slurp-sexp)
+    ("S" sp-forward-barf-sexp)
+    ("D" sp-backward-barf-sexp)
+    ("d" sp-backward-slurp-sexp))
+
   (:with-hook (emacs-lisp-mode-hook
                eval-expression-minibuffer-setup-hook
                ielm-mode-hook
@@ -2035,7 +2294,7 @@ Cider has a lot of options to customise, and here are the ones I think are most 
 Source comes from: [[https://stackoverflow.com/a/31080940]]
 #+BEGIN_SRC elisp :noweb-ref code-clojure
 
-   (setup (:pkg cider)
+(setup (:pkg cider)
      (:when-loaded
        (setq nrepl-hide-special-buffers t
              cider-repl-clear-help-banner t
@@ -2313,78 +2572,78 @@ File for my constants, macros and functions
 *** Contents enfer-emacs-sanity
 
 #+begin_src emacs-lisp
-          ;;; enfer-emacs-sanity.el -*- lexical-binding: t -*-
-          <<disclaimer>>
-          ;;; Code:
+  ;;; enfer-emacs-sanity.el -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
 
-       (setup files
-         (setq auto-mode-case-fold nil)
-         (setq auto-save-default nil)
-         (setq auto-save-list-file-prefix nil)
-         (setq backup-inhibited t)
-         (setq create-lockfiles nil)
-         (setq delete-by-moving-to-trash nil)
-         (setq find-file-suppress-same-file-warnings t)
-         (setq find-file-visit-truename t)
-         (setq load-prefer-newer t)
-         (setq make-backup-files nil)
-         (setq require-final-newline t)
-         (setq vc-follow-symlinks t))
+  (setup files
+    (setq auto-mode-case-fold nil)
+    (setq auto-save-default nil)
+    (setq auto-save-list-file-prefix nil)
+    (setq backup-inhibited t)
+    (setq create-lockfiles nil)
+    (setq delete-by-moving-to-trash nil)
+    (setq find-file-suppress-same-file-warnings t)
+    (setq find-file-visit-truename t)
+    (setq load-prefer-newer t)
+    (setq make-backup-files nil)
+    (setq require-final-newline t)
+    (setq vc-follow-symlinks t))
 
-       (setup mouse
-         (setq focus-follows-mouse t)
-         (setq make-pointer-invisible t)
-         (setq mouse-1-click-follows-link t)
-         (setq mouse-autoselect-window t)
-         (setq mouse-wheel-follow-mouse t)
-         (setq mouse-wheel-progressive-speed nil)
-         (setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-         (setq mouse-wheel-scroll-amount-horizontal 2)
-         (setq mouse-yank-at-point t))
+  (setup mouse
+    (setq focus-follows-mouse t)
+    (setq make-pointer-invisible t)
+    (setq mouse-1-click-follows-link t)
+    (setq mouse-autoselect-window t)
+    (setq mouse-wheel-follow-mouse t)
+    (setq mouse-wheel-progressive-speed nil)
+    (setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+    (setq mouse-wheel-scroll-amount-horizontal 2)
+    (setq mouse-yank-at-point t))
 
-       (setup scrolling
-         (setq auto-hscroll-mode 'current-line)
-         (setq auto-window-vscroll nil)
-         (setq fast-but-imprecise-scrolling t)
-         (setq hscroll-margin 16)
-         (setq hscroll-step 1)
-         (setq scroll-conservatively 101)
-         (setq scroll-margin 8)
-         (setq scroll-preserve-screen-position t)
-         (setq scroll-step 1))
+  (setup scrolling
+    (setq auto-hscroll-mode 'current-line)
+    (setq auto-window-vscroll nil)
+    (setq fast-but-imprecise-scrolling t)
+    (setq hscroll-margin 16)
+    (setq hscroll-step 1)
+    (setq scroll-conservatively 101)
+    (setq scroll-margin 8)
+    (setq scroll-preserve-screen-position t)
+    (setq scroll-step 1))
 
-       (setup selection
-         (setq kill-do-not-save-duplicates t)
-         (setq select-enable-clipboard t)
-         (setq select-enable-primary t)
-         (setq x-select-enable-clipboard-manager nil))
+  (setup selection
+    (setq kill-do-not-save-duplicates t)
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)
+    (setq x-select-enable-clipboard-manager nil))
 
-         <<user-config>>
+  <<user-config>>
 
-       (setup misc
-             (setq ad-redefinition-action 'accept)
-             (setq bidi-inhibit-bpa t)
-             (setq command-line-ns-option-alist nil)
-             (setq confirm-kill-processes nil)
-             (setq custom-file (enfer/etc-file "custom.el"))
-             (setq default-input-method "TeX")
-             (setq ffap-machine-p-known 'reject)
-             (setq inhibit-compacting-font-caches t)
-             (setq inhibit-default-init t)
-             (setq jit-lock-defer-time nil)
-             (setq jka-compr-verbose nil)
-             (setq native-comp-async-report-warnings-errors nil)
-             (setq read-file-name-completion-ignore-case t)
-             (setq read-process-output-max (* 64 1024))
-             (setq redisplay-skip-fontification-on-input t)
-             (setq ring-bell-function 'ignore)
-             (setq-default fill-column 100)
-             (setq-default lexical-binding t))
+  (setup misc
+    (setq ad-redefinition-action 'accept)
+    (setq bidi-inhibit-bpa t)
+    (setq command-line-ns-option-alist nil)
+    (setq confirm-kill-processes nil)
+    (setq custom-file (enfer/etc-file "custom.el"))
+    (setq default-input-method "TeX")
+    (setq ffap-machine-p-known 'reject)
+    (setq inhibit-compacting-font-caches t)
+    (setq inhibit-default-init t)
+    (setq jit-lock-defer-time nil)
+    (setq jka-compr-verbose nil)
+    (setq native-comp-async-report-warnings-errors nil)
+    (setq read-file-name-completion-ignore-case t)
+    (setq read-process-output-max (* 64 1024))
+    (setq redisplay-skip-fontification-on-input t)
+    (setq ring-bell-function 'ignore)
+    (setq-default fill-column 100)
+    (setq-default lexical-binding t))
 
   <<sanity>>
 
-         (provide 'enfer-emacs-sanity)
-         ;;; enfer-emacs-sanity.el ends here
+  (provide 'enfer-emacs-sanity)
+;;; enfer-emacs-sanity.el ends here
 #+end_src
 
 ** Emacs Startup enhancements and GC
@@ -2416,132 +2675,132 @@ Setup Emacs builtins
 *** Contents enfer-pkg-builtin
 
 #+begin_src emacs-lisp
-        ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
-        <<disclaimer>>
-        ;;; Code:
+  ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
 
-       (setup auto-fill
-        (:with-feature simple
-          (:with-mode (text-mode org-mode)
-            (:hook turn-on-auto-fill))
-          (:with-mode prog-mode
-            (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                       (auto-fill-mode 1))))
-          (:hide-mode auto-fill-function)))
+  (setup auto-fill
+    (:with-feature simple
+      (:with-mode (text-mode org-mode)
+        (:hook turn-on-auto-fill))
+      (:with-mode prog-mode
+        (:hook (fn (setq-local comment-auto-fill-only-comments t)
+                   (auto-fill-mode 1))))
+      (:hide-mode auto-fill-function)))
 
-      (setup (:require autorevert)
-        (setq auto-revert-check-vc-info t)
-        (setq auto-revert-remote-files t)
-        (setq global-auto-revert-non-file-buffers t)
-        (setq auto-revert-verbose nil)
-        (global-auto-revert-mode 1)
-        (:hide-mode auto-revert))
+  (setup (:require autorevert)
+    (setq auto-revert-check-vc-info t)
+    (setq auto-revert-remote-files t)
+    (setq global-auto-revert-non-file-buffers t)
+    (setq auto-revert-verbose nil)
+    (global-auto-revert-mode 1)
+    (:hide-mode auto-revert))
 
-      (setup comint
-        (setq ansi-color-for-comint-mode t)
-        (setq comint-buffer-maximum-size 4096)
-        (setq comint-prompt-read-only t))
+  (setup comint
+    (setq ansi-color-for-comint-mode t)
+    (setq comint-buffer-maximum-size 4096)
+    (setq comint-prompt-read-only t))
 
-      (setup compile
-        (setq compilation-always-kill t)
-        (setq compilation-ask-about-save nil)
-        (setq compilation-scroll-output 'first-error))
+  (setup compile
+    (setq compilation-always-kill t)
+    (setq compilation-ask-about-save nil)
+    (setq compilation-scroll-output 'first-error))
 
-      (setup dired
-        (:also-load dired-x)
-        (:pkg dired-collapse
-              dired-git-info
-              dired-single
-              dired-subtree
-              diredfl)
-        (:with-map dired-mode-map
-          (:bind
-           [tab] dired-subtree-cycle
-           "i" dired-subtree-toggle
-           "q" quit-window))
-        (:hook dired-collapse-mode)
-        (setq dired-recursive-copies 'top)
-        (setq dired-recursive-deletes 'top)
-        (diredfl-global-mode 1))
+  (setup dired
+    (:also-load dired-x)
+    (:pkg dired-collapse
+          dired-git-info
+          dired-single
+          dired-subtree
+          diredfl)
+    (:with-map dired-mode-map
+      (:bind
+       [tab] dired-subtree-cycle
+       "i" dired-subtree-toggle
+       "q" quit-window))
+    (:hook dired-collapse-mode)
+    (setq dired-recursive-copies 'top)
+    (setq dired-recursive-deletes 'top)
+    (diredfl-global-mode 1))
 
-      (setup (:require eldoc)
-        (setq eldoc-echo-area-use-multiline-p nil)
-        (setq eldoc-idle-delay 0.1)
-        (:with-mode prog-mode
-          (:hook turn-on-eldoc-mode))
-        (:hide-mode))
+  (setup (:require eldoc)
+    (setq eldoc-echo-area-use-multiline-p nil)
+    (setq eldoc-idle-delay 0.1)
+    (:with-mode prog-mode
+      (:hook turn-on-eldoc-mode))
+    (:hide-mode))
 
-      (setup (:require elec-pair)
-        (electric-pair-mode 1))
+  (setup (:require elec-pair)
+    (electric-pair-mode 1))
 
-      (setup executable
-        (setq executable-prefix-env t)
-        (:with-hook after-save-hook
-          (:hook executable-make-buffer-file-executable-if-script-p)))
+  (setup executable
+    (setq executable-prefix-env t)
+    (:with-hook after-save-hook
+      (:hook executable-make-buffer-file-executable-if-script-p)))
 
-      (setup (:require goto-addr)
-        (:with-mode prog-mode
-          (:hook goto-address-prog-mode))
-        (:with-mode text-mode
-          (:hook goto-address-mode)))
+  (setup (:require goto-addr)
+    (:with-mode prog-mode
+      (:hook goto-address-prog-mode))
+    (:with-mode text-mode
+      (:hook goto-address-mode)))
 
-      (setup (:require help-mode)
-        (setq help-window-select t))
+  (setup (:require help-mode)
+    (setq help-window-select t))
 
-      (setup (:require recentf)
-        (setq recentf-auto-cleanup 'mode)
-        (setq recentf-exclude `(,#'enfer/cache-dir-p
-                                "^/tmp/"
-                                "COMMIT_EDITMSG$"
-                                ".gz$"))
-        (setq recentf-filename-handlers '(abbreviate-file-name))
-        (setq recentf-max-menu-items 100)
-        (setq recentf-max-saved-items nil)
-        (recentf-mode 1)
-        (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
-        (:with-hook kill-emacs-hook
-          (:hook recentf-cleanup recentf-save-list)))
+  (setup (:require recentf)
+    (setq recentf-auto-cleanup 'mode)
+    (setq recentf-exclude `(,#'enfer/cache-dir-p
+                            "^/tmp/"
+                            "COMMIT_EDITMSG$"
+                            ".gz$"))
+    (setq recentf-filename-handlers '(abbreviate-file-name))
+    (setq recentf-max-menu-items 100)
+    (setq recentf-max-saved-items nil)
+    (recentf-mode 1)
+    (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
+    (:with-hook kill-emacs-hook
+      (:hook recentf-cleanup recentf-save-list)))
 
-      (setup (:require savehist)
-        (setq history-delete-duplicates t)
-        (setq history-length t)
-        (setq savehist-additional-variables
-              '(extended-command-history
-                global-mark-ring
-                kill-ring
-                mark-ring
-                regexp-search-ring
-                search-ring))
-        (setq savehist-autosave-interval 60)
-        (setq savehist-file (enfer/etc-file "history"))
-        (setq savehist-save-minibuffer-history t)
-        (savehist-mode 1))
+  (setup (:require savehist)
+    (setq history-delete-duplicates t)
+    (setq history-length t)
+    (setq savehist-additional-variables
+          '(extended-command-history
+            global-mark-ring
+            kill-ring
+            mark-ring
+            regexp-search-ring
+            search-ring))
+    (setq savehist-autosave-interval 60)
+    (setq savehist-file (enfer/etc-file "history"))
+    (setq savehist-save-minibuffer-history t)
+    (savehist-mode 1))
 
-      (setup (:require saveplace)
-        (setq save-place-file (enfer/etc-file "places"))
-        (setq save-place-forget-unreadable-files nil)
-        (save-place-mode 1))
+  (setup (:require saveplace)
+    (setq save-place-file (enfer/etc-file "places"))
+    (setq save-place-forget-unreadable-files nil)
+    (save-place-mode 1))
 
-      (setup (:require server)
-        (unless (server-running-p)
-          (server-start)))
+  (setup (:require server)
+    (unless (server-running-p)
+      (server-start)))
 
-      (setup (:require subword)
-        (global-subword-mode 1)
-        (:hide-mode))
+  (setup (:require subword)
+    (global-subword-mode 1)
+    (:hide-mode))
 
-      (setup (:require uniquify)
-        (setq uniquify-after-kill-buffer-p t)
-        (setq uniquify-buffer-name-style 'forward))
+  (setup (:require uniquify)
+    (setq uniquify-after-kill-buffer-p t)
+    (setq uniquify-buffer-name-style 'forward))
 
-      (setup (:require url)
-        (setq url-cookie-file (enfer/etc-file "url-cookies")))
+  (setup (:require url)
+    (setq url-cookie-file (enfer/etc-file "url-cookies")))
 
-      (setup (:require visual-line-mode)
-        (:hide-mode))
+  (setup (:require visual-line-mode)
+    (:hide-mode))
 
-        (provide 'enfer-pkg-builtin)
-         ;;; enfer-pkg-builtin.el ends here
+  (provide 'enfer-pkg-builtin)
+  ;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Utility package
 :PROPERTIES:
@@ -2689,7 +2948,7 @@ Smartparens setup here
   <<disclaimer>>
   ;;; Code:
 
-  <<code-lisp>>
+  <<code-paren>>
 
   (provide 'enfer-code-lisp)
    ;;; enfer-code-lisp.el ends here
@@ -2734,7 +2993,7 @@ Smartparens setup here
   <<code-clojure>>
 
   (provide 'enfer-code-clojure)
-   ;;; enfer-code-clojure.el ends here
+  ;;; enfer-code-clojure.el ends here
 #+end_src
 
 ** Keybindings

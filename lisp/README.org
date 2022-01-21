@@ -1,0 +1,3 @@
+* LISP tangled directory
+On Loading config.org and using key sequence C-c C-v t the lisp files
+for this config will be tangled out from config.org
