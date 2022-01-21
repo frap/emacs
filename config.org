@@ -1,7 +1,7 @@
 #+TITLE: Literate Roam Clojure Emacs Config
 #+AUTHOR: gas
 #+STARTUP: overview
-#+PROPERTY: header-args :cache yes :results output :mkdirp yes :async
+#+PROPERTY: header-args :cache yes :results output :mkdirp yes :padline :async
 #+AUTO_TANGLE: yes
 
 * About me
@@ -1192,7 +1192,7 @@ One last sensible default is to enure that Emacs lets you use the page-up and pa
 go to the first and last line in the buffer.
 #+begin_src emacs-lisp
     ;; Sensible line breaking
-  (add-hook 'text-mode-hook 'visual-line-mode)
+  ;;(add-hook 'text-mode-hook 'visual-line-mode)
 
   ;; Overwrite selected text
   (setup (:require delsel)
@@ -1389,6 +1389,7 @@ Setup avy in filter, select, act mode
 *** Encodings & Whitespace
 Setup encodings
 #+begin_src emacs-lisp :noweb-ref sanity
+
   (setup encoding
   (setq coding-system-for-read 'utf-8-unix)
   (setq coding-system-for-write 'utf-8-unix)
@@ -1404,38 +1405,40 @@ Setup encodings
   (set-language-environment "UTF-8")
   (set-selection-coding-system 'utf-8)
   (set-terminal-coding-system 'utf-8-unix))
+
 #+end_src
 Setup undo , whitespace, expand, indentation
 #+begin_src emacs-lisp
-  (setup (:pkg aggressive-indent)
-    (:hook-into prog-mode)
-    (:hide-mode))
+   (setup (:pkg aggressive-indent)
+     (:hook-into prog-mode)
+     (:hide-mode))
 
-  (setup (:pkg hungry-delete)
-    (:load-after smartparens
-      (setq hungry-delete-join-reluctantly t)
-      (global-hungry-delete-mode 1)
-      (:hook-into smartparens-enabled)
-      (:hide-mode)))
+   (setup (:pkg hungry-delete)
+     (:load-after smartparens
+       (setq hungry-delete-join-reluctantly t)
+       (global-hungry-delete-mode 1)
+       (:hook-into smartparens-enabled)
+       (:hide-mode)))
 
-  (setup (:pkg expand-region)
-    (:require expand-region)
-    )
+   (setup (:pkg expand-region)
+     (:require expand-region)
+     )
 
-  (setup (:pkg undo-fu undo-fu-session)
-    (:with-map (prog-mode-map text-mode-map)
-      (:bind
-       "u" undo-fu-only-undo
-       "C-r" undo-fu-only-redo))
-    (setq undo-fu-session-incompatible-files
-          '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
-    (global-undo-fu-session-mode 1))
+   (setup (:pkg undo-fu undo-fu-session)
+     (:with-map (prog-mode-map text-mode-map)
+       (:bind
+        "u" undo-fu-only-undo
+        "C-r" undo-fu-only-redo))
+     (setq undo-fu-session-incompatible-files
+           '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+     (global-undo-fu-session-mode 1))
 
- ;; (setup (:pkg whitespace-cleanup-mode)
- ;;   (global-whitespace-cleanup-mode 1)
- ;;   (:with-hook before-save-hook
- ;;     (:hook delete-trailing-whitespace))
- ;;   (:hide-mode))
+  ;; (setup (:pkg whitespace-cleanup-mode)
+  ;;   (global-whitespace-cleanup-mode 1)
+  ;;   (:with-hook before-save-hook
+  ;;     (:hook delete-trailing-whitespace))
+  ;;   (:hide-mode))
+
 #+end_src
 whitespace defaults
 #+begin_src emacs-lisp :noweb-ref sanity
@@ -1449,6 +1452,7 @@ whitespace defaults
     (setq-default tab-width 4)
     (:with-hook before-save-hook
       (:hook delete-trailing-whitespace)))
+
 #+end_src
 *** Emacs *Help* functions
 
@@ -1504,6 +1508,7 @@ whitespace defaults
     (:with-hook which-key-init-buffer-hook
       (:hook (fn (setq line-spacing 4))))
     (:hide-mode))
+
 #+end_src
 
 *** Navigation
@@ -1521,7 +1526,7 @@ keychords with hydra
 #+end_src
 *** Completion
 Emacs completion parlava
-#+begin_src emacs-lisp :noweb-ref pkg-ompletion
+#+begin_src emacs-lisp :noweb-ref pkg-completion
   (setup (:pkg company)
     (global-company-mode 1)
     (company-tng-mode 1)
@@ -2939,10 +2944,10 @@ Setup org-mode
 Setup Coding languages
 
 *** LISP setup
-Smartparens setup here
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-code-lisp.el :noweb yes
 :END:
+Smartparens setup here
 #+begin_src emacs-lisp
   ;;; enfer-code-lisp.el -*- lexical-binding: t -*-
   <<disclaimer>>
