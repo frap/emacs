@@ -3676,6 +3676,10 @@ The classic Emacs initiation file.
 
 *** Load enfer custom files
 #+begin_src emacs-lisp
+;;; Set up extra load paths and functionality
+(push (locate-user-emacs-file "lisp") load-path)
+
+;;; Load them all up
 (require 'enfer-utility-fn-macros)
 (require 'enfer-pkgmgr)
 (require 'enfer-emacs-sanity)
@@ -3757,14 +3761,17 @@ the package manager or the UI code.
 ;;; Frame parameters for faster startup
 ;;; ============================================================================
 <<early-init-frame>>
+
 ;;; ============================================================================
 ;;; Specify some directory paths
 ;;; ============================================================================
 <<early-directories>>
+
 ;;; ============================================================================
 ;;; Set up the package manager
 ;;; ============================================================================
 <<early-straight>>
+
 ;;; early-init.el ends here
 #+end_src
 
