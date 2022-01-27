@@ -44,29 +44,37 @@ Make startup faster by reducing the frequency of garbage collection and then use
 
 
 #+begin_src emacs-lisp
-;; Garbage collection slows down startup time, so we maximise the threshold for
-;; it to run, and we will later reset it.
-(setq gc-cons-threshold most-positive-fixnum)
 
-;; file-name-handler-alist is consulted on various I/O functions such as
-;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
-;; to restore when Emacs is finished starting.
-(unless (or (daemonp) noninteractive)
-  (let ((file-name-handler-alist/old file-name-handler-alist))
-    (setq file-name-handler-alist nil)
-    (add-hook 'emacs-startup-hook
+  (message "Chargement en cours early-init.el...")
+
+  (define-advice load (:before (feature &rest _))
+    "Message the user when loading a library."
+    (with-temp-message (format "En cours de chargement: '%s'" feature)))
+
+  ;; Garbage collection slows down startup time, so we maximise the threshold for
+  ;; it to run, and we will later reset it.
+  (setq gc-cons-threshold most-positive-fixnum)
+
+  ;; file-name-handler-alist is consulted on various I/O functions such as
+  ;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
+  ;; to restore when Emacs is finished starting.
+  (unless (or (daemonp) noninteractive)
+    (let ((file-name-handler-alist/old file-name-handler-alist))
+      (setq file-name-handler-alist nil)
+      (add-hook 'emacs-startup-hook
+                (lambda ()
+                  (let ((value (delete-dups
+                                (append file-name-handler-alist
+                                        file-name-handler-alist/old))))
+                    (setq file-name-handler-alist value))))))
+
+  (unless (daemonp)
+    (advice-add #'tty-run-terminal-initialization :override #'ignore)
+    (add-hook 'window-setup-hook
               (lambda ()
-                (let ((value (delete-dups
-                              (append file-name-handler-alist
-                                      file-name-handler-alist/old))))
-                  (setq file-name-handler-alist value))))))
+                (advice-remove #'tty-run-terminal-initialization #'ignore)
+                (tty-run-terminal-initialization (selected-frame) nil t))))
 
-(unless (daemonp)
-  (advice-add #'tty-run-terminal-initialization :override #'ignore)
-  (add-hook 'window-setup-hook
-            (lambda ()
-              (advice-remove #'tty-run-terminal-initialization #'ignore)
-              (tty-run-terminal-initialization (selected-frame) nil t))))
 #+end_src
 ** Initial frame setup
 :PROPERTIES:
@@ -84,15 +92,17 @@ of unstyled content" thing.
                '(tool-bar-lines . 0))
 
   (tool-bar-mode -1)
+
 #+end_src
 
 *** Menu bar
 
 #+begin_src emacs-lisp
-  ;;(add-to-list 'default-frame-alist
-  ;;             '(menu-bar-lines . 0))
+   ;;(add-to-list 'default-frame-alist
+   ;;             '(menu-bar-lines . 0))
 
- ;; (menu-bar-mode -1)
+  ;; (menu-bar-mode -1)
+
 #+end_src
 
 *** Scroll bars
@@ -104,6 +114,7 @@ of unstyled content" thing.
 
     (scroll-bar-mode -1)
     (horizontal-scroll-bar-mode -1)
+
 #+end_src
 
 *** Resizing
@@ -115,10 +126,11 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
   (setq-default frame-inhibit-implied-resize t
                 frame-resize-pixelwise t)
   (setq truncate-partial-width-windows nil)
+
 #+end_src
 
 *** Miscellaneous
-setting dome default settings on early-init
+setting some default settings on early-init
 #+begin_src emacs-lisp
   (add-to-list 'default-frame-alist '(font . "Iosevka Slab 12"))
   (blink-cursor-mode 0)
@@ -127,6 +139,7 @@ setting dome default settings on early-init
   (fringe-mode '(4 . 0))
   (tooltip-mode 0)
   (window-divider-mode 1)
+
 #+end_src
 ** Directories
 :PROPERTIES:
@@ -161,14 +174,14 @@ Need to setup some constants and try to keep state in a "clean" directory struct
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
-  ;; Pre-configure the package manager settings before it is loaded.
-  (setq package-enable-at-startup nil)
-  (setq package-quickstart nil)
-  (setq straight-check-for-modifications '(check-on-save find-when-checking))
+    ;; Pre-configure the package manager settings before it is loaded.
+    (setq package-enable-at-startup nil)
+    (setq package-quickstart nil)
+    (setq straight-check-for-modifications '(check-on-save find-when-checking))
 
-  ;; Bootstrap the straight.el package manager if it is not already installed,
-  ;; then unconditionally load it. We use this rather than Emacs' built-in package
-  ;; manager.
+    ;; Bootstrap the straight.el package manager if it is not already installed,
+    ;; then unconditionally load it. We use this rather than Emacs' built-in package
+    ;; manager.
     (unless (featurep 'straight)
       ;; Bootstrap straight.el
       (defvar bootstrap-version)
@@ -186,7 +199,15 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 
     ;; Additional post-setup of straight.el.
     (require 'straight-x)
+  ;;; Appendix
+
+    ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
+    ;; minibuffer completion functions.  Since it's a (rarely-used, even)
+    ;; alias anyway, I just define it back to nil.  By the way, the alias
+    ;; is `straight-package-neutering-mode'.
     (defalias 'straight-ಠ_ಠ-mode nil)
+  (message "Chargement du early-init.el terminé!")
+
   #+end_src
 ** Emacs Package Manager Setup
 :PROPERTIES:
@@ -230,86 +251,96 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 :END:
  local-macros for setup.el
  #+begin_src emacs-lisp
-    (define-setup-macro :pkg (recipe)
-       "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
-                 and will replace itself with the first RECIPE's package."
-       :repeatable t
-       :shorthand (lambda (sexp)
-                    (let ((recipe (cadr sexp)))
-                      (if (consp recipe)
-                          (car recipe)
-                        recipe)))
-       `(straight-use-package ',recipe))
+   (define-setup-macro :pkg (recipe)
+     "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
+                          and will replace itself with the first RECIPE's package."
+     :repeatable t
+     :shorthand (lambda (sexp)
+                  (let ((recipe (cadr sexp)))
+                    (if (consp recipe)
+                        (car recipe)
+                      recipe)))
+     `(straight-use-package ',recipe))
 
-  (setup-define :pkg-when
-  (lambda (recipe condition)
-    `(if ,condition
-         (straight-use-package ',recipe)
-       ,(setup-quit)))
-  :documentation
-  "Install RECIPE with `straight-use-package' when CONDITION is met.
-If CONDITION is false, stop evaluating the body.  This macro can
-be used as HEAD, and will replace itself with the RECIPE's
-package.  This macro is not repeatable."
-  :repeatable nil
-  :indent 1
-  :shorthand (lambda (sexp)
-               (let ((recipe (cadr sexp)))
-                 (if (consp recipe) (car recipe) recipe))))
+   (defun +setup-warn (message &rest args)
+     "Warn the user that something bad happened in `setup'."
+     (display-warning 'setup (format message args)))
 
- (define-setup-macro :hide-mode (&optional mode)
-       "Hide the mode-line lighter of the current mode. Alternatively, MODE can be
-             specified manually, and override the current mode."
-       :after-loaded t
-       (let ((mode (or mode (setup-get 'mode))))
-         `(progn
-            (setq minor-mode-alist
-                  (remq (assq ',(intern (format "%s-mode" mode)) minor-mode-alist)
-                        minor-mode-alist))
-            (setq minor-mode-alist
-                  (remq (assq ',mode minor-mode-alist)
-                        minor-mode-alist)))))
+   (setup-define :face
+     (lambda (face spec)
+       `(custom-set-faces '(,face ,spec 'now "Customised by `setup'.")))
+     :documentation "Customise FACE with SPEC using `custom-set-faces'."
+     :repeatable t)
 
-     (define-setup-macro :load-after (features &rest body)
-       "Load the current feature after FEATURES."
-       :indent 1
-       (let ((body `(progn
-                      (require ',(setup-get 'feature))
-                      ,@body)))
-         (dolist (feature (nreverse (doom-enlist features)))
-           (setq body `(with-eval-after-load ',feature ,body)))
-         body))
+   (setup-define :pkg-when
+     (lambda (recipe condition)
+       `(if ,condition
+            (straight-use-package ',recipe)
+          ,(setup-quit)))
+     :documentation
+     "Install RECIPE with `straight-use-package' when CONDITION is met.
+         If CONDITION is false, stop evaluating the body.  This macro can
+         be used as HEAD, and will replace itself with the RECIPE's
+         package.  This macro is not repeatable."
+     :repeatable nil
+     :indent 1
+     :shorthand (lambda (sexp)
+                  (let ((recipe (cadr sexp)))
+                    (if (consp recipe) (car recipe) recipe))))
 
-     (define-setup-macro :disable ()
-       "Unconditionally abort the evaluation of the current body."
-       (setup-quit))
+   (define-setup-macro :hide-mode (&optional mode)
+     "Hide the mode-line lighter of the current mode. Alternatively, MODE can be
+                      specified manually, and override the current mode."
+     :after-loaded t
+     (let ((mode (or mode (setup-get 'mode))))
+       `(progn
+          (setq minor-mode-alist
+                (remq (assq ',(intern (format "%s-mode" mode)) minor-mode-alist)
+                      minor-mode-alist))
+          (setq minor-mode-alist
+                (remq (assq ',mode minor-mode-alist)
+                      minor-mode-alist)))))
 
-     (define-setup-macro :delay (seconds)
-       "Require the current FEATURE after SECONDS of idle time."
-       :indent 1
-       `(run-with-idle-timer ,seconds nil #'require ',(setup-get 'feature) nil t))
+   (define-setup-macro :load-after (features &rest body)
+     "Load the current feature after FEATURES."
+     :indent 1
+     (let ((body `(progn
+                    (require ',(setup-get 'feature))
+                    ,@body)))
+       (dolist (feature (nreverse (doom-enlist features)))
+         (setq body `(with-eval-after-load ',feature ,body)))
+       body))
 
-     (define-setup-macro :with-idle-delay (seconds &rest body)
-       "Evaluate BODY after SECONDS of idle time."
-       :indent 1
-       `(run-with-idle-timer ,seconds nil (lambda () ,@body)))
+   (define-setup-macro :disable ()
+     "Unconditionally abort the evaluation of the current body."
+     (setup-quit))
 
-     (define-setup-macro :advise (symbol where arglist &rest body)
-       "Add a piece of advice on a function. See 'advice-add' for more details."
-       :after-loaded t
-       :debug '(sexp sexp function-form)
-       :indent 3
-       (let ((name (gensym "setup-advice-")))
-         `(progn
-            (defun ,name ,arglist ,@body)
-            (advice-add ',symbol ,where #',name))))
+   (define-setup-macro :delay (seconds)
+     "Require the current FEATURE after SECONDS of idle time."
+     :indent 1
+     `(run-with-idle-timer ,seconds nil #'require ',(setup-get 'feature) nil t))
 
-    (setup-define :needs
+   (define-setup-macro :with-idle-delay (seconds &rest body)
+     "Evaluate BODY after SECONDS of idle time."
+     :indent 1
+     `(run-with-idle-timer ,seconds nil (lambda () ,@body)))
+
+   (define-setup-macro :advise (symbol where arglist &rest body)
+     "Add a piece of advice on a function. See 'advice-add' for more details."
+     :after-loaded t
+     :debug '(sexp sexp function-form)
+     :indent 3
+     (let ((name (gensym "setup-advice-")))
+       `(progn
+          (defun ,name ,arglist ,@body)
+          (advice-add ',symbol ,where #',name))))
+
+   (setup-define :needs
      (lambda (executable)
        `(unless (executable-find ,executable)
           ,(setup-quit)))
-   :documentation "If EXECUTABLE is not in the path, stop here."
-   :repeatable 1)
+     :documentation "If EXECUTABLE is not in the path, stop here."
+     :repeatable 1)
 
 
 #+end_src
@@ -338,14 +369,18 @@ Configure grabage collection
 *** MAC PATH specific
 #+begin_src emacs-lisp
   ;;(cua-mode 1)
-  ;; path stuff for macOS
-  ;;(if IS-MAC
-      (setup (:pkg-when exec-path-from-shell IS-MAC)
-        ;;(dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "HOMEBREW_PREFIX"))
-        ;;  (add-to-list 'exec-path-from-shell-variables var))
-        (exec-path-from-shell-initialize)
-        ;;(add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
-        )
+  ;; load doom-path
+  (if IS-MAC
+      (doom-load-envars-file "~/.cache/emacs/env"))
+
+  ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
+  ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
+  ;;        (add-to-list 'exec-path-from-shell-variables var))
+  ;;      (exec-path-from-shell-initialize)
+  ;;      (add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
+  ;;      )
+
+
 #+end_src
 *** Auto compile and Benchmarking
 #+begin_src emacs-lisp
@@ -403,9 +438,51 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 :header-args: :noweb-ref macros
 :END:
 #+begin_src emacs-lisp
-    (require 'cl-lib)
+  (require 'cl-lib)
 
-    (defmacro letenv! (envvars &rest body)
+  (defmacro +with-message (message &rest body)
+    "Execute BODY, with MESSAGE.
+    If body executes without errors, MESSAGE...Accomplie will be displayed."
+    (declare (indent 1))
+    (let ((msg (gensym)))
+      `(let ((,msg ,message))
+         (unwind-protect (progn (message "%s..." ,msg)
+                                ,@body)
+           (message "%s...accomplie!" ,msg)))))
+
+  (defmacro +define-dir (name directory &optional docstring inhibit-mkdir)
+    "Define a variable and function NAME expanding to DIRECTORY.
+  DOCSTRING is applied to the variable.  Ensure DIRECTORY exists in
+  the filesystem, unless INHIBIT-MKDIR is non-nil."
+    (declare (indent 2))
+    (unless inhibit-mkdir
+      (make-directory (eval directory) :parents))
+    `(progn
+       (defvar ,name ,directory
+         ,(concat docstring (when docstring "\n")
+                  "Defined by `/define-dir'."))
+       (defun ,name (file &optional mkdir)
+         ,(concat "Expand FILE relative to variable `" (symbol-name name) "'.\n"
+                  "If MKDIR is non-nil, the directory is created.\n"
+                  "Defined by `/define-dir'.")
+         (let ((file-name (expand-file-name (convert-standard-filename file)
+                                            ,name)))
+           (when mkdir
+             (make-directory (file-name-directory file-name) :parents))
+           file-name))))
+
+  (defun +suppress-messages (oldfn &rest args) ; from pkal
+    "Advice wrapper for suppressing `message'.
+  OLDFN is the wrapped function, that is passed the arguments
+  ARGS."
+    (let ((msg (current-message)))
+      (prog1
+          (let ((inhibit-message t))
+            (apply oldfn args))
+        (when msg
+          (message "%s" msg)))))
+
+  (defmacro letenv! (envvars &rest body)
     "Lexically bind ENVVARS in BODY, like `let' but for `process-environment'."
     (declare (indent 1))
     `(let ((process-environment (copy-sequence process-environment)))
@@ -417,25 +494,25 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
   (defmacro letf! (bindings &rest body)
     "Temporarily rebind function, macros, and advice in BODY.
 
-  Intended as syntax sugar for `cl-letf', `cl-labels', `cl-macrolet', and
-  temporary advice.
+      Intended as syntax sugar for `cl-letf', `cl-labels', `cl-macrolet', and
+      temporary advice.
 
-  BINDINGS is either:
+      BINDINGS is either:
 
-    A list of, or a single, `defun', `defun*', `defmacro', or `defadvice' forms.
-    A list of (PLACE VALUE) bindings as `cl-letf*' would accept.
+        A list of, or a single, `defun', `defun*', `defmacro', or `defadvice' forms.
+        A list of (PLACE VALUE) bindings as `cl-letf*' would accept.
 
-  TYPE is one of:
+      TYPE is one of:
 
-    `defun' (uses `cl-letf')
-    `defun*' (uses `cl-labels'; allows recursive references),
-    `defmacro' (uses `cl-macrolet')
-    `defadvice' (uses `defadvice!' before BODY, then `undefadvice!' after)
+        `defun' (uses `cl-letf')
+        `defun*' (uses `cl-labels'; allows recursive references),
+        `defmacro' (uses `cl-macrolet')
+        `defadvice' (uses `defadvice!' before BODY, then `undefadvice!' after)
 
-  NAME, ARGLIST, and BODY are the same as `defun', `defun*', `defmacro', and
-  `defadvice!', respectively.
+      NAME, ARGLIST, and BODY are the same as `defun', `defun*', `defmacro', and
+      `defadvice!', respectively.
 
-  \(fn ((TYPE NAME ARGLIST &rest BODY) ...) BODY...)"
+      \(fn ((TYPE NAME ARGLIST &rest BODY) ...) BODY...)"
     (declare (indent defun))
     (setq body (macroexp-progn body))
     (when (memq (car bindings) '(defun defun* defmacro defadvice))
@@ -461,115 +538,115 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
                    (setq type (list 'symbol-function type)))
                  (list 'cl-letf (list (cons type rest)) body)))))))
 
-      (defmacro fn (&rest body)
-        `(lambda () ,@body))
+  (defmacro fn (&rest body)
+    `(lambda () ,@body))
 
-      (defmacro fn! (&rest body)
-        `(lambda () (interactive) ,@body))
+  (defmacro fn! (&rest body)
+    `(lambda () (interactive) ,@body))
 
-        ;;; Closure factories
-      (defmacro fn!! (arglist &rest body)
-        "Returns (cl-function (lambda ARGLIST BODY...))
-      The closure is wrapped in `cl-function', meaning ARGLIST will accept anything
-      `cl-defun' will. Implicitly adds `&allow-other-keys' if `&key' is present in
-      ARGLIST."
-        (declare (indent defun) (doc-string 1) (pure t) (side-effect-free t))
-        `(cl-function
-          (lambda
-            ,(letf! (defun* allow-other-keys (args)
-                      (mapcar
-                       (lambda (arg)
-                         (cond ((nlistp (cdr-safe arg)) arg)
-                               ((listp arg) (allow-other-keys arg))
-                               (arg)))
-                       (if (and (memq '&key args)
-                                (not (memq '&allow-other-keys args)))
-                           (if (memq '&aux args)
-                               (let (newargs arg)
-                                 (while args
-                                   (setq arg (pop args))
-                                   (when (eq arg '&aux)
-                                     (push '&allow-other-keys newargs))
-                                   (push arg newargs))
-                                 (nreverse newargs))
-                             (append args (list '&allow-other-keys)))
-                         args)))
-                    (allow-other-keys arglist))
-            ,@body)))
+            ;;; Closure factories
+  (defmacro fn!! (arglist &rest body)
+    "Returns (cl-function (lambda ARGLIST BODY...))
+          The closure is wrapped in `cl-function', meaning ARGLIST will accept anything
+          `cl-defun' will. Implicitly adds `&allow-other-keys' if `&key' is present in
+          ARGLIST."
+    (declare (indent defun) (doc-string 1) (pure t) (side-effect-free t))
+    `(cl-function
+      (lambda
+        ,(letf! (defun* allow-other-keys (args)
+                  (mapcar
+                   (lambda (arg)
+                     (cond ((nlistp (cdr-safe arg)) arg)
+                           ((listp arg) (allow-other-keys arg))
+                           (arg)))
+                   (if (and (memq '&key args)
+                            (not (memq '&allow-other-keys args)))
+                       (if (memq '&aux args)
+                           (let (newargs arg)
+                             (while args
+                               (setq arg (pop args))
+                               (when (eq arg '&aux)
+                                 (push '&allow-other-keys newargs))
+                               (push arg newargs))
+                             (nreverse newargs))
+                         (append args (list '&allow-other-keys)))
+                     args)))
+           (allow-other-keys arglist))
+        ,@body)))
 
-      (defmacro cmd! (&rest body)
-        "Returns (lambda () (interactive) ,@body)
-      A factory for quickly producing interaction commands, particularly for keybinds
-      or aliases."
-        (declare (doc-string 1) (pure t) (side-effect-free t))
-        `(lambda (&rest _) (interactive) ,@body))
+  (defmacro cmd! (&rest body)
+    "Returns (lambda () (interactive) ,@body)
+          A factory for quickly producing interaction commands, particularly for keybinds
+          or aliases."
+    (declare (doc-string 1) (pure t) (side-effect-free t))
+    `(lambda (&rest _) (interactive) ,@body))
 
-      (defmacro quiet! (&rest forms)
-        `(cond
-          (noninteractive
-           (let ((old-fn (symbol-function 'write-region)))
-             (cl-letf ((standard-output (lambda (&rest _)))
-                       ((symbol-function 'load-file)
-                        (lambda (file) (load file nil t)))
-                       ((symbol-function 'message) (lambda (&rest _)))
-                       ((symbol-function 'write-region)
-                        (lambda (start end filename &optional append visit lockname
-                                       mustbenew)
-                          (unless visit (setq visit 'no-message))
-                          (funcall old-fn start end filename append visit lockname
-                                   mustbenew))))
-               ,@forms)))
-          ((or debug-on-error debug-on-quit)
-           ,@forms)
-          ((let ((inhibit-message t)
-                 (save-silently t))
-             (prog1 ,@forms (message ""))))))
+  (defmacro quiet! (&rest forms)
+    `(cond
+      (noninteractive
+       (let ((old-fn (symbol-function 'write-region)))
+         (cl-letf ((standard-output (lambda (&rest _)))
+                   ((symbol-function 'load-file)
+                    (lambda (file) (load file nil t)))
+                   ((symbol-function 'message) (lambda (&rest _)))
+                   ((symbol-function 'write-region)
+                    (lambda (start end filename &optional append visit lockname
+                                   mustbenew)
+                      (unless visit (setq visit 'no-message))
+                      (funcall old-fn start end filename append visit lockname
+                               mustbenew))))
+           ,@forms)))
+      ((or debug-on-error debug-on-quit)
+       ,@forms)
+      ((let ((inhibit-message t)
+             (save-silently t))
+         (prog1 ,@forms (message ""))))))
 
-    ;;; Mutation
-    (defmacro appendq! (sym &rest lists)
-      "Append LISTS to SYM in place."
-      `(setq ,sym (append ,sym ,@lists)))
+        ;;; Mutation
+  (defmacro appendq! (sym &rest lists)
+    "Append LISTS to SYM in place."
+    `(setq ,sym (append ,sym ,@lists)))
 
-    (defmacro setq! (&rest settings)
-      "A stripped-down `customize-set-variable' with the syntax of `setq'.
+  (defmacro setq! (&rest settings)
+    "A stripped-down `customize-set-variable' with the syntax of `setq'.
 
-    This can be used as a drop-in replacement for `setq'. Particularly when you know
-    a variable has a custom setter (a :set property in its `defcustom' declaration).
-    This triggers setters. `setq' does not."
-      (macroexp-progn
-       (cl-loop for (var val) on settings by 'cddr
-                collect `(funcall (or (get ',var 'custom-set) #'set)
-                                  ',var ,val))))
+        This can be used as a drop-in replacement for `setq'. Particularly when you know
+        a variable has a custom setter (a :set property in its `defcustom' declaration).
+        This triggers setters. `setq' does not."
+    (macroexp-progn
+     (cl-loop for (var val) on settings by 'cddr
+              collect `(funcall (or (get ',var 'custom-set) #'set)
+                                ',var ,val))))
 
-    (defmacro delq! (elt list &optional fetcher)
-      "`delq' ELT from LIST in-place.
+  (defmacro delq! (elt list &optional fetcher)
+    "`delq' ELT from LIST in-place.
 
-    If FETCHER is a function, ELT is used as the key in LIST (an alist)."
-      `(setq ,list
-             (delq ,(if fetcher
-                        `(funcall ,fetcher ,elt ,list)
-                      elt)
-                   ,list)))
+        If FETCHER is a function, ELT is used as the key in LIST (an alist)."
+    `(setq ,list
+           (delq ,(if fetcher
+                      `(funcall ,fetcher ,elt ,list)
+                    elt)
+                 ,list)))
 
-    (defmacro pushnew! (place &rest values)
-      "Push VALUES sequentially into PLACE, if they aren't already present.
-    This is a variadic `cl-pushnew'."
-      (let ((var (make-symbol "result")))
-        `(dolist (,var (list ,@values) (with-no-warnings ,place))
-           (cl-pushnew ,var ,place :test #'equal))))
+  (defmacro pushnew! (place &rest values)
+    "Push VALUES sequentially into PLACE, if they aren't already present.
+        This is a variadic `cl-pushnew'."
+    (let ((var (make-symbol "result")))
+      `(dolist (,var (list ,@values) (with-no-warnings ,place))
+         (cl-pushnew ,var ,place :test #'equal))))
 
-    (defmacro prependq! (sym &rest lists)
-      "Prepend LISTS to SYM in place."
-      `(setq ,sym (append ,@lists ,sym)))
+  (defmacro prependq! (sym &rest lists)
+    "Prepend LISTS to SYM in place."
+    `(setq ,sym (append ,@lists ,sym)))
 
-    ;;; Loading
-    (defmacro add-load-path! (&rest dirs)
-      "Add DIRS to `load-path', relative to the current file.
-    The current file is the file from which `add-to-load-path!' is used."
-      `(let ((default-directory ,(dir!))
-             file-name-handler-alist)
-         (dolist (dir (list ,@dirs))
-           (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
+        ;;; Loading
+  (defmacro add-load-path! (&rest dirs)
+    "Add DIRS to `load-path', relative to the current file.
+        The current file is the file from which `add-to-load-path!' is used."
+    `(let ((default-directory ,(dir!))
+           file-name-handler-alist)
+       (dolist (dir (list ,@dirs))
+         (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
 
  #+end_src
 *** Variables
@@ -595,11 +672,19 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
              (float-time (time-subtract after-init-time before-init-time))
              gcs-done))
 
-  (defun enfer/etc-file (file-name)
+  (defun /etc-file (file-name)
     (expand-file-name (format "etc/%s" file-name) user-emacs-directory))
 
   (defun enfer/cache-dir-p (path)
     (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
+
+  (+define-dir /etc (locate-user-emacs-file "etc")
+    "Directory for all of Emacs's various files.
+    See `no-littering' for examples.")
+
+  (+define-dir sync/ (expand-file-name "~/Sync")
+    "My Syncthing directory.")
+
 
   (defun mf/smarter-move-beginning-of-line (arg)
     (interactive "^p")
@@ -680,8 +765,8 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 
   (defun doom-load-envvars-file (file &optional noerror)
     "Read and set envvars from FILE.
-  If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
-  unreadable. Returns the names of envvars that were changed."
+        If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
+        unreadable. Returns the names of envvars that were changed."
     (if (null (file-exists-p file))
         (unless noerror
           (signal 'file-error (list "No envvar file exists" file)))
@@ -703,22 +788,30 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
                 (set-time-zone-rule newtz))))
           env))))
 
-;;
-;;; Sugars
+  (defun +ensure-after-init (function)
+    "Ensure FUNCTION runs after init, or now if already initialised.
+  If Emacs is already started, run FUNCTION.  Otherwise, add it to
+  `after-init-hook'.  FUNCTION is called with no arguments."
+    (if after-init-time
+        (funcall function)
+      (add-hook 'after-init-hook function)))
 
-(defun dir! ()
-  "Returns the directory of the emacs lisp file this macro is called from."
-  (when-let (path (file!))
-    (directory-file-name (file-name-directory path))))
+  ;;
+      ;;; Sugars
 
-(defun file! ()
-  "Return the emacs lisp file this macro is called from."
-  (cond ((bound-and-true-p byte-compile-current-file))
-        (load-file-name)
-        ((stringp (car-safe current-load-list))
-         (car current-load-list))
-        (buffer-file-name)
-        ((error "Cannot get this file-path"))))
+  (defun dir! ()
+    "Returns the directory of the emacs lisp file this macro is called from."
+    (when-let (path (file!))
+      (directory-file-name (file-name-directory path))))
+
+  (defun file! ()
+    "Return the emacs lisp file this macro is called from."
+    (cond ((bound-and-true-p byte-compile-current-file))
+          (load-file-name)
+          ((stringp (car-safe current-load-list))
+           (car current-load-list))
+          (buffer-file-name)
+          ((error "Cannot get this file-path"))))
 
 #+end_src
 ** Setup if exists Executable
@@ -1111,7 +1204,7 @@ setup of git and projectile
   (setq persp-modestring-short t)
   (setq persp-show-modestring t)
   (setq persp-sort 'name)
-  (setq persp-state-default-file (enfer/etc-file "perspectives"))
+  (setq persp-state-default-file (/etc-file "perspectives"))
   (setq persp-switch-wrap nil)
   (persp-mode 1)
   (:global
@@ -1126,9 +1219,9 @@ setup of git and projectile
    "M-9" (fn! (persp-switch-by-number 9))))
 
 (setup (:pkg projectile)
-  (setq projectile-cache-file (enfer/etc-file "projectile.cache"))
+  (setq projectile-cache-file (/etc-file "projectile.cache"))
   (setq projectile-kill-buffers-filter 'kill-only-files)
-  (setq projectile-known-projects-file (enfer/etc-file "projectile-bookmarks"))
+  (setq projectile-known-projects-file (/etc-file "projectile-bookmarks"))
   (projectile-mode 1)
   (setq projectile-find-dir-includes-top-level t)
   (setf projectile-globally-ignored-directories
@@ -1143,41 +1236,101 @@ PROPERTIES:
 :header-args: :noweb-ref sanity
 :END:
 Setup Scatch and minibuffer
-#+begin_example
-  (setup scratch
-    (setq initial-major-mode 'fundamental-mode)
-    (setq initial-scratch-message nil))
+#+begin_src emacs-lisp
+      (setup scratch
+        (setq initial-major-mode #'emacs-lisp-mode)
+        (setq initial-scratch-message
+              ";; ABANDONNEZ TOUT ESPOIR VOUS QUI ENTREZ ICI\n\n" )
+        (defun +scratch-immortal ()
+          "Bury, don't kill \"*scratc*\" buffer.
+        For `kill-buffer-query-functions'."
+          (if (eq (current-buffer) (get-buffer "*scratch*"))
+              (progn (bury-buffer)
+                     nil)
+            t))
+        (defun +scratch-buffer-setup ()
+          "Add comment to `scratch' buffer and name it accordingly."
+          (let* ((mode (format "%s" major-mode))
+                 (string (concat "Scratch buffer for:" mode "\n\n")))
+            (when scratch-buffer
+              (save-excursion
+                (insert string)
+                (goto-char (point-min))
+                (comment-region (point-at-bol) (point-at-eol)))
+              (next-line 2))
+            (rename-buffer (concat "*scratch<" mode ">*") t)))
+        (add-hook 'kill-buffer-query-functions #'+scratch-immortal))
 
-    (setup minibuffer
-    (file-name-shadow-mode 1)
-    (minibuffer-depth-indicate-mode 1)
-    (minibuffer-electric-default-mode 1)
-    (fset #'yes-or-no-p #'y-or-n-p)
-    (setq enable-recursive-minibuffers t)
-    (setq file-name-shadow-properties '(invisible t intangible t))
-    (setq minibuffer-eldef-shorten-default t)
-    (setq minibuffer-prompt-properties
-          '(read-only t cursor-intangible t face minibuffer-prompt))
-    (setq read-answer-short t)
-    (setq read-extended-command-predicate #'command-completion-default-include-p)
-    (setq use-short-answers t)
-    (:with-hook minibuffer-setup-hook
-      (:hook cursor-intangible-mode)))
-#+end_example
+      (setup minibuffer
+        (file-name-shadow-mode 1)
+        (minibuffer-depth-indicate-mode 1)
+        (minibuffer-electric-default-mode 1)
+        (fset #'yes-or-no-p #'y-or-n-p)
+        (setq enable-recursive-minibuffers t)
+        (setq file-name-shadow-properties '(invisible t intangible t))
+        (setq minibuffer-eldef-shorten-default t)
+        (setq minibuffer-prompt-properties
+              '(read-only t cursor-intangible t face minibuffer-prompt))
+        (setq read-answer-short t)
+        (setq read-extended-command-predicate #'command-completion-default-include-p)
+        (setq use-short-answers t)
+        ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
+        (defun +minibuffer-complete-history ()
+          "Complete minibuffer history."
+          (interactive)
+          (completion-in-region (minibuffer--completion-prompt-end) (point-max)
+                                (symbol-value minibuffer-history-variable)
+                                nil))
+        (:with-hook minibuffer-setup-hook
+          (:hook cursor-intangible-mode))
+        (:with-map minibuffer-local-map
+          (:bind "M-/" #'+minibuffer-complete-history)))
 
-The default way Emacs makes buffer names unique is really ugly and,
-dare I say it, stupid.  Instead, I want them to be uniquified by their
-filesystem paths.
+  (setup ibuffer
+      (:also-load ibuf-ext)
+      (:option ibuffer-expert t
+               ibuffer-show-empty-filter-groups nil
+               ibuffer-saved-filter-groups
+               '(("default"
+                  ("Org" (mode . org-mode))
+                  ("emacs" (or (name . "^\\*scratch\\*$")
+                               (name . "^\\*Messages\\*$")
+                               (name . "^\\*Warnings\\*$")
+                               (name . "^\\*straight-process\\*$")
+                               (name . "^\\*Calendar\\*$")))
+                  ("customize" (mode . Custom-mode))
+                  ("emacs-config" (or (filename . ".emacs.d")
+                                      (mode . +init-mode)))
+                  ("git" (or (name . "^\*magit")
+                             (name . "^\magit")))
+                  ("help" (or (mode . help-mode)
+                              (mode . Info-mode)
+                              (mode . helpful-mode)))
+                  ("irc" (or (mode . erc-mode)
+                             (mode . circe-server-mode)
+                             (mode . circe-channel-mode)))
+                  ("shell" (or (mode . eshell-mode)
+                               (mode . shell-mode)
+                               (mode . vterm-mode)))
+                  ("web" (or (mode . elpher-mode)
+                             (mode . eww-mode))))))
+      (:hook (defun ibuffer@filter-to-default ()
+               (ibuffer-auto-mode +1)
+               (ibuffer-switch-to-saved-filter-groups "default"))))
+  #+end_src
+
+  The default way Emacs makes buffer names unique is really ugly and,
+  dare I say it, stupid.  Instead, I want them to be uniquified by their
+  filesystem paths.
 
 #+begin_src emacs-lisp
-  (require 'uniquify)
-#+end_src
+  (setup (:require uniquify)
+    (setq uniquify-after-kill-buffer-p t)
+    (setq uniquify-buffer-name-style 'forward)
+    (setq-default
+     uniquify-separator "/"
+     uniquify-ignore-buffers-re "^\\*"))
 
-#+begin_src emacs-lisp
-  (setq-default uniquify-buffer-name-style 'forward
-                uniquify-separator "/"
-                uniquify-after-kill-buffer-p t
-                uniquify-ignore-buffers-re "^\\*")
 #+end_src
 
 ** Emacs as an Editor
@@ -1207,40 +1360,44 @@ The configuration below enables Flyspell for all text modes and sets Hunspell as
 
 A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
 #+begin_src emacs-lisp
-    (setup flyspell
-      (:hook-into text-mode-hook)
-      (:bind "M-<f7>"  flyspell-buffer
-             "<f7>"    flyspell-word
-             "C-;"     flyspell-auto-correct-previous-word
-             )
-      (progn
-        (cond
-         ((executable-find "aspell")
-          (setq ispell-program-name "aspell")
-          (setq ispell-extra-args   '("--sug-mode=ultra"
-                                      "--lang=en_AU")))
-         ((executable-find "hunspell")
-          (setq ispell-program-name "hunspell")
-          (setq ispell-extra-args   '("-d en_AU"))))
+  (setup flyspell
+  (:only-if (or (executable-find "ispell")
+                (executable-find "aspell")
+                (executable-find "hunspell")))
 
-        ;; Save a new word to personal dictionary without asking
-        (setq ispell-silently-savep t)
-        (setq ispell-default-dictionary "en_AU"))
+    (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
+    (:bind "M-<f7>"  flyspell-buffer
+           "<f7>"    flyspell-word
+           "C-;"     flyspell-auto-correct-previous-word
+           )
+    (progn
+      (cond
+       ((executable-find "aspell")
+        (setq ispell-program-name "aspell")
+        (setq ispell-extra-args   '("--sug-mode=ultra"
+                                    "--lang=en_AU")))
+       ((executable-find "hunspell")
+        (setq ispell-program-name "hunspell")
+        (setq ispell-extra-args   '("-d en_AU"))))
 
-      (defun avy-action-flyspell (pt)
-        (save-excursion
-          (goto-char pt)
-          (when (require 'flyspell nil t)
-            (flyspell-auto-correct-word)))
-        (select-window
-         (cdr (ring-ref avy-ring 0)))
-        t)
+      ;; Save a new word to personal dictionary without asking
+      (setq ispell-silently-savep t)
+      (setq ispell-default-dictionary "en_AU"))
 
-      ;; Bind to semicolon (flyspell uses C-;)
-      (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
+    (defun avy-action-flyspell (pt)
+      (save-excursion
+        (goto-char pt)
+        (when (require 'flyspell nil t)
+          (flyspell-auto-correct-word)))
+      (select-window
+       (cdr (ring-ref avy-ring 0)))
+      t)
 
-      (:when-loaded
-        (:hide-mode)))
+    ;; Bind to semicolon (flyspell uses C-;)
+    (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
+
+    (:when-loaded
+      (:hide-mode)))
 #+end_src
 
 I use the dictionary package for Emacs, and I’m lazy about it:
@@ -1623,154 +1780,127 @@ Emacs completion parlava
 :PROPERTIES:
 :header-args: :noweb-ref pkg-org
 :END:
+The ever changing Org setup part
 #+BEGIN_SRC elisp :noweb-ref pkg-org
+    (setq org-directory
+          (if IS-TERMUX
+              "~/storage/shared/org"
+            "~/org"))
+    (defun /org-path (path)
+      (expand-file-name path org-directory))
+    (setq org-default-notes-file (/org-path "todo.org"))
 
-  (defvar enfer/dir-notes
-    (file-name-as-directory (expand-file-name "~/org")))
+    ;; Turn on indentation and auto-fill mode for Org files
+    (defun gas/org-mode-setup ()
+      (org-indent-mode)       ;; turn on org indent
+      (variable-pitch-mode 1) ;; turn on variable-pitch
+      (auto-fill-mode 0)      ;; turn off auto-fill
+      (visual-line-mode 1)    ;; turn on visual-line-mode
+      )
 
-  ;; Turn on indentation and auto-fill mode for Org files
-  (defun frap/org-mode-setup ()
-    (org-indent-mode)   ;; turn on org indent
-    (variable-pitch-mode 1) ;; turn on variable-pitch
-    (auto-fill-mode 0)   ;; turn off auto-fill
-    (visual-line-mode 1) ;; turn on visual-line-mode
-    )
+    (setup (:pkg org)
+      (:also-load org-tempo)
+      ;; (:hook gas/org-mode-setup)
+      (:global "C-c a"  org-agenda)
+      (:bind   "C-c c"  org-capture
+               "C-c l"  org-store-link)
+      (setq ;;org-adapt-indentation nil ; don't indent things
+       org-capture-bookmark nil
+       org-catch-invisible-edits 'smart            ;; try not to accidently do weird stuff in invisible regions
+       org-confirm-babel-evaluate nil
+       org-cycle-separator-lines 2
+       org-edit-src-content-indentation 2
+       org-ellipsis " …"
+       org-export-coding-system 'utf-8-unix
+       org-export-headline-levels 8
+       org-export-in-background t                  ;; run export processes in external emacs process
+       org-export-with-section-numbers nil
+       org-export-with-smart-quotes t
+       org-export-with-sub-superscripts '{}        ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+       org-export-with-toc t
+       org-fontify-quote-and-verse-blocks t
+       org-fontify-whole-heading-line t
+       org-hide-block-startup nil
+       org-hide-emphasis-markers t                 ;; so dont see text markers aka bold italic
+       org-html-coding-system 'utf-8-unix
+       org-html-todo-kwd-class-prefix "keyword "
+       org-id-link-to-org-use-id 'create-if-interactive
+       org-id-locations-file (/org-path ".orgids")
+       org-image-actual-width '(300)
+       org-list-allow-alphabetical t               ;; have a. A. a\) A\) list bullets
+       org-log-done 'time                          ;; having the time a item is done sounds convenient
+       org-outline-path-complete-in-steps nil
+       org-pretty-entities t                       ;; special symbols, latex
+       org-return-follows-link t
+       org-src-tab-acts-natively t
+       org-src-fontify-natively t
+       org-src-preserve-indentation nil
+       org-startup-folded 'content
+       org-startup-indented t                       ;; removed leading * for nicer view
+       org-startup-with-inline-images t
+       ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behaviour in headings.
+       org-special-ctrl-a/e t
+       org-special-ctrl-k t
+       org-use-property-inheritance t              ; it's convenient to have properties inherited
+       )
 
-  (setup (:pkg org)
-    (:also-load org-tempo)
-   ;; (:hook frap/org-mode-setup)
-    (:global "C-c a"   org-agenda)
-    (:bind "C-c c"  org-capture
-           "C-c l"   org-store-link)
-    (setq org-ellipsis " …"
-          org-directory enfer/dir-notes
-          ;;org-adapt-indentation nil ; don't indent things
-          org-capture-bookmark nil
-          org-cycle-separator-lines 2
-          org-catch-invisible-edits 'show-and-error;'smart ; let's try this
-          org-edit-src-content-indentation 2
-          org-export-coding-system 'utf-8-unix
-          org-export-headline-levels 8
-          org-export-with-section-numbers nil
-          org-export-with-smart-quotes t
-          org-export-with-sub-superscripts t
-          org-export-with-toc t
-          org-fontify-quote-and-verse-blocks t
-          org-fontify-whole-heading-line t
-          org-hide-block-startup nil
-          org-hide-emphasis-markers t  ;;so dont see text markers aka bold italic
-          org-html-coding-system 'utf-8-unix
-          org-html-todo-kwd-class-prefix "keyword "
-          org-id-link-to-org-use-id 'create-if-interactive
-          org-id-locations-file (expand-file-name ".orgids" enfer/dir-notes)
-          org-image-actual-width '(300)
-          org-outline-path-complete-in-steps nil
-          org-pretty-entities t  ;; special symbols, latex
-          org-return-follows-link t
-          org-src-tab-acts-natively t
-          org-src-fontify-natively t
-          org-src-preserve-indentation nil
-          org-startup-folded 'content
-          org-startup-indented t ;; removed leading * for nicer view
-          org-startup-with-inline-images t
-          ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behavior in headings.
-          org-special-ctrl-a/e t
-          org-special-ctrl-k t)
+      (setq org-modules
+            '(org-crypt
+              org-habit
+              org-bookmark
+              org-eshell
+              ;;org-irc
+              ))
 
-    (setq org-modules
-          '(org-crypt
-            org-habit
-            org-bookmark
-            org-eshell
-            ;;org-irc
-            ))
+      (setq org-refile-targets '((nil :maxlevel . 3)
+                                 (org-agenda-files :maxlevel . 3))
+            org-refile-use-outline-path t)
 
-    (setq org-refile-targets '((nil :maxlevel . 3)
-                               (org-agenda-files :maxlevel . 3))
-          org-refile-use-outline-path t)
+      (org-babel-do-load-languages
+       'org-babel-load-languages
+       '((emacs-lisp . t)
+         (clojure . t)
+         (shell . t)
+         (python . t)
+         ;;(ledger . t)
+         ))
+      (setq org-ts-regexp-both-braket "\\([[<]\\)\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ?[^]\n>]*?\\)\\([]>]\\)")
+      (defface org-deadline-custom-braket '((t (:inherit 'default))) "org-deadline" :group 'org)
+      (defface org-scheduled-custom-braket '((t (:inherit 'default))) "org-schedule" :group 'org)
+      (defface org-priority-hide '((t ())) "org-priority-hide" :group 'org)
+      (defface org-scheduled-custom '((t (:inherit 'default))) "org-schedule" :group 'org)
+      (defface org-closed-custom '((t (:inherit 'default))) "org-close" :group 'org)
+      (defface org-todo-keyword-done '((t ())) "org-done" :group 'org)
+      (defface org-todo-keyword-next '((t ())) "org-next" :group 'org)
+      (defface org-todo-keyword-proj '((t ())) "org-proj" :group 'org)
+      (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
+      (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
+      (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
+      ;; (with-no-warnings
+      ;;   (custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+      ;;   (custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+      ;;   (custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
+      ;;   (custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) ""))
+      ;; change CAPITAL Keywords to lowercase
+      (defun org-syntax-convert-keyword-case-to-lower ()
+        "Convert all #+KEYWORDS to #+keywords."
+        (interactive)
+        (save-excursion
+          (goto-char (point-min))
+          (let ((count 0)
+                (case-fold-search nil))
+            (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+              (unless (s-matches-p "RESULTS" (match-string 0))
+                (replace-match (downcase (match-string 0)) t)
+                (setq count (1+ count))))
+            (message "Remplacement de %d occurrences" count))))
 
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((emacs-lisp . t)
-       (clojure . t)
-       (shell . t)
-       (python . t)
-       ;;(ledger . t)
-       ))
+      (push '("conf-unix" . conf-unix) org-src-lang-modes)
+      (:load-after hl-fill-column
+        (:hook gas/org-agenda-mode
+               'show-paren-mode)))
 
-    (with-no-warnings
-      (custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
-      (custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
-      (custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
-      (custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) ""))
-
-    (setq org-todo-keywords
-          '((sequence
-             "TODO(t)"  ; A task that needs doing & is ready to do
-             "PROJ(p)"  ; A project, which usually contains other tasks
-             "SUIV(s)"  ; A task that is in progress
-             "ATTE(w)"  ; Something external is holding up this task
-             "SUSP(h)"  ; This task is paused/on hold because of me
-             "|"
-             "FINI(d)"  ; Task successfully completed
-             "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
-            (sequence
-             "[ ](T)"   ; A task that needs doing
-             "[-](S)"   ; Task is in progress
-             "[?](W)"   ; Task is being held up or paused
-             "|"
-             "[X](D)")  ; Task was completed
-            (sequence
-             "|"
-             "OKAY(o)"
-             "YES(y)"
-             "NO(n)"))
-          org-todo-keyword-faces
-          '(("[-]"   . +org-todo-active)
-            ("SUIV" . +org-todo-active)
-            ("[?]"  . +org-todo-onhold)
-            ("ATTE" . +org-todo-onhold)
-            ("SUSP" . +org-todo-onhold)
-            ("PROJ" . +org-todo-project)
-            ("NO"   . +org-todo-cancel)
-            ("KILL" . +org-todo-cancel)))
-    (setq org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕"))
-    (setq  org-capture-templates
-           '(("x" "Note" entry
-              (file+olp+datetree "journal.org")
-              "**** [ ] %U %?" :prepend t :kill-buffer t)
-             ("t" "Tâches" entry
-              (file+headline "todo.org" "Boîte de réception")
-              "* [ ] %?\n%i" :prepend t :kill-buffer t)))
-    ;;  (setq org-capture-templates
-    ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-    ;;          "* TODO %?")
-    ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
-    ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
-    ;;               :immediate-finish t)
-    ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-    ;;               "* TODO [[%:link][%:description]]\n\n %i"
-    ;;               :immediate-finish t)
-    ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
-    ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
-    ;;           ))
-
-
-    (push '("conf-unix" . conf-unix) org-src-lang-modes)
-    (:load-after hl-fill-column
-      (:hook (fn (auto-fill-mode 0)
-                 (hl-fill-column-mode 0)
-                 (visual-line-mode 1)
-                 (variable-pitch-mode 1)))))
-  ;;   (require 'org)
-  ;;   (add-to-list 'org-modules 'org-tempo)
-  ;;   (setq org-startup-folded nil
-  ;;         org-hide-emphasis-markers nil
-  ;;         org-edit-src-content-indentation 0
-  ;;         org-confirm-babel-evaluate nil
-  ;;         org-support-shift-select 'always)
-
-  ;;   (add-hook 'org-mode-hook 'show-paren-mode)
+    ;;   (add-hook 'org-mode-hook 'show-paren-mode)
 
 #+END_SRC
 
@@ -1778,80 +1908,81 @@ Emacs completion parlava
 Use bullet characters instead of asterisks, plus set the header font sizes to something more palatable.  A fair amount of inspiration has been taken from [[https://zzamboni.org/post/beautifying-org-mode-in-emacs/][this blog post]].
 
 #+begin_src emacs-lisp
-   (setup (:require org-indent)
-         (:load-after org
-           (org-indent-mode 1)
-           (:hide-mode)))
+  (setup (:require org-indent)
+    (:load-after org
+      (org-indent-mode 1)
+      (:hide-mode)))
 
-   (setup (:pkg org-appear)
-         (:load-after org
-           (setq org-appear-autolinks t)
-           (setq org-appear-autoemphasis t)
-           (setq org-appear-autoentities t)
-           (setq org-appear-autokeywords t)
-           (:hook-into org-mode)))
+  (setup (:pkg org-appear)
+    (:option org-appear-autoemphasis t
+             org-appear-autoentities t
+             org-appear-autokeywords t
+             org-appear-autolinks nil
+             org-appear-autosubmarkers t
+             org-appear-delay 0)
+    (:hook-into org-mode))
 
-   (unless IS-TERMUX
-     (setup (:pkg org-superstar)
-       (:load-after org
-         (:option org-superstar-remove-leading-stars t
-                  org-superstar-special-todo-items t
-                  org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●"))
-         (:hook-into org-mode)))
+  (unless IS-TERMUX
+    (setup (:pkg org-superstar)
+      (:load-after org
+        (:option org-superstar-remove-leading-stars t
+                 org-superstar-special-todo-items t
+                 org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●"))
+        (:hook-into org-mode)))
 
-         ;; Replace list hyphen with dot
-         ;; (font-lock-add-keywords 'org-mode
-         ;;                         '(("^ *\\([-]\\) "
-         ;;                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
+    ;; Replace list hyphen with dot
+    ;; (font-lock-add-keywords 'org-mode
+    ;;                         '(("^ *\\([-]\\) "
+    ;;                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
 
-         (setup org-faces
-           (:load-after org
-             (dolist (face-cons '((org-document-title . 1.75)
-                                (org-level-1 . 1.5)
-                                (org-level-2 . 1.25)
-                                (org-level-3 . 1.12)
-                                (org-level-4 . 1.05)
-                                (org-level-5 . 1.0)
-                                (org-level-6 . 1.0)
-                                (org-level-7 . 1.0)
-                                (org-level-8 . 1.0)))
-             (cl-destructuring-bind (face . height) face-cons
-               (set-face-attribute face
-                                   nil
-                                   :weight 'bold
-                                   :font "Iosevka Aile"
-                                   :height height)))))
+    (setup org-faces
+      (:load-after org
+        (dolist (face-cons '((org-document-title . 1.75)
+                             (org-level-1 . 1.5)
+                             (org-level-2 . 1.25)
+                             (org-level-3 . 1.12)
+                             (org-level-4 . 1.05)
+                             (org-level-5 . 1.0)
+                             (org-level-6 . 1.0)
+                             (org-level-7 . 1.0)
+                             (org-level-8 . 1.0)))
+          (cl-destructuring-bind (face . height) face-cons
+            (set-face-attribute face
+                                nil
+                                :weight 'bold
+                                :font "Iosevka Aile"
+                                :height height)))))
 
-             ;; Ensure that anything that should be fixed-pitch in Org files appears that way
-             (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-             (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
-             (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
-             (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
-             (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
-             (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-             (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-             (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-             (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
+    ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+    (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+    (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
+    (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
+    (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
+    (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
+    (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+    (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+    (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+    (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
 
-             ;; Get rid of the background on column views
-             (set-face-attribute 'org-column nil :background nil)
-             (set-face-attribute 'org-column-title nil :background nil))
+    ;; Get rid of the background on column views
+    (set-face-attribute 'org-column nil :background nil)
+    (set-face-attribute 'org-column-title nil :background nil))
 
 
-         ;; TODO: Others to consider
-         ;; '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
-         ;; '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
-         ;; '(org-property-value ((t (:inherit fixed-pitch))) t)
-         ;; '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
-         ;; '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
-         ;; '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
-         ;; '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
+  ;; TODO: Others to consider
+  ;; '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+  ;; '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+  ;; '(org-property-value ((t (:inherit fixed-pitch))) t)
+  ;; '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+  ;; '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
+  ;; '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
+  ;; '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
   (setup (:pkg toc-org)
-       (:load-after org
-         (:hook-into org-mode)))
+    (:load-after org
+      (:hook-into org-mode)))
 #+end_src
 
-*** Block Templates
+*** Templates
 These templates enable you to type things like =<el= and then hit =Tab= to expand
 the template.  More documentation can be found at the Org Mode [[https://orgmode.org/manual/Easy-templates.html][Easy Templates]]
 documentation page.
@@ -1874,234 +2005,358 @@ documentation page.
       (add-to-list 'org-structure-template-alist '("json" . "src json"))))
 
 #+end_src
-Trying to fix weird org syntax problems. This just lets Org ignore < and > characters as if they were regular words. This is necessary because in Clojure I want to make functions with -> in the name and Org was always insisting on pairing <>. This caused any other paren matching to stop working. It sucked.
+Trying to fix weird org syntax problems. This just lets Org ignore < and > characters as if they
+were regular words. This is necessary because in Clojure I want to make functions with -> in the
+name and Org was always insisting on pairing <>. This caused any other paren matching to stop
+working. It sucked.
 
-*** Org Agenda
-org-capture provides a generic and extensible interface to capturing things into org-mode in
-different formats
+**** YASSnippet
+Setup Ysnippet
 #+begin_src emacs-lisp
-  (setup org-agenda
-   (:load-after org
-    (defconst gas-org-agenda-file (concat org-directory "todo.org"))
-    (setq org-agenda-files
-          '( "~/org/todo.org" "~/work/work.org.gpg" ;;"~/org/roam/"
-             ))
-    (setq-default
-     org-tag-alist
-     (quote (("@errand"     . ?e)
-             ("@bureau"    . ?o)
-             ("@maison"    . ?h)
-             ("important"  . ?i)
-             ("urgent"     . ?u)
-
-             (:newline)
-             ("ATTENDRE"  . ?w)
-             ("SUSPENDUÉ" . ?h)
-             ("ANNULÉ"    . ?c)
-             ("RÉUNION"   . ?m)
-             ("TÉLÉPHONE" . ?p)
-             ("french"    . ?f)
-             ("spanish"   . ?s))))
-
-    (setq  org-highest-priority ?A
-           org-default-priority ?C
-           org-lowest-priority  ?D)
-    (setq org-agenda-custom-commands
-          (quote
-           (("N" "Notes" tags "NOTE"
-             ((org-agenda-overriding-header "Notes")
-              (org-tags-match-list-sublevels t)))
-            ("h" "Habitudes" tags-todo "STYLE=\"habit\""
-             ((org-agenda-overriding-header "Habitudes")
-              (org-agenda-sorting-strategy
-               '(todo-state-down priority-down category-keep))))
-            ("e" "Eisenhower Matrix"
-             ((agenda
-               ""
-               ((org-agenda-overriding-header "Calendrier Eisenhower:")
-                (org-agenda-show-log t)
-                (org-agenda-log-mode-items '(clock state))
-                (org-agenda-category-filter-preset '("-Habitudes"))
-                (org-agenda-span 5)
-                (org-agenda-start-on-weekday t)
-                ;;            (org-agenda-ndays 5)
-                ;;            (org-agenda-start-day "-2d")
-                (org-deadline-warning-days 30)))
-              (tags-todo  "+important+urgent\!FINI"
-                          ((org-agenda-overriding-header "Tâches importantes et urgentes")
-                           (org-tags-match-list-sublevels nil)))
-              (tags-todo  "+important-urgent"
-                          ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
-                           (org-tags-match-list-sublevels nil)))
-              (tags-todo "-important+urgent"
-                         ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
-                          (org-tags-match-list-sublevels nil)))
-              (tags-todo "-important-urgent/!TODO"
-                         ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
-                          (org-agenda-category-filter-preset '("-Habitudes"))
-                          (org-tags-match-list-sublevels nil)))
-              (tags-todo "VALUE"
-                         ((org-agenda-overriding-header "Valeurs")
-                          (org-tags-match-list-sublevels nil)))
-              ))
-            (" " "Agenda"
-             ((agenda ""
-                      ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
-                       (org-agenda-show-log t)
-                       (org-agenda-log-mode-items '(clock state))
-                       ;;   (org-agenda-span 'day)
-                       ;;   (org-agenda-ndays 3)
-                       (org-agenda-start-on-weekday nil)
-                       (org-agenda-start-day "-d")
-                       (org-agenda-todo-ignore-deadlines nil)))
-              (tags-todo "+important"
-                         ((org-agenda-overriding-header "Tâches Importantes à Venir")
-                          (org-tags-match-list-sublevels nil)))
-              (tags-todo "-important"
-                         ((org-agenda-overriding-header "Tâches de Travail")
-                          (org-agenda-category-filter-preset '("-Habitudes"))
-                          (org-agenda-sorting-strategy
-                           '(todo-state-down priority-down))))
-              (tags "REFILE"
-                    ((org-agenda-overriding-header "Tâches à la Représenter")
-                     (org-tags-match-list-sublevels nil)))))
-            )))))
+(setup (:pkg yasnippet)
+       (:option yas-snippet-dirs (list
+                                  (expand-file-name "snippets" user-emacs-directory)
+                                  (sync/ "emacs/snippets" t)))
+       (yas-global-mode +1))
 #+end_src
+
 *** Org Roam
 #+begin_src emacs-lisp
 
-  (defvar dw/org-roam-project-template
-    '("p" "projet" plain "** TODO %?"
-      :if-new (file+head+olp "%<%Y%m%d%H%M%S>-${slug}.org"
-                             "#+title: ${title}\n#+category: ${title}\n#+filetags: Projet\n"
-                             ("Tasks"))))
+  (with-eval-after-load 'org-roam
+    (defun my/org-roam-project-finalise-hook ()
+      "Adds the captured project file to `org-agenda-files' if the
+  capture was not aborted."
+      ;; Remove the hook since it was added temporarily
+      (remove-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
 
-  (defun my/org-roam-filter-by-tag (tag-name)
-    (lambda (node)
-      (member tag-name (org-roam-node-tags node))))
+      ;; Add project file to the agenda list if the capture was confirmed
+      (unless org-note-abort
+        (with-current-buffer (org-capture-get :buffer)
+          (add-to-list 'org-agenda-files (buffer-file-name)))))
 
-  (defun my/org-roam-list-notes-by-tag (tag-name)
-    (mapcar #'org-roam-node-file
-            (seq-filter
-             (my/org-roam-filter-by-tag tag-name)
-             (org-roam-node-list))))
 
-  (defun org-roam-node-insert-immediate (arg &rest args)
-    (interactive "P")
-    (let ((args (push arg args))
-          (org-roam-capture-templates (list (append (car org-roam-capture-templates)
-                                                    '(:immediate-finish t)))))
-      (apply #'org-roam-node-insert args)))
-
-  (defun dw/org-roam-goto-month ()
-    (interactive)
-    (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y-%B")) '(4))
-                       :node (org-roam-node-create)
-                       :templates '(("m" "month" plain "\n* Goals\n\n%?* Summary\n\n"
-                                     :if-new (file+head "%<%Y-%B>.org"
-                                                        "#+title: %<%Y-%B>\n#+filetags: Projet\n")
-                                     :unnarrowed t))))
-
-  (defun dw/org-roam-goto-year ()
-    (interactive)
-    (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y")) '(4))
-                       :node (org-roam-node-create)
-                       :templates '(("y" "year" plain "\n* Goals\n\n%?* Summary\n\n"
-                                     :if-new (file+head "%<%Y>.org"
-                                                        "#+title: %<%Y>\n#+filetags: Projet\n")
-                                     :unnarrowed t))))
-
-  (defun dw/org-roam-capture-task ()
+    (defun my/org-roam-find-project ()
     (interactive)
     ;; Add the project file to the agenda after capture is finished
     (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
 
-    ;; Capture the new task, creating the project file if necessary
-    (org-roam-capture- :node (org-roam-node-read
-                              nil
-                              (my/org-roam-filter-by-tag "Projet"))
-                       :templates (list dw/org-roam-project-template)))
+    ;; Select a project file to open, creating it if necessary
+    (org-roam-node-find
+     nil
+     nil
+     (my/org-roam-filter-by-tag "Projet")
+     :templates
+     '(("p" "projet" plain "* Objectifs\n\n%?\n\n* Tâches\n\n** TODO Ajouter des tâches initiales\n\n* Dates\n\n"
+        :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+category: ${title}\n#+filetags: Projet")
+        :unnarrowed t))))
 
-  (defun my/org-roam-refresh-agenda-list ()
+  (defun my/org-roam-capture-inbox ()
     (interactive)
-    (setq org-agenda-files (my/org-roam-list-notes-by-tag "Projet")))
+    (org-roam-capture- :node (org-roam-node-create)
+                       :templates '(("i" "inbox" plain "* %?"
+                                     :if-new (file+head "todo.org" "#+title: Inbox\n")))))
 
-  (defhydra dw/org-roam-jump-menu (:hint nil)
+  (defun my/org-roam-copy-todo-to-today ()
+    (interactive)
+    (let ((org-refile-keep t) ;; Set this to nil to delete the original!
+          (org-roam-dailies-capture-templates
+           '(("t" "tâches" entry "%?"
+              :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n" ("TÂches")))))
+          (org-after-refile-insert-hook #'save-buffer)
+          today-file
+          pos)
+      (save-window-excursion
+        (org-roam-dailies--capture (current-time) t)
+        (setq today-file (buffer-file-name))
+        (setq pos (point)))
+
+      ;; Only refile if the target file is different than the current file
+      (unless (equal (file-truename today-file)
+                     (file-truename (buffer-file-name)))
+        (org-refile nil nil (list "Tâches" today-file nil pos)))))
+
+    (defvar dw/org-roam-project-template
+      '("p" "projet" plain "** TODO %?"
+        :if-new (file+head+olp "%<%Y%m%d%H%M%S>-${slug}.org"
+                               "#+title: ${title}\n#+category: ${title}\n#+filetags: Projet\n"
+                               ("Tâches"))))
+
+  ;; (add-to-list 'org-after-todo-state-change-hook
+  ;;              (lambda ()
+  ;;                (when (equal org-state "DONE")
+  ;;                  (my/org-roam-copy-todo-to-today))))
+  )
+
+    (defun my/org-roam-filter-by-tag (tag-name)
+      (lambda (node)
+        (member tag-name (org-roam-node-tags node))))
+
+    (defun my/org-roam-list-notes-by-tag (tag-name)
+      (mapcar #'org-roam-node-file
+              (seq-filter
+               (my/org-roam-filter-by-tag tag-name)
+               (org-roam-node-list))))
+
+    (defun org-roam-node-insert-immediate (arg &rest args)
+      (interactive "P")
+      (let ((args (push arg args))
+            (org-roam-capture-templates (list (append (car org-roam-capture-templates)
+                                                      '(:immediate-finish t)))))
+        (apply #'org-roam-node-insert args)))
+
+    (defun dw/org-roam-goto-month ()
+      (interactive)
+      (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y-%B")) '(4))
+                         :node (org-roam-node-create)
+                         :templates '(("m" "month" plain "\n* Objectifs\n\n%?* Résumé\n\n"
+                                       :if-new (file+head "%<%Y-%B>.org"
+                                                          "#+title: %<%Y-%B>\n#+filetags: Projet\n")
+                                       :unnarrowed t))))
+
+    (defun dw/org-roam-goto-year ()
+      (interactive)
+      (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y")) '(4))
+                         :node (org-roam-node-create)
+                         :templates '(("y" "year" plain "\n* Objectifs\n\n%?* Résumé\n\n"
+                                       :if-new (file+head "%<%Y>.org"
+                                                          "#+title: %<%Y>\n#+filetags: Projet\n")
+                                       :unnarrowed t))))
+
+    (defun dw/org-roam-capture-task ()
+      (interactive)
+      ;; Add the project file to the agenda after capture is finished
+      (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
+
+      ;; Capture the new task, creating the project file if necessary
+      (org-roam-capture- :node (org-roam-node-read
+                                nil
+                                (my/org-roam-filter-by-tag "Projet"))
+                         :templates (list dw/org-roam-project-template)))
+
+    (defun my/org-roam-refresh-agenda-list ()
+      (interactive)
+      (setq org-agenda-files (my/org-roam-list-notes-by-tag "Projet")))
+
+    (defhydra dw/org-roam-jump-menu (:hint nil)
+      "
+    ^Dailies^        ^Capture^       ^Jump^
+    ^^^^^^^^-------------------------------------------------
+    _t_: today       _T_: today       _m_: current month
+    _r_: tomorrow    _R_: tomorrow    _e_: current year
+    _y_: yesterday   _Y_: yesterday   ^ ^
+    _d_: date        ^ ^              ^ ^
     "
-  ^Dailies^        ^Capture^       ^Jump^
-  ^^^^^^^^-------------------------------------------------
-  _t_: today       _T_: today       _m_: current month
-  _r_: tomorrow    _R_: tomorrow    _e_: current year
-  _y_: yesterday   _Y_: yesterday   ^ ^
-  _d_: date        ^ ^              ^ ^
-  "
-    ("t" org-roam-dailies-goto-today)
-    ("r" org-roam-dailies-goto-tomorrow)
-    ("y" org-roam-dailies-goto-yesterday)
-    ("d" org-roam-dailies-goto-date)
-    ("T" org-roam-dailies-capture-today)
-    ("R" org-roam-dailies-capture-tomorrow)
-    ("Y" org-roam-dailies-capture-yesterday)
-    ("m" dw/org-roam-goto-month)
-    ("e" dw/org-roam-goto-year)
-    ("c" nil "cancel"))
+      ("t" org-roam-dailies-goto-today)
+      ("r" org-roam-dailies-goto-tomorrow)
+      ("y" org-roam-dailies-goto-yesterday)
+      ("d" org-roam-dailies-goto-date)
+      ("T" org-roam-dailies-capture-today)
+      ("R" org-roam-dailies-capture-tomorrow)
+      ("Y" org-roam-dailies-capture-yesterday)
+      ("m" dw/org-roam-goto-month)
+      ("e" dw/org-roam-goto-year)
+      ("c" nil "cancel"))
 
-  (setup (:pkg org-roam)
-    (setq org-roam-v2-ack t)
-    (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
-          dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
+    (setup (:pkg org-roam)
+      (setq org-roam-v2-ack t)
+      (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
+            dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
 
-    (:when-loaded
-      (org-roam-db-autosync-mode)
-      (my/org-roam-refresh-agenda-list))
+      (:when-loaded
+        (org-roam-db-autosync-mode)
+        (my/org-roam-refresh-agenda-list))
 
-    (:option
-     org-roam-directory "~/org/roam/"
-     org-roam-dailies-directory "journal/"
-     org-roam-completion-everywhere t
-     org-roam-capture-templates
-     '(("d" "default" plain "%?"
-        :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                           "#+title: ${title}\n")
-        :unnarrowed t))
-     org-roam-dailies-capture-templates
-     `(("d" "default" entry
-        "* %?"
-        :if-new (file+head ,dw/daily-note-filename
-                           ,dw/daily-note-header))
-       ("t" "tâche" entry
-        "* TODO %?\n  %U\n  %a\n  %i"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Tasks"))
-        :empty-lines 1)
-       ("l" "log entry" entry
-        "* %<%I:%M %p> - %?"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))
-       ("j" "journal" entry
-        "* %<%I:%M %p> - Journal  :journal:\n\n%?\n\n"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))
-       ("m" "meeting" entry
-        "* %<%I:%M %p> - %^{Meeting Title}  :meetings:\n\n%?\n\n"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))))
-    (:global "C-c n l" org-roam-buffer-toggle
-             "C-c n f" org-roam-node-find
-             "C-c n d" dw/org-roam-jump-menu/body
-             "C-c n c" org-roam-dailies-capture-today
-             "C-c n t" dw/org-roam-capture-task
-             "C-c n g" org-roam-graph)
-    (:bind "C-c n i" org-roam-node-insert
-           "C-c n I" org-roam-insert-immediate))
+      (:option
+       org-roam-directory "~/org/roam/"
+       org-roam-dailies-directory "journal/"
+       org-roam-completion-everywhere t
+       org-roam-capture-templates
+       '(("d" "default" plain "%?"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                             "#+title: ${title}\n")
+          :unnarrowed t))
+       org-roam-dailies-capture-templates
+       `(("d" "default" entry
+          "* %?"
+          :if-new (file+head ,dw/daily-note-filename
+                             ,dw/daily-note-header))
+         ("t" "tâche" entry
+          "* TODO %?\n  %U\n  %a\n  %i"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Tasks"))
+          :empty-lines 1)
+         ("l" "log entry" entry
+          "* %<%I:%M %p> - %?"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))
+         ("j" "journal" entry
+          "* %<%I:%M %p> - Journal  :journal:\n\n%?\n\n"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))
+         ("m" "meeting" entry
+          "* %<%I:%M %p> - %^{Meeting Title}  :meetings:\n\n%?\n\n"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))))
+      (:global "C-c n l" org-roam-buffer-toggle
+               "C-c n f" org-roam-node-find
+               "C-c n d" dw/org-roam-jump-menu/body
+               "C-c n c" org-roam-dailies-capture-today
+               "C-c n t" dw/org-roam-capture-task
+               "C-c n g" org-roam-graph)
+      (:bind "C-c n i" org-roam-node-insert
+             "C-c n I" org-roam-insert-immediate))
 
 
+    ;;(setq  org-capture-templates
+    ;;       '(("x" "Note" entry
+    ;;          (file+olp+datetree "journal.org")
+    ;;          "**** [ ] %U %?" :prepend t :kill-buffer t)
+    ;;         ("t" "Tâches" entry
+    ;;          (file+headline "todo.org" "Boîte de réception")
+    ;;          "* [ ] %?\n%i" :prepend t :kill-buffer t)))
+    ;;  (setq org-capture-templates
+    ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;          "* TODO %?")
+    ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
+    ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
+    ;;               :immediate-finish t)
+    ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;               "* TODO [[%:link][%:description]]\n\n %i"
+    ;;               :immediate-finish t)
+    ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
+    ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
+    ;;           ))
 #+end_src
+*** Org Agenda
+org-capture provides a generic and extensible interface to capturing things into org-mode in
+different formats
+#+begin_src emacs-lisp
+      (setup org-agenda
+       (:load-after org
+        (setq org-agenda-files
+              '( "~/org/todo.org"  "~/org/roam/"
+                 ))
+            (setq org-todo-keywords
+              '((sequence
+                 "TODO(t)"  ; A task that needs doing & is ready to do
+                 "PROJ(p)"  ; A project, which usually contains other tasks
+                 "SUIV(s)"  ; A task that is in progress
+                 "ATTE(w)"  ; Something external is holding up this task
+                 "SUSP(h)"  ; This task is paused/on hold because of me
+                 "|"
+                 "FINI(d)"  ; Task successfully completed
+                 "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
+                (sequence
+                 "[ ](T)"   ; A task that needs doing
+                 "[-](S)"   ; Task is in progress
+                 "[?](W)"   ; Task is being held up or paused
+                 "|"
+                 "[X](D)")  ; Task was completed
+                (sequence
+                 "|"
+                 "OKAY(o)"
+                 "YES(y)"
+                 "NO(n)"))
+              org-todo-keyword-faces
+              '(("[ ]"   . org-todo-keyword-todo)
+                ("SUIV" .  org-todo-keyword-next)
+                ("[-]"  .  org-todo-keyword-next)
+                ("[?]"  .  org-todo-keyword-wait)
+                ("ATTE" .  org-todo-keyword-wait)
+                ("SUSP" .  org-todo-keyword-wait)
+                ("PROJ" .  org-todo-keyword-proj)
+                ("KILL" .  org-todo-keyword-kill)
+                ("FINI" .  org-todo-keyword-done)
+                ("[X]"  .  org-todo-keyword-done)
+                ))
+        (setq org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕"))
+        (setq-default
+         org-tag-alist
+         (quote (("@errand"     . ?e)
+                 ("@bureau"    . ?o)
+                 ("@maison"    . ?h)
+                 ("important"  . ?i)
+                 ("urgent"     . ?u)
 
+                 (:newline)
+                 ("ATTENDRE"  . ?w)
+                 ("SUSPENDUÉ" . ?h)
+                 ("ANNULÉ"    . ?c)
+                 ("RÉUNION"   . ?m)
+                 ("TÉLÉPHONE" . ?p)
+                 ("french"    . ?f)
+                 ("spanish"   . ?s))))
+
+        (setq org-priority-faces
+         `((?A . ,(face-foreground 'error))
+           (?B . ,(face-foreground 'warning))
+           (?C . ,(face-foreground 'success))))
+        (setq org-agenda-custom-commands
+              (quote
+               (("N" "Notes" tags "NOTE"
+                 ((org-agenda-overriding-header "Notes")
+                  (org-tags-match-list-sublevels t)))
+                ("h" "Habitudes" tags-todo "STYLE=\"habit\""
+                 ((org-agenda-overriding-header "Habitudes")
+                  (org-agenda-sorting-strategy
+                   '(todo-state-down priority-down category-keep))))
+                ("e" "Eisenhower Matrix"
+                 ((agenda
+                   ""
+                   ((org-agenda-overriding-header "Calendrier Eisenhower:")
+                    (org-agenda-show-log t)
+                    (org-agenda-log-mode-items '(clock state))
+                    (org-agenda-category-filter-preset '("-Habitudes"))
+                    (org-agenda-span 5)
+                    (org-agenda-start-on-weekday t)
+                    ;;            (org-agenda-ndays 5)
+                    ;;            (org-agenda-start-day "-2d")
+                    (org-deadline-warning-days 30)))
+                  (tags-todo  "+important+urgent\!FINI"
+                              ((org-agenda-overriding-header "Tâches importantes et urgentes")
+                               (org-tags-match-list-sublevels nil)))
+                  (tags-todo  "+important-urgent"
+                              ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
+                               (org-tags-match-list-sublevels nil)))
+                  (tags-todo "-important+urgent"
+                             ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+                              (org-tags-match-list-sublevels nil)))
+                  (tags-todo "-important-urgent/!TODO"
+                             ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
+                              (org-agenda-category-filter-preset '("-Habitudes"))
+                              (org-tags-match-list-sublevels nil)))
+                  (tags-todo "VALUE"
+                             ((org-agenda-overriding-header "Valeurs")
+                              (org-tags-match-list-sublevels nil)))
+                  ))
+                (" " "Agenda"
+                 ((agenda ""
+                          ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
+                           (org-agenda-show-log t)
+                           (org-agenda-log-mode-items '(clock state))
+                           ;;   (org-agenda-span 'day)
+                           ;;   (org-agenda-ndays 3)
+                           (org-agenda-start-on-weekday nil)
+                           (org-agenda-start-day "-d")
+                           (org-agenda-todo-ignore-deadlines nil)))
+                  (tags-todo "+important"
+                             ((org-agenda-overriding-header "Tâches Importantes à Venir")
+                              (org-tags-match-list-sublevels nil)))
+                  (tags-todo "-important"
+                             ((org-agenda-overriding-header "Tâches de Travail")
+                              (org-agenda-category-filter-preset '("-Habitudes"))
+                              (org-agenda-sorting-strategy
+                               '(todo-state-down priority-down))))
+                  (tags "REFILE"
+                        ((org-agenda-overriding-header "Tâches à la Représenter")
+                         (org-tags-match-list-sublevels nil)))))
+                )))))
+#+end_src
 *** Distraction Free
 setup olivetti to have a distraction free editing mode
 #+begin_src emacs-lisp
@@ -2137,131 +2392,234 @@ I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP se
 *** LISP Paren Setup
 Setup smartparens and rainbow delimiters
 #+begin_src emacs-lisp :noweb-ref code-paren
+  (setup hideshow
+    (defun +hs-cycle (&optional level)
+      (interactive "p")
+      (let (message-log-max
+            (inhibit-message t))
+        (if (= level 1)
+            (pcase last-command
+              ('+hs-cycle
+               (hs-hide-level 1)
+               (setq this-command 'hs-cycle-children))
+              ('hs-cycle-children
+               ;; TODO: Fix this case. `hs-show-block' needs to be
+               ;; called twice to open all folds of the parent
+               ;; block.
+               (save-excursion (hs-show-block))
+               (hs-show-block)
+               (setq this-command 'hs-cycle-subtree))
+              ('hs-cycle-subtree
+               (hs-hide-block))
+              (_
+               (if (not (hs-already-hidden-p))
+                   (hs-hide-block)
+                 (hs-hide-level 1)
+                 (setq this-command 'hs-cycle-children))))
+          (hs-hide-level level)
+          (setq this-command 'hs-hide-level))))
+
+    (defun +hs-global-cycle ()
+      (interactive)
+      (pcase last-command
+        ('+hs-global-cycle
+         (save-excursion (hs-show-all))
+         (setq this-command 'hs-global-show))
+        (_ (hs-hide-all))))
+    (:with-mode hs-minor-mode
+      (:hook-into prog-mode)
+      (:bind "C-<tab>" #'+hs-cycle
+             "C-S-<tab>" #'+hs-global-cycle
+             ;; but y tho
+             "C-S-<iso-lefttab>" #'+hs-global-cycle)))
+
   (setup (:pkg rainbow-delimiters)
-    (setq rainbow-delimiters-max-face-count 2)
+    ;;(setq rainbow-delimiters-max-face-count 2)
     (:hook-into emacs-lisp-mode-hook
                 eval-expression-minibuffer-setup-hook
                 ielm-mode-hook
                 lisp-interaction-mode-hook
                 lisp-mode-hook
                 sly-mrepl-mode-hook
-                clojure-mode-hook)
+                clojure-mode
+                prog-mode)
     (:hide-mode))
 
   (setup (:pkg smartparens)
-  (:require smartparens)
-  (setq sp-cancel-autoskip-on-backward-movement nil)
-  ;; Overlays are too distracting and not terribly helpful. show-parens does
-  ;; this for us already (and is faster), so...
-  (setq sp-highlight-pair-overlay nil)
-  (setq sp-highlight-wrap-overlay nil)
-  (setq sp-highlight-wrap-tag-overlay nil)
-  ;; No pair has any business being longer than 4 characters; if they must, set
-  ;; it buffer-locally. It's less work for smartparens.
-  (setq sp-max-pair-length 2)
-  ;; The default is 100, because smartparen's scans are relatively expensive
-  ;; (especially with large pair lists for some modes), we reduce it, as a
-  ;; better compromise between performance and accuracy.
-  (setq sp-max-prefix-length 32)
-  (setq sp-message-width nil)
-  (setq sp-navigate-consider-sgml-tags nil)
-  (setq sp-navigate-skip-match nil)
-  (setq sp-show-pair-from-inside t)
-  (sp-pair "'" nil :actions :rem)
-  (sp-pair "`" nil :actions :rem)
-  (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
+    (:require smartparens)
+    (setq sp-cancel-autoskip-on-backward-movement nil)
+    ;; Overlays are too distracting and not terribly helpful. show-parens does
+    ;; this for us already (and is faster), so...
+    (setq sp-highlight-pair-overlay nil)
+    (setq sp-highlight-wrap-overlay nil)
+    (setq sp-highlight-wrap-tag-overlay nil)
+    ;; No pair has any business being longer than 4 characters; if they must, set
+    ;; it buffer-locally. It's less work for smartparens.
+    (setq sp-max-pair-length 2)
+    ;; The default is 100, because smartparen's scans are relatively expensive
+    ;; (especially with large pair lists for some modes), we reduce it, as a
+    ;; better compromise between performance and accuracy.
+    (setq sp-max-prefix-length 32)
+    (setq sp-message-width nil)
+    (setq sp-navigate-consider-sgml-tags nil)
+    (setq sp-navigate-skip-match nil)
+    (setq sp-show-pair-from-inside t)
+    (sp-pair "'" nil :actions :rem)
+    (sp-pair "`" nil :actions :rem)
+    (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
 
-  ;; Define a hydra
-  (defhydra hydra-smartparens (:idle 1 :hint nil)
-    "
-  Sexps (quit with _q_)
+    ;; Define a hydra
+    (defhydra hydra-smartparens (:idle 1 :hint nil)
+      "
+        Sexps (quit with _q_)
 
-  ^Nav^            ^Barf/Slurp^          ^Depth^
-  ^---^------------^----------^----------^-----^-----------------------
-  _f_: forward     _s_:  slurp forward   _R_:      splice
-  _b_: backward    _S_:  barf forward    _r_:      raise
-  _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
-  _e_: end         _D_:  barf backward   _<down>_: raise forward
-  _m_: mark
+        ^Nav^            ^Barf/Slurp^          ^Depth^
+        ^---^------------^----------^----------^-----^-----------------------
+        _f_: forward     _s_:  slurp forward   _R_:      splice
+        _b_: backward    _S_:  barf forward    _r_:      raise
+        _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
+        _e_: end         _D_:  barf backward   _<down>_: raise forward
+        _m_: mark
 
-  ^Kill^           ^Misc^                       ^Wrap^
-  ^----^-----------^----^-----------------------^----^------------------
-  _w_: copy        _j_: join                    _(_: wrap with ( )
-  _k_: kill        _s_: split                   _{_: wrap with { }
-  ^^               _t_: transpose               _'_: wrap with ' '
-  ^^               _c_: convolute               _\"_: wrap with \" \"
-  ^^               _i_: indent defun"
-    ("q" nil)
-    ;; Wrapping
-    ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
-    ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
-    ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
-    ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
-    ;; Navigation
-    ("f" sp-beginning-of-next-sexp)
-    ("b" sp-beginning-of-previous-sexp)
-    ("a" sp-beginning-of-sexp)
-    ("e" sp-end-of-sexp)
-    ("m" sp-mark-sexp)
-    ;; Kill/copy
-    ("w" sp-copy-sexp :exit t)
-    ("k" sp-kill-sexp :exit t)
-    ;; Misc
-    ("t" sp-transpose-sexp)
-    ("j" sp-join-sexp)
-    ("c" sp-convolute-sexp)
-    ("i" sp-indent-defun)
-    ;; Depth changing
-    ("R" sp-splice-sexp)
-    ("r" sp-splice-sexp-killing-around)
-    ("<up>" sp-splice-sexp-killing-backward)
-    ("<down>" sp-splice-sexp-killing-forward)
-    ;; Barfing/slurping
-    ("s" sp-forward-slurp-sexp)
-    ("S" sp-forward-barf-sexp)
-    ("D" sp-backward-barf-sexp)
-    ("d" sp-backward-slurp-sexp))
+        ^Kill^           ^Misc^                       ^Wrap^
+        ^----^-----------^----^-----------------------^----^------------------
+        _w_: copy        _j_: join                    _(_: wrap with ( )
+        _k_: kill        _s_: split                   _{_: wrap with { }
+        ^^               _t_: transpose               _'_: wrap with ' '
+        ^^               _c_: convolute               _\"_: wrap with \" \"
+        ^^               _i_: indent defun"
+      ("q" nil)
+      ;; Wrapping
+      ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
+      ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
+      ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
+      ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
+      ;; Navigation
+      ("f" sp-beginning-of-next-sexp)
+      ("b" sp-beginning-of-previous-sexp)
+      ("a" sp-beginning-of-sexp)
+      ("e" sp-end-of-sexp)
+      ("m" sp-mark-sexp)
+      ;; Kill/copy
+      ("w" sp-copy-sexp :exit t)
+      ("k" sp-kill-sexp :exit t)
+      ;; Misc
+      ("t" sp-transpose-sexp)
+      ("j" sp-join-sexp)
+      ("c" sp-convolute-sexp)
+      ("i" sp-indent-defun)
+      ;; Depth changing
+      ("R" sp-splice-sexp)
+      ("r" sp-splice-sexp-killing-around)
+      ("<up>" sp-splice-sexp-killing-backward)
+      ("<down>" sp-splice-sexp-killing-forward)
+      ;; Barfing/slurping
+      ("s" sp-forward-slurp-sexp)
+      ("S" sp-forward-barf-sexp)
+      ("D" sp-backward-barf-sexp)
+      ("d" sp-backward-slurp-sexp))
 
-  (:with-hook (emacs-lisp-mode-hook
-               eval-expression-minibuffer-setup-hook
-               ielm-mode-hook
-               lisp-interaction-mode-hook
-               lisp-mode-hook
-               sly-mrepl-mode-hook
-               clojure-mode-hook
-               clojurescript-mode-hook
-               cider-repl-mode-hook)
-    (:hook smartparens-strict-mode))
-  (:hide-mode))
+    (:with-hook (emacs-lisp-mode-hook
+                 eval-expression-minibuffer-setup-hook
+                 ielm-mode-hook
+                 lisp-interaction-mode-hook
+                 lisp-mode-hook
+                 sly-mrepl-mode-hook
+                 clojure-mode-hook
+                 clojurescript-mode-hook
+                 cider-repl-mode-hook)
+      (:hook smartparens-strict-mode))
+    ;; (:hide-mode)
+    )
 #+end_src
 *** Emacs Lisp
 ielm setup
 #+begin_src emacs-lisp :noweb-ref code-elisp
-(setup elisp-mode
- ;; (define-local-keys emacs-lisp-mode-map
- ;;   "'" '(ielm :wk "ielm"))
-  (:with-mode (emacs-lisp-mode lisp-interaction-mode)
-    (:bind
-     "C-c C-c" eval-defun))
-  (:with-mode emacs-lisp-mode
-    (:advise eval-region :around (fn beg end &rest args)
-      (let ((pulse-flag t))
-        (pulse-momentary-highlight-region beg end))
-      (apply fn beg end args))))
+  (setup (:require pulse)
+    (defgroup +pulse nil
+      "Extra customisations for `pulse'."
+      :group 'pulse
+      :prefix "+pulse-")
 
-(setup (:pkg elisp-slime-nav)
-  (:load-after ielm
-    (:hook-into emacs-lisp-mode ielm-mode)
-    (:hide-mode)))
+    (defcustom +pulse-location-commands '(scroll-up-command
+                                          scroll-down-command
+                                          recenter-top-bottom
+                                          other-window
+                                          switch-to-buffer
+                                          redraw-frame)
+      "Commands to pulse the current line after.
+  Good for finding location."
+      :type '(repeat function))
 
-(setup (:pkg ielm)
-  (:load-after comint
-    (:with-map ielm-map
-      (:bind
-       [up] comint-previous-input
-       [down] comint-next-input))))
+    (defcustom +pulse-location-function '+pulse-line-current-window
+      "What function to call after `+pulse-location-commands'."
+      :type 'function)
 
-(setup (:pkg macrostep)
+    ;; XXX: this doesn't work yet.  I only want to pulse the line in the
+    ;; active window, so when I have the same buffer viewed in multiple
+    ;; windows I can still see where my cursor is.  To see the issue, C-x
+    ;; 2 then C-x o a few times.
+    (defun +pulse-line-current-window (&rest _)
+      "Pulse the current line, but only if this window is active."
+      (pulse-momentary-highlight-one-line
+       (window-point (selected-window))))
+
+    (defun +pulse--advice-remove (symbol where function &optional props)
+      "Remove advice SYMBOL from FUNCTION.
+  This uses the same args as `advice-add' for easy toggling.
+  WHERE and PROPS are discarded."
+      (ignore where props)
+      (advice-remove symbol function))
+
+    (define-minor-mode +pulse-location-mode
+      "After moving locations, pulse where we are."
+      :global t
+      :keymap nil
+      (dolist (command +pulse-location-commands)
+        (funcall
+         (if +pulse-location-mode 'advice-add '+pulse--advice-remove)
+         command :after +pulse-location-function)))
+    (:option pulse-flag nil
+             pulse-delay 0.5
+             pulse-iterations 1)
+    (dolist (command '(+ace-window-or-switch-buffer
+                       pop-mark pop-globl-mark))
+      (add-to-list '+pulse-location-commands command))
+    (+ensure-after-init #'+pulse-location-mode))
+
+  (setup elisp-mode
+    (defun +elisp-eval-region-or-buffer ()
+      (interactive)
+      (if (region-active-p)
+          (eval-region (region-beginning) (region-end))
+        (+eval-region@pulse (lambda (_ _) (eval-buffer)) (point-min) (point-max))))
+
+    (defun +eval-region@pulse (advised beg end &rest args)
+      "ADVICE to pulse an eval'd region."
+      (apply advised beg end args)
+      (pulse-momentary-highlight-region beg end))
+
+    (:option eval-expression-print-length nil
+             eval-expression-print-level nil)
+    (:with-map (emacs-lisp-mode-map lisp-interaction-mode-map)
+      (:bind "C-c C-c" #'eval-defun
+             "C-c C-k" #'+elisp-eval-region-or-buffer
+             "C-c C-z" #'ielm )
+    (advice-add #'eval-region :around #'+eval-region@pulse))
+
+  (setup (:pkg elisp-slime-nav)
+    (:load-after ielm
+      (:hook-into emacs-lisp-mode ielm-mode)
+      (:hide-mode)))
+
+  (setup (:pkg ielm)
+    (:load-after comint
+      (:with-map ielm-map
+        (:bind
+         [up] comint-previous-input
+         [down] comint-next-input))))
+
+  (setup (:pkg macrostep)
     (:with-map macrostep-keymap
       (:bind
        [tab] macrostep-next-macro
@@ -2269,7 +2627,7 @@ ielm setup
        "c" macrostep-collapse
        "e" macrostep-expand
        "q" macrostep-collapse-all))
-   (:hide-mode))
+    (:hide-mode))
 #+end_src
 *** Common LISP
 SLY setup
@@ -2286,7 +2644,7 @@ SLY setup
     (setq sly-complete-symbol-function 'sly-flex-completions)
     (setq sly-enable-evaluate-in-emacs t)
     (setq sly-kill-without-query-p t)
-    (setq sly-mrepl-history-file-name (enfer/etc-file "sly-repl-history"))
+    (setq sly-mrepl-history-file-name (/etc-file "sly-repl-history"))
     (setq sly-mrepl-pop-sylvester nil)
     (setq sly-mrepl-prevent-duplicate-history 'move)
     (setq sly-net-coding-system 'utf-8-unix)
@@ -2298,37 +2656,80 @@ Editing Clojure / Clojurescript code is best done using a REPL, which is provide
 Cider has a lot of options to customise, and here are the ones I think are most critical.
 Source comes from: [[https://stackoverflow.com/a/31080940]]
 #+BEGIN_SRC elisp :noweb-ref code-clojure
+  (setup (:pkg clojure-mode)
+    (:local-hook clojurec-mode
+                 clojurescript-mode)
+    ;; (:hook rainbow-delimiters-mode)
+    (defvar org-babel-default-header-args:clojure '((:results . "silent")))'
+    (defun org-babel-execute:clojure (body params)
+      "Evaluate a block of Clojure code with Babel."
+      (lisp-eval-string body))
+    (defun clojure-set-compile-command ()
+      (let ((project-dir (clojure-project-dir)))
+        (cond ((and (file-exists-p (expand-file-name "project.clj" project-dir))
+                    (executable-find "lein"))
+               (setq-local compile-command "lein "))
+              ((and (file-exists-p (expand-file-name "deps.edn" project-dir))
+                    (executable-find "clojure"))
+               (setq-local compile-command "clojure ")))))
+    (:with-map lisp-modes-mode-map
+      (defun lisp-modes-indent-or-fill-sexp ()
+        "Indent s-expression or fill string/comment."
+        (interactive)
+        (let ((ppss (syntax-ppss)))
+          (if (or (nth 3 ppss)
+                  (nth 4 ppss))
+              (fill-paragraph)
+            (save-excursion
+              (mark-sexp)
+              (indent-region (point) (mark)))))))
+    (:bind  "M-q"     #'lisp-modes-indent-or-fill-sexp))
 
-(setup (:pkg cider)
-     (:when-loaded
-       (setq nrepl-hide-special-buffers t
-             cider-repl-clear-help-banner t
-             cider-font-lock-dynamically nil
-             cider-popup-stacktraces nil
-             cider-repl-popup-stacktraces t
-             cider-repl-use-pretty-printing t
-             cider-repl-pop-to-buffer-on-connect t
-             cider-repl-display-help-banner nil)
-       (:with-hook clojure-mode-hook)
-       (:hook eldoc-mode)))
+  (setup (:pkg cider)
+    (:load-after clojure-mode
+      (:options nrepl-log-messages nil
+                nrepl-use-ssh-fallback-for-remote-hosts t
+                nrepl-hide-special-buffers t
+                cider-allow-jack-in-without-project t
+                cider-enrich-classpath t
+                cider-font-lock-dynamically '(macro var deprecated)
+                cider-repl-clear-help-banner t
+                cider-repl-display-help-banner nil
+                cider-repl-tab-command #'indent-for-tab-command
+                ;;cider-repl-use-pretty-printing t
+                ;;cider-repl-pop-to-buffer-on-connect t
+                cider-save-file-on-load nil
+                cider-test-show-report-on-success t
+                cider-use-fringe-indicators nil)
+      (:bind "C-c C-S-o" cider-repl-clear-buffer )
+      ;; (:face (cider-result-overlay-face ((t (:box (:line-width -1 :color "grey50")))))
+      ;;        (cider-error-highlight-face ((t (:inherit flymake-error))))
+      ;;        (cider-warning-highlight-face ((t (:inherit flymake-warning)))))
+      (
+       :with-mode cider-repl-mode clojure-mode)
+      (:hook eldoc-mode)))
 
-   ;; Allow cider-repl to be cleared with shortcut
-   ;;(add-hook 'cider-repl-mode-hook
-   ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
-   ;                        'cider-repl-clear-buffer)))
+  ;; Allow cider-repl to be cleared with shortcut
+  ;;(add-hook 'cider-repl-mode-hook
+                ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
+                                          ;                        'cider-repl-clear-buffer)))
 
   ;; (add-hook 'cider-mode-hook (lambda () (show-paren-mode 1)))
   ;; (add-hook 'cider-mode-hook #'eldoc-mode)
 
-   ;;(add-hook 'cider-repl-mode-hook #'enable-paredit-mode)
-   ;;(add-hook 'cider-mode-hook #'imenu-add-menubar-index)
+  ;;(add-hook 'cider-repl-mode-hook #'enable-paredit-mode)
+  ;;(add-hook 'cider-mode-hook #'imenu-add-menubar-index)
 
-  (setup (:pkg clojure-mode))
+
   (setup (:pkg async))
   (setup (:pkg ob-async))
   (setup (:pkg ob-clojurescript))
   ;;(setup (:pkg ob-babel-eval-in-repl))
-  (setup (:pkg eval-in-repl))
+
+  (setup (:pkg flycheck-clj-kondo)
+    :only-if (executable-find "clj-kondo"))
+
+  ;;(setup (:pkg eval-in-repl))
 
 #+END_SRC
 
@@ -2381,6 +2782,47 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 ;;(global-set-key (kbd "C-S-P") 'cljc-project-skeleton)
 
 #+END_SRC
+*** Fennel
+:properties:
+:header-args: :noweb-ref code-fennel
+:end:
+Setup of Fennel and Lua
+
+#+begin_src emacs-lisp
+(setup (:pkg fennel-mode)
+(:bind "C-c C-k"  eval-each-sexp)
+(put 'global 'fennel-indent-function 1)
+  (put 'local 'fennel-indent-function 1)
+  (put 'var 'fennel-indent-function 1)
+  (defvar org-babel-default-header-args:fennel '((:results . "silent")))
+  (defun org-babel-execute:fennel (body _params)
+    "Evaluate a block of Fennel code with Babel."
+    (save-window-excursion
+      (unless (bufferp fennel-repl--buffer)
+        (fennel-repl nil))
+      (let ((inferior-lisp-buffer fennel-repl--buffer))
+        (lisp-eval-string body))))
+  (defun eval-each-sexp ()
+    "Evaluate each s-expression in the buffer consequentially.
+
+If prefix ARG specified, call `fennel-reload' function.  If
+double prefix ARG specified call `fennel-reload' function and ask
+for the module name."
+    (interactive)
+    (save-excursion
+      (save-restriction
+        (goto-char (point-min))
+        (while (save-excursion
+                 (search-forward-regexp "[^[:space:]]." nil t))
+          (forward-sexp)
+          (when (and (not (nth 4 (syntax-ppss)))
+                     (looking-back "." 1))
+            (lisp-eval-last-sexp)))))
+    (when fennel-mode-switch-to-repl-after-reload
+      (switch-to-lisp t)))
+)
+#+end_src
+
 
 * Keybindings
 :PROPERTIES:
@@ -2630,7 +3072,7 @@ File for my constants, macros and functions
     (setq bidi-inhibit-bpa t)
     (setq command-line-ns-option-alist nil)
     (setq confirm-kill-processes nil)
-    (setq custom-file (enfer/etc-file "custom.el"))
+    (setq custom-file (/etc-file "custom.el"))
     (setq default-input-method "TeX")
     (setq ffap-machine-p-known 'reject)
     (setq inhibit-compacting-font-caches t)
@@ -2680,132 +3122,192 @@ Setup Emacs builtins
 *** Contents enfer-pkg-builtin
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
+    <<disclaimer>>
+;;; Code:
+(setup abbrev
+  (:option abbrev-file-name (sync/ "abbrev.el")
+           save-abbrevs 'silent)
+  (:hook-into text-mode
+              circe-chat-mode))
 
-  (setup auto-fill
-    (:with-feature simple
-      (:with-mode (text-mode org-mode)
-        (:hook turn-on-auto-fill))
-      (:with-mode prog-mode
-        (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                   (auto-fill-mode 1))))
-      (:hide-mode auto-fill-function)))
+    (setup auto-fill
+      (:with-feature simple
+        (:with-mode (text-mode org-mode)
+          (:hook turn-on-auto-fill))
+        (:with-mode prog-mode
+          (:hook (fn (setq-local comment-auto-fill-only-comments t)
+                     (auto-fill-mode 1))))
+        (:hide-mode auto-fill-function)))
 
-  (setup (:require autorevert)
-    (setq auto-revert-check-vc-info t)
-    (setq auto-revert-remote-files t)
-    (setq global-auto-revert-non-file-buffers t)
-    (setq auto-revert-verbose nil)
-    (global-auto-revert-mode 1)
-    (:hide-mode auto-revert))
+    (setup (:require autorevert)
+      (setq auto-revert-check-vc-info t)
+      (setq auto-revert-remote-files t)
+      (setq global-auto-revert-non-file-buffers t)
+      (setq auto-revert-verbose nil)
+      (global-auto-revert-mode 1)
+      (:hide-mode auto-revert))
 
-  (setup comint
-    (setq ansi-color-for-comint-mode t)
-    (setq comint-buffer-maximum-size 4096)
-    (setq comint-prompt-read-only t))
+    (setup comint
+      (setq ansi-color-for-comint-mode t)
+      (setq comint-buffer-maximum-size 4096)
+      (setq comint-prompt-read-only t))
 
-  (setup compile
-    (setq compilation-always-kill t)
-    (setq compilation-ask-about-save nil)
-    (setq compilation-scroll-output 'first-error))
+    (setup compile
+      (add-hook 'compilation-filter #'ansi-color-compilation-filter)
+      (:option compilation-always-kill t
+               compilation-ask-about-save nil
+               compilation-scroll-output 'first-error)
+      (defmacro compile-add-error-syntax (name regexp file line &optional col level)
+        "Register new compilation error syntax.
 
-  (setup dired
-    (:also-load dired-x)
-    (:pkg dired-collapse
-          dired-git-info
-          dired-single
-          dired-subtree
-          diredfl)
-    (:with-map dired-mode-map
+    Add NAME symbol to `compilation-error-regexp-alist', and then add
+    REGEXP FILE LINE and optional COL LEVEL info to
+    `compilation-error-regexp-alist-alist'."
+        (declare (indent 1))
+        `(progn (add-to-list 'compilation-error-regexp-alist ',name)
+                (add-to-list 'compilation-error-regexp-alist-alist
+                             '(,name ,regexp ,file ,line ,col ,level))))
+      (compile-add-error-syntax kaocha-tap
+                                "^not ok.*(\\([^:]*\\):\\([0-9]*\\))$"
+                                (1 "src/%s" "test/%s") 2)
+      (compile-add-error-syntax kaocha-fail
+                                ".*FAIL in.*(\\([^:]*\\):\\([0-9]*\\))$"
+                                (1 "src/%s" "test/%s") 2)
+      (compile-add-error-syntax clojure-reflection-warning
+                                "^Reflection warning,[[:space:]]*\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\).*$"
+                                (1 "src/%s" "test/%s") 2 3)
+      (compile-add-error-syntax clojure-syntax-error
+                                "^Syntax error macroexpanding at (\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\)).$"
+                                (1 "src/%s" "test/%s") 2 3)
+      (compile-add-error-syntax lua-stacktrace
+                                "\\(?:^[[:space:]]+\\([^
+    :]+\\):\\([[:digit:]]+\\):[[:space:]]+in.+$\\)"
+                                1 2)
+      (compile-add-error-syntax fennel-compile-error
+                                "\\(?:^Compile error in[[:space:]]+\\([^:]+\\):\\([[:digit:]]+\\)$\\)"
+                                1 2)
+      )
+
+    (setup dired
+      (:also-load dired-x)
+      (:pkg dired-collapse
+            dired-git-info
+            ;;  dired-single
+            dired-subtree
+            ;;   diredfl
+            dired+)
+      (:option dired-recursive-copies 'always
+               dired-recursive-deletes 'always
+               dired-create-destination-dirs 'always
+               dired-do-revert-buffer t
+               dired-hide-details-hide-symlink-targets nil
+               dired-isearch-filenames 'dwim
+               delete-by-moving-to-trash t
+               dired-auto-revert-buffer t
+               dired-listing-switches "-Al"
+               ls-lisp-dirs-first t
+               dired-ls-F-marks-symlinks t
+               dired-clean-confirm-killing-deleted-buffers nil
+               dired-no-confirm '(byte-compile
+                                  load chgrp chmod chown
+                                  copy move hardlink symlink
+                                  shell touch)
+               dired-dwim-target t)
+      (:local-set truncate-lines t)
       (:bind
-       [tab] dired-subtree-cycle
-       "i" dired-subtree-toggle
-       "q" quit-window))
-    (:hook dired-collapse-mode)
-    (setq dired-recursive-copies 'top)
-    (setq dired-recursive-deletes 'top)
-    (diredfl-global-mode 1))
+       "<backspace>" #'dired-up-directory
+       "TAB" #'dired-subtree-cycle
+       "i" #'dired-subtree-toggle
+       ")" #'dired-git-info-mode
+       "q" #'quit-window)
+      (:hook #'dired-collapse-mode
+             #'dired-hide-details-mode
+             #'hl-line-mode)
+      ;;(:+key "C-x C-j" #'dired-jump)
+      ;;  (setq dired-recursive-copies 'top)
+      ;;  (setq dired-recursive-deletes 'top)
+      ;;    (diredfl-global-mode 1)
+      )
 
-  (setup (:require eldoc)
-    (setq eldoc-echo-area-use-multiline-p nil)
-    (setq eldoc-idle-delay 0.1)
-    (:with-mode prog-mode
-      (:hook turn-on-eldoc-mode))
-    (:hide-mode))
+    (setup (:require eldoc)
+      (setq eldoc-echo-area-use-multiline-p nil)
+      (setq eldoc-idle-delay 0.1)
+      (:with-mode prog-mode
+        (:hook turn-on-eldoc-mode))
+      (:hook-into clojure-mode
+                  cider-repl-mode
+                  elisp-mode
+                  lisp-interactive-mode)
+      (:hide-mode))
 
-  (setup (:require elec-pair)
-    (electric-pair-mode 1))
+    (setup (:require elec-pair)
+      (electric-pair-mode 1))
 
-  (setup executable
-    (setq executable-prefix-env t)
-    (:with-hook after-save-hook
-      (:hook executable-make-buffer-file-executable-if-script-p)))
+    (setup executable
+      (setq executable-prefix-env t)
+      (:with-hook after-save-hook
+        (:hook executable-make-buffer-file-executable-if-script-p)))
 
-  (setup (:require goto-addr)
-    (:with-mode prog-mode
-      (:hook goto-address-prog-mode))
-    (:with-mode text-mode
-      (:hook goto-address-mode)))
+    (setup (:require goto-addr)
+      (:with-mode prog-mode
+        (:hook goto-address-prog-mode))
+      (:with-mode text-mode
+        (:hook goto-address-mode)))
 
-  (setup (:require help-mode)
-    (setq help-window-select t))
+    (setup (:require help-mode)
+      (setq help-window-select t))
 
-  (setup (:require recentf)
-    (setq recentf-auto-cleanup 'mode)
-    (setq recentf-exclude `(,#'enfer/cache-dir-p
-                            "^/tmp/"
-                            "COMMIT_EDITMSG$"
-                            ".gz$"))
-    (setq recentf-filename-handlers '(abbreviate-file-name))
-    (setq recentf-max-menu-items 100)
-    (setq recentf-max-saved-items nil)
-    (recentf-mode 1)
-    (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
-    (:with-hook kill-emacs-hook
-      (:hook recentf-cleanup recentf-save-list)))
+    (setup (:require recentf)
+      (setq recentf-auto-cleanup 'mode)
+      (setq recentf-exclude `(,#'enfer/cache-dir-p
+                              "^/tmp/"
+                              "COMMIT_EDITMSG$"
+                              ".gz$"))
+      (setq recentf-filename-handlers '(abbreviate-file-name))
+      (setq recentf-max-menu-items 100)
+      (setq recentf-max-saved-items nil)
+      (recentf-mode 1)
+      (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
+      (:with-hook kill-emacs-hook
+        (:hook recentf-cleanup recentf-save-list)))
 
-  (setup (:require savehist)
-    (setq history-delete-duplicates t)
-    (setq history-length t)
-    (setq savehist-additional-variables
-          '(extended-command-history
-            global-mark-ring
-            kill-ring
-            mark-ring
-            regexp-search-ring
-            search-ring))
-    (setq savehist-autosave-interval 60)
-    (setq savehist-file (enfer/etc-file "history"))
-    (setq savehist-save-minibuffer-history t)
-    (savehist-mode 1))
+    (setup (:require savehist)
+      (setq history-delete-duplicates t)
+      (setq history-length t)
+      (setq savehist-additional-variables
+            '(extended-command-history
+              global-mark-ring
+              kill-ring
+              mark-ring
+              regexp-search-ring
+              search-ring))
+      (setq savehist-autosave-interval 60)
+      (setq savehist-file (/etc-file "history"))
+      (setq savehist-save-minibuffer-history t)
+      (savehist-mode 1))
 
-  (setup (:require saveplace)
-    (setq save-place-file (enfer/etc-file "places"))
-    (setq save-place-forget-unreadable-files nil)
-    (save-place-mode 1))
+    (setup (:require saveplace)
+      (setq save-place-file (/etc-file "places"))
+      (setq save-place-forget-unreadable-files nil)
+      (save-place-mode 1))
 
-  (setup (:require server)
-    (unless (server-running-p)
-      (server-start)))
+    (setup (:require server)
+      (unless (server-running-p)
+        (server-start)))
 
-  (setup (:require subword)
-    (global-subword-mode 1)
-    (:hide-mode))
+    (setup (:require subword)
+      (global-subword-mode 1)
+      (:hide-mode))
 
-  (setup (:require uniquify)
-    (setq uniquify-after-kill-buffer-p t)
-    (setq uniquify-buffer-name-style 'forward))
+    (setup (:require url)
+      (setq url-cookie-file (/etc-file "url-cookies")))
 
-  (setup (:require url)
-    (setq url-cookie-file (enfer/etc-file "url-cookies")))
+    (setup (:require visual-line-mode)
+      (:hide-mode))
 
-  (setup (:require visual-line-mode)
-    (:hide-mode))
-
-  (provide 'enfer-pkg-builtin)
-  ;;; enfer-pkg-builtin.el ends here
+    (provide 'enfer-pkg-builtin)
+      ;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Utility package
 :PROPERTIES:
@@ -3000,7 +3502,20 @@ Smartparens setup here
   (provide 'enfer-code-clojure)
   ;;; enfer-code-clojure.el ends here
 #+end_src
+*** Fennel/LUA setup
+:PROPERTIES:
+:header-args: :tangle lisp/enfer-code-fennel.el :noweb yes
+:END:
+#+begin_src emacs-lisp
+  ;;; enfer-code-fennel.el -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
 
+  <<code-fennel>>
+
+  (provide 'enfer-code-fennel)
+  ;;; enfer-code-fennel.el ends here
+#+end_src
 ** Keybindings
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-key-bindings.el :noweb yes
