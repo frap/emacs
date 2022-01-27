@@ -2946,7 +2946,7 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 #+end_src
 ** My Utility fns constants and macros
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-util.el :noweb yes
+:header-args: :tangle lisp/enfer-utility-fn-macros.el :noweb yes
 :END:
 
 File for my constants, macros and functions
@@ -2954,32 +2954,39 @@ File for my constants, macros and functions
 *** Contents enfer-util
 
 #+begin_src emacs-lisp
-  ;;; enfer-util.el -*- lexical-binding: t -*-
-     <<disclaimer>>
-  ;;; Code:
+;;; enfer-utility-fn-macros.el -*- lexical-binding: t -*-
 
-  ;;; ============================================================================
-  ;;; Constants
-  ;;;
-    <<constants>>
-  ;;; ============================================================================
-  ;;; Variables
-  ;;;
-    <<variables>>
+<<disclaimer>>
 
- ;;; ============================================================================
- ;;; Macros
- ;;; ============================================================================
+;;; Code:
 
-   <<macros>>
+;;; ============================================================================
+;;; Constants
+;;; ============================================================================
 
-  ;;; ============================================================================
-  ;;; Functions
-  ;;; ============================================================================
+<<constants>>
 
-  <<functions>>
-  (provide 'enfer-util)
-  ;;; enfer-util.el ends here
+
+;;; ============================================================================
+;;; Variables
+;;; ============================================================================
+
+<<variables>>
+
+;;; ============================================================================
+;;; Macros
+;;; ============================================================================
+
+<<macros>>
+
+;;; ============================================================================
+;;; Functions
+;;; ============================================================================
+
+<<functions>>
+
+(provide 'enfer-utility-fn-macros)
+;;; enfer-utility-fn-macros.el ends here
 #+end_src
 
 ** Emacs setup package manager and configurator setup
@@ -3669,7 +3676,7 @@ The classic Emacs initiation file.
 
 *** Load enfer custom files
 #+begin_src emacs-lisp
-(require 'enfer-util)
+(require 'enfer-utility-fn-macros)
 (require 'enfer-pkgmgr)
 (require 'enfer-emacs-sanity)
 (require 'enfer-emacs-startup)
