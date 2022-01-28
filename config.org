@@ -7,7 +7,9 @@
 * About me
 
 #+begin_src emacs-lisp :noweb-ref user-config
-  (defconst IS-WORK (string-match "810989" (getenv "USER")))
+  (if (getenv "USER")
+      (defconst IS-WORK (string-match "810989" (getenv "USER")))
+      (defconst IS-WORK nil))
   (if IS-WORK
       (setq
        user-full-name "Gas 810989"
