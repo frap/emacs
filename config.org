@@ -370,22 +370,6 @@ Configure grabage collection
   (:hide-mode))
 #+end_src
 
-*** MAC PATH specific
-#+begin_src emacs-lisp
-  ;;(cua-mode 1)
-  ;; load doom-path
-  (if IS-MAC
-      (doom-load-envars-file "~/.cache/emacs/env"))
-
-  ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
-  ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
-  ;;        (add-to-list 'exec-path-from-shell-variables var))
-  ;;      (exec-path-from-shell-initialize)
-  ;;      (add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
-  ;;      )
-
-
-#+end_src
 *** Auto compile and Benchmarking
 #+begin_src emacs-lisp
 
@@ -679,7 +663,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
   (defun /etc-file (file-name)
     (expand-file-name (format "etc/%s" file-name) user-emacs-directory))
 
-  (defun enfer/cache-dir-p (path)
+  (defun /cache-dir-p (path)
     (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
 
   (+define-dir /etc (locate-user-emacs-file "etc")
@@ -833,6 +817,22 @@ ripgrep and gist
 (setup (:pkg link-hint)
   (:require link-hint))
 #+end_src
+*** MAC PATH specific
+#+begin_src emacs-lisp
+  ;;(cua-mode 1)
+  ;; load doom-path
+  (if IS-MAC
+      (doom-load-envars-file "~/.cache/emacs/env"))
+
+  ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
+  ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
+  ;;        (add-to-list 'exec-path-from-shell-variables var))
+  ;;      (exec-path-from-shell-initialize)
+  ;;      (add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
+  ;;      )
+
+
+#+end_src
 ** Emacs UI Appearance
 :PROPERTIES:
 :header-args: :noweb-ref pkg-ui
@@ -946,22 +946,43 @@ On Linux, I have a custom build of Iosevka that I like.
 *** Frame titles, sizes and mouse setup
 
 #+begin_src emacs-lisp
-  (setq-default frame-title-format
-                (concat invocation-name "@" (system-name)
-                        ": %b %+%+ %f"))
+    (setq-default frame-title-format
+                  (concat invocation-name "@" (system-name)
+                          ": %b %+%+ %f"))
 
-  (unless IS-TERMUX
-    (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-    (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-    (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-    (setq scroll-step 1) ;; keyboard scroll one line at a time
-    (setq use-dialog-box nil)) ;; Disable dialog boxes since they weren't working in Mac OSX
+    (unless IS-TERMUX
+    (setup mouse
+      (setq focus-follows-mouse t)
+      (setq make-pointer-invisible t)
+      (setq mouse-1-click-follows-link t)
+      (setq mouse-autoselect-window t)
+      (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+      (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+      ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+      (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+      (setq mouse-wheel-scroll-amount-horizontal 2)
+      (setq mouse-yank-at-point t)
+      (setq scroll-step 1) ;; keyboard scroll one line at a time
+      (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
-  (unless IS-TERMUX
-    (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-    (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-    (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-    (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+
+    (unless IS-TERMUX
+      (setup scrolling
+      (setq auto-hscroll-mode 'current-line)
+      (setq auto-window-vscroll nil)
+      (setq fast-but-imprecise-scrolling t)
+      (setq hscroll-margin 16)
+      (setq hscroll-step 1)
+      (setq scroll-conservatively 101)
+      (setq scroll-margin 8)
+      (setq scroll-preserve-screen-position t)
+      (setq scroll-step 1)))
+
+    (unless IS-TERMUX
+      (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
+      (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
+      (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+      (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 #+end_src
 
 *** Themes & Modeline
@@ -1241,88 +1262,111 @@ PROPERTIES:
 :END:
 Setup Scatch and minibuffer
 #+begin_src emacs-lisp
-          (setup scratch
-            (setq initial-major-mode #'emacs-lisp-mode)
-            (setq initial-scratch-message
-                  ";; ABANDONNEZ TOUT ESPOIR VOUS QUI ENTREZ ICI\n\n" )
-            (defun +scratch-immortal ()
-              "Bury, don't kill \"*scratc*\" buffer.
-            For `kill-buffer-query-functions'."
-              (if (eq (current-buffer) (get-buffer "*scratch*"))
-                  (progn (bury-buffer)
-                         nil)
-                t))
-            (defun +scratch-buffer-setup ()
-              "Add comment to `scratch' buffer and name it accordingly."
-              (let* ((mode (format "%s" major-mode))
-                     (string (concat "Scratch buffer for:" mode "\n\n")))
-                (when scratch-buffer
-                  (save-excursion
-                    (insert string)
-                    (goto-char (point-min))
-                    (comment-region (point-at-bol) (point-at-eol)))
-                  (next-line 2))
-                (rename-buffer (concat "*scratch<" mode ">*") t)))
-            (add-hook 'kill-buffer-query-functions #'+scratch-immortal))
 
-          (setup minibuffer
-            (file-name-shadow-mode 1)
-            (minibuffer-depth-indicate-mode 1)
-            (minibuffer-electric-default-mode 1)
-            (fset #'yes-or-no-p #'y-or-n-p)
-            (setq enable-recursive-minibuffers t)
-            (setq file-name-shadow-properties '(invisible t intangible t))
-            (setq minibuffer-eldef-shorten-default t)
-            (setq minibuffer-prompt-properties
-                  '(read-only t cursor-intangible t face minibuffer-prompt))
-            (setq read-answer-short t)
-            (setq read-extended-command-predicate #'command-completion-default-include-p)
-            (setq use-short-answers t)
-            ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
-            (defun +minibuffer-complete-history ()
-              "Complete minibuffer history."
-              (interactive)
-              (completion-in-region (minibuffer--completion-prompt-end) (point-max)
-                                    (symbol-value minibuffer-history-variable)
-                                    nil))
-            (:with-hook minibuffer-setup-hook
-              (:hook cursor-intangible-mode))
-            (:with-map minibuffer-local-map
-              (:bind "M-/" #'+minibuffer-complete-history))
-            (:with-map minibuffer-inactive-mode-map
-              (:bind "<mouse-1>" ignore)))
+  (setup files
+    (setq auto-mode-case-fold nil)
+    (setq auto-save-default nil)
+    (setq auto-save-list-file-prefix nil)
+    (setq backup-inhibited t)
+    (setq create-lockfiles nil)
+    (setq delete-by-moving-to-trash nil)
+    (setq find-file-suppress-same-file-warnings t)
+    (setq find-file-visit-truename t)
+    (setq load-prefer-newer t)
+    (setq make-backup-files nil)
+    (setq require-final-newline t)
+    (setq vc-follow-symlinks t))
 
-      (setup ibuffer
-          (:also-load ibuf-ext)
-          (:option ibuffer-expert t
-                   ibuffer-show-empty-filter-groups nil
-                   ibuffer-saved-filter-groups
-                   '(("default"
-                      ("Org" (mode . org-mode))
-                      ("emacs" (or (name . "^\\*scratch\\*$")
-                                   (name . "^\\*Messages\\*$")
-                                   (name . "^\\*Warnings\\*$")
-                                   (name . "^\\*straight-process\\*$")
-                                   (name . "^\\*Calendar\\*$")))
-                      ("customize" (mode . Custom-mode))
-                      ("emacs-config" (or (filename . ".emacs.d")
-                                          (mode . +init-mode)))
-                      ("git" (or (name . "^\*magit")
-                                 (name . "^\magit")))
-                      ("help" (or (mode . help-mode)
-                                  (mode . Info-mode)
-                                  (mode . helpful-mode)))
-                      ("irc" (or (mode . erc-mode)
-                                 (mode . circe-server-mode)
-                                 (mode . circe-channel-mode)))
-                      ("shell" (or (mode . eshell-mode)
-                                   (mode . shell-mode)
-                                   (mode . vterm-mode)))
-                      ("web" (or (mode . elpher-mode)
-                                 (mode . eww-mode))))))
-          (:hook (defun ibuffer@filter-to-default ()
-                   (ibuffer-auto-mode +1)
-                   (ibuffer-switch-to-saved-filter-groups "default"))))
+
+  (setup selection
+    (setq kill-do-not-save-duplicates t)
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)
+    (setq x-select-enable-clipboard-manager nil))
+
+  (setup scratch
+    (setq initial-major-mode #'emacs-lisp-mode)
+    (setq initial-scratch-message
+          ";; ABANDONNEZ TOUT ESPOIR VOUS QUI ENTREZ ICI\n\n" )
+    (defun +scratch-immortal ()
+      "Bury, don't kill \"*scratc*\" buffer.
+        For `kill-buffer-query-functions'."
+      (if (eq (current-buffer) (get-buffer "*scratch*"))
+          (progn (bury-buffer)
+                 nil)
+        t))
+    (defun +scratch-buffer-setup ()
+      "Add comment to `scratch' buffer and name it accordingly."
+      (let* ((mode (format "%s" major-mode))
+             (string (concat "Scratch buffer for:" mode "\n\n")))
+        (when scratch-buffer
+          (save-excursion
+            (insert string)
+            (goto-char (point-min))
+            (comment-region (point-at-bol) (point-at-eol)))
+          (next-line 2))
+        (rename-buffer (concat "*scratch<" mode ">*") t)))
+    (add-hook 'kill-buffer-query-functions #'+scratch-immortal))
+
+  (setup minibuffer
+    (file-name-shadow-mode 1)
+    (minibuffer-depth-indicate-mode 1)
+    (minibuffer-electric-default-mode 1)
+    (fset #'yes-or-no-p #'y-or-n-p)
+    (setq enable-recursive-minibuffers t)
+    (setq file-name-shadow-properties '(invisible t intangible t))
+    (setq minibuffer-eldef-shorten-default t)
+    (setq minibuffer-prompt-properties
+          '(read-only t cursor-intangible t face minibuffer-prompt))
+    (setq read-answer-short t)
+    (setq read-extended-command-predicate #'command-completion-default-include-p)
+    (setq use-short-answers t)
+    ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
+    (defun +minibuffer-complete-history ()
+      "Complete minibuffer history."
+      (interactive)
+      (completion-in-region (minibuffer--completion-prompt-end) (point-max)
+                            (symbol-value minibuffer-history-variable)
+                            nil))
+    (:with-hook minibuffer-setup-hook
+      (:hook cursor-intangible-mode))
+    (:with-map minibuffer-local-map
+      (:bind "M-/" #'+minibuffer-complete-history))
+    (:with-map minibuffer-inactive-mode-map
+      (:bind "<mouse-1>" ignore)))
+
+  (setup ibuffer
+    (:also-load ibuf-ext)
+    (:option ibuffer-expert t
+             ibuffer-show-empty-filter-groups nil
+             ibuffer-saved-filter-groups
+             '(("default"
+                ("Org" (mode . org-mode))
+                ("emacs" (or (name . "^\\*scratch\\*$")
+                             (name . "^\\*Messages\\*$")
+                             (name . "^\\*Warnings\\*$")
+                             (name . "^\\*straight-process\\*$")
+                             (name . "^\\*Calendar\\*$")))
+                ("customize" (mode . Custom-mode))
+                ("emacs-config" (or (filename . ".emacs.d")
+                                    (mode . +init-mode)))
+                ("git" (or (name . "^\*magit")
+                           (name . "^\magit")))
+                ("help" (or (mode . help-mode)
+                            (mode . Info-mode)
+                            (mode . helpful-mode)))
+                ("irc" (or (mode . erc-mode)
+                           (mode . circe-server-mode)
+                           (mode . circe-channel-mode)))
+                ("shell" (or (mode . eshell-mode)
+                             (mode . shell-mode)
+                             (mode . vterm-mode)))
+                ("web" (or (mode . elpher-mode)
+                           (mode . eww-mode))))))
+    (:hook (defun ibuffer@filter-to-default ()
+             (ibuffer-auto-mode +1)
+             (ibuffer-switch-to-saved-filter-groups "default"))))
+
   #+end_src
 
   The default way Emacs makes buffer names unique is really ugly and,
@@ -1375,10 +1419,11 @@ The configuration below enables Flyspell for all text modes and sets Hunspell as
 
 A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
 #+begin_src emacs-lisp
-    (setup flyspell
-    (:needs (or (executable-find "ispell")
-                (executable-find "aspell")
-                (executable-find "hunspell")))
+  (setup flyspell
+    (:load-after avy
+      (:needs (or (executable-find "ispell")
+                  (executable-find "aspell")
+                  (executable-find "hunspell")))
 
       (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
       (:bind "M-<f7>"  flyspell-buffer
@@ -1412,149 +1457,162 @@ A more productive method is to use the C-; function. This function provides the 
       (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
 
       (:when-loaded
-        (:hide-mode)))
+        (:hide-mode))))
 #+end_src
 
 I use the dictionary package for Emacs, and I’m lazy about it:
 #+begin_src emacs-lisp
-(setup (:pkg dictionary)
+  (setup (:pkg dictionary)
+  (:load-after avy
+  (defun dictionary-search-dwim (&optional arg)
+    "Search for definition of word at point. If region is active,
+  search for contents of region instead. If called with a prefix
+  argument, query for word to search."
+    (interactive "P")
+    (if arg
+        (dictionary-search nil)
+      (if (use-region-p)
+          (dictionary-search (buffer-substring-no-properties
+                              (region-beginning)
+                              (region-end)))
+        (if (thing-at-point 'word)
+            (dictionary-lookup-definition)
+          (dictionary-search-dwim '(4))))))
 
-(defun dictionary-search-dwim (&optional arg)
-  "Search for definition of word at point. If region is active,
-search for contents of region instead. If called with a prefix
-argument, query for word to search."
-  (interactive "P")
-  (if arg
-      (dictionary-search nil)
-    (if (use-region-p)
-        (dictionary-search (buffer-substring-no-properties
-                            (region-beginning)
-                            (region-end)))
-      (if (thing-at-point 'word)
-          (dictionary-lookup-definition)
-        (dictionary-search-dwim '(4))))))
+    ;; dictionary
+    (defun avy-action-define (pt)
+      (save-excursion
+        (goto-char pt)
+        (dictionary-search-dwim))
+      (select-window
+       (cdr (ring-ref avy-ring 0)))
+      t)
 
-(defun avy-action-define (pt)
-  (save-excursion
-    (goto-char pt)
-    (dictionary-search-dwim))
-  (select-window
-   (cdr (ring-ref avy-ring 0)))
-  t)
+    (setf (alist-get ?= avy-dispatch-alist) 'dictionary-search-dwim)))
 
-(setf (alist-get ?= avy-dispatch-alist) 'dictionary-search-dwim))
 #+end_src
 
 *** Avy - Filter, Select, Act
 Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
-  (setup (:pkg avy)
-    (:global  "M-j"  'avy-goto-char-timer
-              "C-M-s" 'isearch-forward-other-window
-              "C-M-r" 'isearch-backward-other-window)
-    (setq avy-keys '(?q ?e ?r ?y ?u ?o ?p
-                        ?a ?s ?d ?f ?g ?h ?j
-                        ?k ?l ?' ?x ?c ?v ?b
-                        ?n ?, ?/))
-    (defun avy-show-dispatch-help ()
-      (let* ((len (length "avy-action-"))
-             (fw (frame-width))
-             (raw-strings (mapcar
-                           (lambda (x)
-                             (format "%2s: %-19s"
-                                     (propertize
-                                      (char-to-string (car x))
-                                      'face 'aw-key-face)
-                                     (substring (symbol-name (cdr x)) len)))
-                           avy-dispatch-alist))
-             (max-len (1+ (apply #'max (mapcar #'length raw-strings))))
-             (strings-len (length raw-strings))
-             (per-row (floor fw max-len))
-             display-strings)
-        (cl-loop for string in raw-strings
-                 for N from 1 to strings-len do
-                 (push (concat string " ") display-strings)
-                 (when (= (mod N per-row) 0) (push "\n" display-strings)))
-        (message "%s" (apply #'concat (nreverse display-strings)))))
+    (setup (:pkg avy)
+    (:disable)
+      (:global  "M-j"  'avy-goto-char-timer
+                "C-M-s" 'isearch-forward-other-window
+                "C-M-r" 'isearch-backward-other-window)
+      (setq avy-keys '(?q ?e ?r ?y ?u ?o ?p
+                          ?a ?s ?d ?f ?g ?h ?j
+                          ?k ?l ?' ?x ?c ?v ?b
+                          ?n ?, ?/))
 
-    ;; Kill text
-    (defun avy-action-kill-whole-line (pt)
-      (save-excursion
-        (goto-char pt)
-        (kill-whole-line))
-      (select-window
-       (cdr
-        (ring-ref avy-ring 0)))
-      t)
+      (defun avy-show-dispatch-help ()
+        (let* ((len (length "avy-action-"))
+               (fw (frame-width))
+               (raw-strings (mapcar
+                             (lambda (x)
+                               (format "%2s: %-19s"
+                                       (propertize
+                                        (char-to-string (car x))
+                                        'face 'aw-key-face)
+                                       (substring (symbol-name (cdr x)) len)))
+                             avy-dispatch-alist))
+               (max-len (1+ (apply #'max (mapcar #'length raw-strings))))
+               (strings-len (length raw-strings))
+               (per-row (floor fw max-len))
+               display-strings)
+          (cl-loop for string in raw-strings
+                   for N from 1 to strings-len do
+                   (push (concat string " ") display-strings)
+                   (when (= (mod N per-row) 0) (push "\n" display-strings)))
+          (message "%s" (apply #'concat (nreverse display-strings)))))
 
-    (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
-          (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
-
-    ;; Copy text
-    (defun avy-action-copy-whole-line (pt)
-      (save-excursion
-        (goto-char pt)
-        (cl-destructuring-bind (start . end)
-            (bounds-of-thing-at-point 'line)
-          (copy-region-as-kill start end)))
-      (select-window
-       (cdr
-        (ring-ref avy-ring 0)))
-      t)
-
-    (setf (alist-get ?w avy-dispatch-alist) 'avy-action-copy
-          (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line)
-
-    ;; Yank text
-    (defun avy-action-yank-whole-line (pt)
-      (avy-action-copy-whole-line pt)
-      (save-excursion (yank))
-      t)
-
-    (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
-          (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
-
-    ;; Transpose/Move text
-    (defun avy-action-teleport-whole-line (pt)
-      (avy-action-kill-whole-line pt)
-      (save-excursion (yank)) t)
-
-    (setf (alist-get ?t avy-dispatch-alist) 'avy-action-teleport
-          (alist-get ?T avy-dispatch-alist) 'avy-action-teleport-whole-line)
-
-    ;; Mark text
-    (defun avy-action-mark-to-char (pt)
-      (activate-mark)
-      (goto-char pt))
-
-    (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
-
-    ;; Avy + Isearch
-    (define-key isearch-mode-map (kbd "M-j") 'avy-isearch)
-
-    ;; Isearch in other windows
-    (defun isearch-forward-other-window (prefix)
-      "Function to isearch-forward in other-window."
-      (interactive "P")
-      (unless (one-window-p)
+      ;; Kill text
+      (defun avy-action-kill-whole-line (pt)
         (save-excursion
-          (let ((next (if prefix -1 1)))
-            (other-window next)
-            (isearch-forward)
-            (other-window (- next))))))
+          (goto-char pt)
+          (kill-whole-line))
+        (select-window
+         (cdr
+          (ring-ref avy-ring 0)))
+        t)
 
-    (defun isearch-backward-other-window (prefix)
-      "Function to isearch-backward in other-window."
-      (interactive "P")
-      (unless (one-window-p)
+   ;; (:option avy-dispatch-alist (append (?k avy-action-kill-stay)))
+  ;;    (add-to-list 'avy-dispatch-alist '(?k . avy-action-kill-stay))
+      (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
+            (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
+
+      ;; Copy text
+      (defun avy-action-copy-whole-line (pt)
         (save-excursion
-          (let ((next (if prefix 1 -1)))
-            (other-window next)
-            (isearch-backward)
-            (other-window (- next))))))
+          (goto-char pt)
+          (cl-destructuring-bind (start . end)
+              (bounds-of-thing-at-point 'line)
+            (copy-region-as-kill start end)))
+        (select-window
+         (cdr
+          (ring-ref avy-ring 0)))
+        t)
 
-    (setq avy-all-windows t)
-    )
+      (setf (alist-get ?w avy-dispatch-alist) 'avy-action-copy
+            (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line)
+
+      ;; Yank text
+      (defun avy-action-yank-whole-line (pt)
+        (avy-action-copy-whole-line pt)
+        (save-excursion (yank))
+        t)
+
+      (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
+            (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
+
+      ;; Transpose/Move text
+      (defun avy-action-teleport-whole-line (pt)
+        (avy-action-kill-whole-line pt)
+        (save-excursion (yank)) t)
+
+      (setf (alist-get ?t avy-dispatch-alist) 'avy-action-teleport
+            (alist-get ?T avy-dispatch-alist) 'avy-action-teleport-whole-line)
+
+      ;; Mark text
+      (defun avy-action-mark-to-char (pt)
+        (activate-mark)
+        (goto-char pt))
+
+      (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
+
+      ;; Avy + Isearch
+      (define-key isearch-mode-map (kbd "M-j") 'avy-isearch)
+
+      ;; Isearch in other windows
+      (defun isearch-forward-other-window (prefix)
+        "Function to isearch-forward in other-window."
+        (interactive "P")
+        (unless (one-window-p)
+          (save-excursion
+            (let ((next (if prefix -1 1)))
+              (other-window next)
+              (isearch-forward)
+              (other-window (- next))))))
+
+      (defun isearch-backward-other-window (prefix)
+        "Function to isearch-backward in other-window."
+        (interactive "P")
+        (unless (one-window-p)
+          (save-excursion
+            (let ((next (if prefix 1 -1)))
+              (other-window next)
+              (isearch-backward)
+              (other-window (- next))))))
+
+      (setq avy-all-windows t))
+
+    ;; (setup (:pkg avy-zap)
+    ;;   ;; : my-laptop-p
+    ;;   (setq avy-zap-forward-only t)
+    ;;   ;; (setq avy-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
+    ;;   :global
+    ;;   (("M-z" . avy-zap-up-to-char-dwim)
+    ;;    ("M-Z" . avy-zap-to-char-dwim)))
 
 #+end_src
 
@@ -1808,7 +1866,7 @@ Emacs completion parlava
      )
 
    (setup (:pkg embark)
-    (:load-after which-key
+    (:load-after (which-key avy)
       (defun embark-which-key-indicator ()
         (lambda (&optional keymap targets prefix)
           (if (null keymap)
@@ -1838,7 +1896,7 @@ Emacs completion parlava
            (cdr (ring-ref avy-ring 0))))
         t)
 
-      (setf (alist-get ?. avy-dispatch-alist) 'avy-action-embark)
+      (setf (alist-get ?.   avy-dispatch-alist) 'avy-action-embark)
 
       (:advise embark-completing-read-prompter :around (fn &rest args)
         (when-let ((win (get-buffer-window which-key--buffer 'visible)))
@@ -2199,7 +2257,7 @@ Setup Ysnippet
     (interactive)
     (org-roam-capture- :node (org-roam-node-create)
                        :templates '(("i" "inbox" plain "* %?"
-                                     :if-new (file+head "todo.org" "#+title: Inbox\n")))))
+                                     :if-new (file+head "todo.org" "#+title: Boîte de Réceptione\n")))))
 
   (defun my/org-roam-copy-todo-to-today ()
     (interactive)
@@ -2383,7 +2441,7 @@ different formats
       (setup org-agenda
        (:load-after org
         (setq org-agenda-files
-              '( "~/org/todo.org"  "~/org/roam/"
+              '( "~/org/todo.org"  "~/org/roam/journal"
                  ))
             (setq org-todo-keywords
               '((sequence
@@ -2976,6 +3034,8 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 Setup of Fennel and Lua
 
 #+begin_src emacs-lisp
+(setup (:pkg lua-mode))
+
 (setup (:pkg fennel-mode)
 (:bind "C-c C-k"  eval-each-sexp)
 (put 'global 'fennel-indent-function 1)
@@ -3203,48 +3263,6 @@ File for my constants, macros and functions
   <<disclaimer>>
   ;;; Code:
 
-  (setup files
-    (setq auto-mode-case-fold nil)
-    (setq auto-save-default nil)
-    (setq auto-save-list-file-prefix nil)
-    (setq backup-inhibited t)
-    (setq create-lockfiles nil)
-    (setq delete-by-moving-to-trash nil)
-    (setq find-file-suppress-same-file-warnings t)
-    (setq find-file-visit-truename t)
-    (setq load-prefer-newer t)
-    (setq make-backup-files nil)
-    (setq require-final-newline t)
-    (setq vc-follow-symlinks t))
-
-  (setup mouse
-    (setq focus-follows-mouse t)
-    (setq make-pointer-invisible t)
-    (setq mouse-1-click-follows-link t)
-    (setq mouse-autoselect-window t)
-    (setq mouse-wheel-follow-mouse t)
-    (setq mouse-wheel-progressive-speed nil)
-    (setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-    (setq mouse-wheel-scroll-amount-horizontal 2)
-    (setq mouse-yank-at-point t))
-
-  (setup scrolling
-    (setq auto-hscroll-mode 'current-line)
-    (setq auto-window-vscroll nil)
-    (setq fast-but-imprecise-scrolling t)
-    (setq hscroll-margin 16)
-    (setq hscroll-step 1)
-    (setq scroll-conservatively 101)
-    (setq scroll-margin 8)
-    (setq scroll-preserve-screen-position t)
-    (setq scroll-step 1))
-
-  (setup selection
-    (setq kill-do-not-save-duplicates t)
-    (setq select-enable-clipboard t)
-    (setq select-enable-primary t)
-    (setq x-select-enable-clipboard-manager nil))
-
   <<user-config>>
 
   (setup misc
@@ -3253,7 +3271,7 @@ File for my constants, macros and functions
     (setq command-line-ns-option-alist nil)
     (setq confirm-kill-processes nil)
     (setq custom-file (/etc-file "custom.el"))
-    (setq default-input-method "TeX")
+    ;;(setq default-input-method "TeX")
     (setq ffap-machine-p-known 'reject)
     (setq inhibit-compacting-font-caches t)
     (setq inhibit-default-init t)
@@ -3287,7 +3305,7 @@ Setup auto-compile, no littering and GMCH
   <<disclaimer>>
   ;;; Code:
 
-  <<emacs-setup>>
+  <<emacs-startup>>
 
   (provide 'enfer-emacs-startup)
    ;;; enfer-emacs-startup.el ends here
@@ -3302,192 +3320,192 @@ Setup Emacs builtins
 *** Contents enfer-pkg-builtin
 
 #+begin_src emacs-lisp
-;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
-    <<disclaimer>>
-;;; Code:
-(setup abbrev
-  (:option abbrev-file-name (sync/ "abbrev.el")
-           save-abbrevs 'silent)
-  (:hook-into text-mode
-              circe-chat-mode))
+    ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
+        <<disclaimer>>
+    ;;; Code:
+    (setup abbrev
+      (:option abbrev-file-name (sync/ "abbrev.el")
+               save-abbrevs 'silent)
+      (:hook-into text-mode
+                  circe-chat-mode))
 
-    (setup auto-fill
-      (:with-feature simple
-        (:with-mode (text-mode org-mode)
-          (:hook turn-on-auto-fill))
-        (:with-mode prog-mode
-          (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                     (auto-fill-mode 1))))
-        (:hide-mode auto-fill-function)))
+        (setup auto-fill
+          (:with-feature simple
+            (:with-mode (text-mode org-mode)
+              (:hook turn-on-auto-fill))
+            (:with-mode prog-mode
+              (:hook (fn (setq-local comment-auto-fill-only-comments t)
+                         (auto-fill-mode 1))))
+            (:hide-mode auto-fill-function)))
 
-    (setup (:require autorevert)
-      (setq auto-revert-check-vc-info t)
-      (setq auto-revert-remote-files t)
-      (setq global-auto-revert-non-file-buffers t)
-      (setq auto-revert-verbose nil)
-      (global-auto-revert-mode 1)
-      (:hide-mode auto-revert))
+        (setup (:require autorevert)
+          (setq auto-revert-check-vc-info t)
+          (setq auto-revert-remote-files t)
+          (setq global-auto-revert-non-file-buffers t)
+          (setq auto-revert-verbose nil)
+          (global-auto-revert-mode 1)
+          (:hide-mode auto-revert))
 
-    (setup comint
-      (setq ansi-color-for-comint-mode t)
-      (setq comint-buffer-maximum-size 4096)
-      (setq comint-prompt-read-only t))
+        (setup comint
+          (setq ansi-color-for-comint-mode t)
+          (setq comint-buffer-maximum-size 4096)
+          (setq comint-prompt-read-only t))
 
-    (setup compile
-      (add-hook 'compilation-filter #'ansi-color-compilation-filter)
-      (:option compilation-always-kill t
-               compilation-ask-about-save nil
-               compilation-scroll-output 'first-error)
-      (defmacro compile-add-error-syntax (name regexp file line &optional col level)
-        "Register new compilation error syntax.
+        (unless IS-TERMUX
+          (setup compile
+          (add-hook 'compilation-filter #'ansi-color-compilation-filter)
+          (:option compilation-always-kill t
+                   compilation-ask-about-save nil
+                   compilation-scroll-output 'first-error)
+          (defmacro compile-add-error-syntax (name regexp file line &optional col level)
+            "Register new compilation error syntax.
 
-    Add NAME symbol to `compilation-error-regexp-alist', and then add
-    REGEXP FILE LINE and optional COL LEVEL info to
-    `compilation-error-regexp-alist-alist'."
-        (declare (indent 1))
-        `(progn (add-to-list 'compilation-error-regexp-alist ',name)
-                (add-to-list 'compilation-error-regexp-alist-alist
-                             '(,name ,regexp ,file ,line ,col ,level))))
-      (compile-add-error-syntax kaocha-tap
-                                "^not ok.*(\\([^:]*\\):\\([0-9]*\\))$"
-                                (1 "src/%s" "test/%s") 2)
-      (compile-add-error-syntax kaocha-fail
-                                ".*FAIL in.*(\\([^:]*\\):\\([0-9]*\\))$"
-                                (1 "src/%s" "test/%s") 2)
-      (compile-add-error-syntax clojure-reflection-warning
-                                "^Reflection warning,[[:space:]]*\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\).*$"
-                                (1 "src/%s" "test/%s") 2 3)
-      (compile-add-error-syntax clojure-syntax-error
-                                "^Syntax error macroexpanding at (\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\)).$"
-                                (1 "src/%s" "test/%s") 2 3)
-      (compile-add-error-syntax lua-stacktrace
-                                "\\(?:^[[:space:]]+\\([^
-    :]+\\):\\([[:digit:]]+\\):[[:space:]]+in.+$\\)"
-                                1 2)
-      (compile-add-error-syntax fennel-compile-error
-                                "\\(?:^Compile error in[[:space:]]+\\([^:]+\\):\\([[:digit:]]+\\)$\\)"
-                                1 2)
-      )
+        Add NAME symbol to `compilation-error-regexp-alist', and then add
+        REGEXP FILE LINE and optional COL LEVEL info to
+        `compilation-error-regexp-alist-alist'."
+            (declare (indent 1))
+            `(progn (add-to-list 'compilation-error-regexp-alist ',name)
+                    (add-to-list 'compilation-error-regexp-alist-alist
+                                 '(,name ,regexp ,file ,line ,col ,level))))
+          (compile-add-error-syntax kaocha-tap
+                                    "^not ok.*(\\([^:]*\\):\\([0-9]*\\))$"
+                                    (1 "src/%s" "test/%s") 2)
+          (compile-add-error-syntax kaocha-fail
+                                    ".*FAIL in.*(\\([^:]*\\):\\([0-9]*\\))$"
+                                    (1 "src/%s" "test/%s") 2)
+          (compile-add-error-syntax clojure-reflection-warning
+                                    "^Reflection warning,[[:space:]]*\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\).*$"
+                                    (1 "src/%s" "test/%s") 2 3)
+          (compile-add-error-syntax clojure-syntax-error
+                                    "^Syntax error macroexpanding at (\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\)).$"
+                                    (1 "src/%s" "test/%s") 2 3)
+          (compile-add-error-syntax lua-stacktrace
+                                    "\\(?:^[[:space:]]+\\([^
+        :]+\\):\\([[:digit:]]+\\):[[:space:]]+in.+$\\)"
+                                    1 2)
+          (compile-add-error-syntax fennel-compile-error
+                                    "\\(?:^Compile error in[[:space:]]+\\([^:]+\\):\\([[:digit:]]+\\)$\\)"
+                                    1 2)
+          ))
+          (setup dired
+          (:also-load dired-x)
+          (:pkg dired-collapse
+                dired-git-info
+                dired-single
+                dired-subtree
+                diredfl
+                dired+)
+          (:option dired-recursive-copies 'always
+                   dired-recursive-deletes 'always
+                   dired-create-destination-dirs 'always
+                   dired-do-revert-buffer t
+                   dired-hide-details-hide-symlink-targets nil
+                   dired-isearch-filenames 'dwim
+                   delete-by-moving-to-trash t
+                   dired-auto-revert-buffer t
+                   dired-listing-switches "-Al"
+                   ls-lisp-dirs-first t
+                   dired-ls-F-marks-symlinks t
+                   dired-clean-confirm-killing-deleted-buffers nil
+                   dired-no-confirm '(byte-compile
+                                      load chgrp chmod chown
+                                      copy move hardlink symlink
+                                      shell touch)
+                   dired-dwim-target t)
+          (:local-set truncate-lines t)
+          (:bind
+           "<backspace>" #'dired-up-directory
+           "TAB" #'dired-subtree-cycle
+           "i" #'dired-subtree-toggle
+           ")" #'dired-git-info-mode
+           "q" #'quit-window)
+          (:hook #'dired-collapse-mode
+                 #'dired-hide-details-mode
+                 #'hl-line-mode)
+          (:global "C-x C-j" #'dired-jump)
+            (setq dired-recursive-copies 'top)
+            (setq dired-recursive-deletes 'top)
+            (diredfl-global-mode 1)
+          )
 
-    (setup dired
-      (:also-load dired-x)
-      (:pkg dired-collapse
-            dired-git-info
-            ;;  dired-single
-            dired-subtree
-            ;;   diredfl
-            dired+)
-      (:option dired-recursive-copies 'always
-               dired-recursive-deletes 'always
-               dired-create-destination-dirs 'always
-               dired-do-revert-buffer t
-               dired-hide-details-hide-symlink-targets nil
-               dired-isearch-filenames 'dwim
-               delete-by-moving-to-trash t
-               dired-auto-revert-buffer t
-               dired-listing-switches "-Al"
-               ls-lisp-dirs-first t
-               dired-ls-F-marks-symlinks t
-               dired-clean-confirm-killing-deleted-buffers nil
-               dired-no-confirm '(byte-compile
-                                  load chgrp chmod chown
-                                  copy move hardlink symlink
-                                  shell touch)
-               dired-dwim-target t)
-      (:local-set truncate-lines t)
-      (:bind
-       "<backspace>" #'dired-up-directory
-       "TAB" #'dired-subtree-cycle
-       "i" #'dired-subtree-toggle
-       ")" #'dired-git-info-mode
-       "q" #'quit-window)
-      (:hook #'dired-collapse-mode
-             #'dired-hide-details-mode
-             #'hl-line-mode)
-      ;;(:+key "C-x C-j" #'dired-jump)
-      ;;  (setq dired-recursive-copies 'top)
-      ;;  (setq dired-recursive-deletes 'top)
-      ;;    (diredfl-global-mode 1)
-      )
+        (setup (:require eldoc)
+          (setq eldoc-echo-area-use-multiline-p nil)
+          (setq eldoc-idle-delay 0.1)
+          (:with-mode prog-mode
+            (:hook turn-on-eldoc-mode))
+          (:hook-into clojure-mode
+                      cider-repl-mode
+                      elisp-mode
+                      lisp-interactive-mode)
+          (:hide-mode))
 
-    (setup (:require eldoc)
-      (setq eldoc-echo-area-use-multiline-p nil)
-      (setq eldoc-idle-delay 0.1)
-      (:with-mode prog-mode
-        (:hook turn-on-eldoc-mode))
-      (:hook-into clojure-mode
-                  cider-repl-mode
-                  elisp-mode
-                  lisp-interactive-mode)
-      (:hide-mode))
+        (setup (:require elec-pair)
+          (electric-pair-mode 1))
 
-    (setup (:require elec-pair)
-      (electric-pair-mode 1))
+        (setup executable
+          (setq executable-prefix-env t)
+          (:with-hook after-save-hook
+            (:hook executable-make-buffer-file-executable-if-script-p)))
 
-    (setup executable
-      (setq executable-prefix-env t)
-      (:with-hook after-save-hook
-        (:hook executable-make-buffer-file-executable-if-script-p)))
+        (setup (:require goto-addr)
+          (:with-mode prog-mode
+            (:hook goto-address-prog-mode))
+          (:with-mode text-mode
+            (:hook goto-address-mode)))
 
-    (setup (:require goto-addr)
-      (:with-mode prog-mode
-        (:hook goto-address-prog-mode))
-      (:with-mode text-mode
-        (:hook goto-address-mode)))
+        (setup (:require help-mode)
+          (setq help-window-select t))
 
-    (setup (:require help-mode)
-      (setq help-window-select t))
+        (setup (:require recentf)
+          (setq recentf-auto-cleanup 'mode)
+          (setq recentf-exclude `(,#'/cache-dir-p
+                                  "^/tmp/"
+                                  "COMMIT_EDITMSG$"
+                                  ".gz$"))
+          (setq recentf-filename-handlers '(abbreviate-file-name))
+          (setq recentf-max-menu-items 100)
+          (setq recentf-max-saved-items nil)
+          (recentf-mode 1)
+          (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
+          (:with-hook kill-emacs-hook
+            (:hook recentf-cleanup recentf-save-list)))
 
-    (setup (:require recentf)
-      (setq recentf-auto-cleanup 'mode)
-      (setq recentf-exclude `(,#'enfer/cache-dir-p
-                              "^/tmp/"
-                              "COMMIT_EDITMSG$"
-                              ".gz$"))
-      (setq recentf-filename-handlers '(abbreviate-file-name))
-      (setq recentf-max-menu-items 100)
-      (setq recentf-max-saved-items nil)
-      (recentf-mode 1)
-      (run-at-time nil 120 (fn (quiet! (recentf-save-list))))
-      (:with-hook kill-emacs-hook
-        (:hook recentf-cleanup recentf-save-list)))
+        (setup (:require savehist)
+          (setq history-delete-duplicates t)
+          (setq history-length t)
+          (setq savehist-additional-variables
+                '(extended-command-history
+                  global-mark-ring
+                  kill-ring
+                  mark-ring
+                  regexp-search-ring
+                  search-ring))
+          (setq savehist-autosave-interval 60)
+          (setq savehist-file (/etc-file "history"))
+          (setq savehist-save-minibuffer-history t)
+          (savehist-mode 1))
 
-    (setup (:require savehist)
-      (setq history-delete-duplicates t)
-      (setq history-length t)
-      (setq savehist-additional-variables
-            '(extended-command-history
-              global-mark-ring
-              kill-ring
-              mark-ring
-              regexp-search-ring
-              search-ring))
-      (setq savehist-autosave-interval 60)
-      (setq savehist-file (/etc-file "history"))
-      (setq savehist-save-minibuffer-history t)
-      (savehist-mode 1))
+        (setup (:require saveplace)
+          (setq save-place-file (/etc-file "places"))
+          (setq save-place-forget-unreadable-files nil)
+          (save-place-mode 1))
 
-    (setup (:require saveplace)
-      (setq save-place-file (/etc-file "places"))
-      (setq save-place-forget-unreadable-files nil)
-      (save-place-mode 1))
+        (setup (:require server)
+          (unless (server-running-p)
+            (server-start)))
 
-    (setup (:require server)
-      (unless (server-running-p)
-        (server-start)))
+        (setup (:require subword)
+          (global-subword-mode 1)
+          (:hide-mode))
 
-    (setup (:require subword)
-      (global-subword-mode 1)
-      (:hide-mode))
+        (setup (:require url)
+          (setq url-cookie-file (/etc-file "url-cookies")))
 
-    (setup (:require url)
-      (setq url-cookie-file (/etc-file "url-cookies")))
+        (setup (:require visual-line-mode)
+          (:hide-mode))
 
-    (setup (:require visual-line-mode)
-      (:hide-mode))
-
-    (provide 'enfer-pkg-builtin)
-      ;;; enfer-pkg-builtin.el ends here
+        (provide 'enfer-pkg-builtin)
+          ;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Utility package
 :PROPERTIES:
@@ -3858,7 +3876,6 @@ The classic Emacs initiation file.
 (require 'enfer-emacs-sanity)
 (require 'enfer-emacs-startup)
 (require 'enfer-pkg-builtin)
-(require 'enfer-pkg-util)
 (require 'enfer-pkg-ui)
 (require 'enfer-pkg-editor)
 (require 'enfer-pkg-completion)
@@ -3867,8 +3884,10 @@ The classic Emacs initiation file.
 (require 'enfer-pkg-org)
 (require 'enfer-code-lisp)
 (require 'enfer-code-elisp)
-(require 'enfer-code-lisp)
+(require 'enfer-code-common-lisp)
 (require 'enfer-code-clojure)
+(require 'enfer-code-fennel)
+(require 'enfer-pkg-util)
 (require 'enfer-key-bindings)
 #+end_src
 *** Load the config -disabled
