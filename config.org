@@ -2850,55 +2850,58 @@ Editing Clojure / Clojurescript code is best done using a REPL, which is provide
 Cider has a lot of options to customise, and here are the ones I think are most critical.
 Source comes from: [[https://stackoverflow.com/a/31080940]]
 #+BEGIN_SRC elisp :noweb-ref code-clojure
+
   (setup (:pkg clojure-mode)
-    (:local-hook clojurec-mode
+    (:with-hook (clojure-mode
+                 clojurec-mode
                  clojurescript-mode)
-    (:hook clojure-mode-setup)
-    (defvar org-babel-default-header-args:clojure '((:results . "silent")))'
-    (defun org-babel-execute:clojure (body params)
-      "Evaluate a block of Clojure code with Babel."
-      (lisp-eval-string body))
-    (defun clojure-set-compile-command ()
-      (let ((project-dir (clojure-project-dir)))
-        (cond ((and (file-exists-p (expand-file-name "project.clj" project-dir))
-                    (executable-find "lein"))
-               (setq-local compile-command "lein "))
-              ((and (file-exists-p (expand-file-name "deps.edn" project-dir))
-                    (executable-find "clojure"))
-               (setq-local compile-command "clojure ")))))
-    (defun clojure-mode-setup ()
-      "Setup Clojure buffer."
-      (all-lisp-modes-mode)
-      (clojure-set-compile-command)
-      (flycheck-mode)))
+      (:file-match (rx "/.edn" eos))
+      (defun clojure-mode-setup ()
+        "Setup Clojure buffer."
+        (all-lisp-modes-mode)
+        (clojure-set-compile-command)
+        (flycheck-mode))
+      (:hook #'clojure-mode-setup)
+      (defvar org-babel-default-header-args:clojure '((:results . "silent")))'
+      (defun org-babel-execute:clojure (body params)
+        "Evaluate a block of Clojure code with Babel."
+        (lisp-eval-string body))
+      (defun clojure-set-compile-command ()
+        (let ((project-dir (clojure-project-dir)))
+          (cond ((and (file-exists-p (expand-file-name "project.clj" project-dir))
+                      (executable-find "lein"))
+                 (setq-local compile-command "lein "))
+                ((and (file-exists-p (expand-file-name "deps.edn" project-dir))
+                      (executable-find "clojure"))
+                 (setq-local compile-command "clojure ")))))))
 
   (setup (:pkg cider)
     (:load-after clojure-mode
-      (:options nrepl-log-messages nil
-                nrepl-use-ssh-fallback-for-remote-hosts t
-                nrepl-hide-special-buffers t
-                cider-allow-jack-in-without-project t
-                cider-enrich-classpath t
-                cider-font-lock-dynamically '(macro var deprecated)
-                cider-repl-clear-help-banner t
-                cider-repl-display-help-banner nil
-                cider-repl-tab-command #'indent-for-tab-command
-                ;;cider-repl-use-pretty-printing t
-                ;;cider-repl-pop-to-buffer-on-connect t
-                cider-save-file-on-load nil
-                cider-test-show-report-on-success t
-                cider-use-fringe-indicators nil)
+      (:option nrepl-log-messages nil
+               nrepl-use-ssh-fallback-for-remote-hosts t
+               nrepl-hide-special-buffers t
+               cider-allow-jack-in-without-project t
+               cider-enrich-classpath t
+               cider-font-lock-dynamically '(macro var deprecated)
+               cider-repl-clear-help-banner t
+               cider-repl-display-help-banner nil
+               cider-repl-tab-command #'indent-for-tab-command
+               ;;cider-repl-use-pretty-printing t
+               ;;cider-repl-pop-to-buffer-on-connect t
+               cider-save-file-on-load nil
+               cider-test-show-report-on-success t
+               cider-use-fringe-indicators nil)
       (:bind "C-c C-S-o" cider-repl-clear-buffer )
-      ;; (:face (cider-result-overlay-face ((t (:box (:line-width -1 :color "grey50")))))
-      ;;        (cider-error-highlight-face ((t (:inherit flymake-error))))
-      ;;        (cider-warning-highlight-face ((t (:inherit flymake-warning)))))
+      ;; (cider-result-overlay-face ((t (:box (:line-width -1 :color "grey50")))))
+      ;; (cider-error-highlight-face ((t (:inherit flymake-error))))
+      ;; (cider-warning-highlight-face ((t (:inherit flymake-warning))))
       (
        :with-mode cider-repl-mode clojure-mode)
       (:hook eldoc-mode)))
 
   ;; Allow cider-repl to be cleared with shortcut
   ;;(add-hook 'cider-repl-mode-hook
-                  ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
+                       ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
                                           ;                        'cider-repl-clear-buffer)))
 
   ;; (add-hook 'cider-mode-hook (lambda () (show-paren-mode 1)))
@@ -2976,38 +2979,46 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 Setup of Fennel and Lua
 
 #+begin_src emacs-lisp
-(setup (:pkg fennel-mode)
-(:bind "C-c C-k"  eval-each-sexp)
-(put 'global 'fennel-indent-function 1)
-  (put 'local 'fennel-indent-function 1)
-  (put 'var 'fennel-indent-function 1)
-  (defvar org-babel-default-header-args:fennel '((:results . "silent")))
-  (defun org-babel-execute:fennel (body _params)
-    "Evaluate a block of Fennel code with Babel."
-    (save-window-excursion
-      (unless (bufferp fennel-repl--buffer)
-        (fennel-repl nil))
-      (let ((inferior-lisp-buffer fennel-repl--buffer))
-        (lisp-eval-string body))))
-  (defun eval-each-sexp ()
-    "Evaluate each s-expression in the buffer consequentially.
+  (setup (:pkg fennel-mode)
+  (:bind "C-c C-k"  eval-each-sexp)
+  (put 'global 'fennel-indent-function 1)
+    (put 'local 'fennel-indent-function 1)
+    (put 'var 'fennel-indent-function 1)
+    (defvar org-babel-default-header-args:fennel '((:results . "silent")))
+    (defun org-babel-execute:fennel (body _params)
+      "Evaluate a block of Fennel code with Babel."
+      (save-window-excursion
+        (unless (bufferp fennel-repl--buffer)
+          (fennel-repl nil))
+        (let ((inferior-lisp-buffer fennel-repl--buffer))
+          (lisp-eval-string body))))
+    (defun eval-each-sexp ()
+      "Evaluate each s-expression in the buffer consequentially.
 
-If prefix ARG specified, call `fennel-reload' function.  If
-double prefix ARG specified call `fennel-reload' function and ask
-for the module name."
-    (interactive)
-    (save-excursion
-      (save-restriction
-        (goto-char (point-min))
-        (while (save-excursion
-                 (search-forward-regexp "[^[:space:]]." nil t))
-          (forward-sexp)
-          (when (and (not (nth 4 (syntax-ppss)))
-                     (looking-back "." 1))
-            (lisp-eval-last-sexp)))))
-    (when fennel-mode-switch-to-repl-after-reload
-      (switch-to-lisp t)))
-)
+  If prefix ARG specified, call `fennel-reload' function.  If
+  double prefix ARG specified call `fennel-reload' function and ask
+  for the module name."
+      (interactive)
+      (save-excursion
+        (save-restriction
+          (goto-char (point-min))
+          (while (save-excursion
+                   (search-forward-regexp "[^[:space:]]." nil t))
+            (forward-sexp)
+            (when (and (not (nth 4 (syntax-ppss)))
+                       (looking-back "." 1))
+              (lisp-eval-last-sexp)))))
+      (when fennel-mode-switch-to-repl-after-reload
+        (switch-to-lisp t)))
+  )
+
+  (setup (:pkg ssh-config-mode)
+  (:file-match (rx "/.ssh/config" eos)
+               (rx "/ssh" (? "d") "_config" eos))
+  (:with-mode ssh-known-hosts-mode
+    (:file-match (rx "/knownhosts" eos)))
+  (:with-mode ssh-authorized-keys-mode
+    (:file-match (rx "/authorized_keys" (? "2") eos))))
 #+end_src
 
 
@@ -3850,7 +3861,7 @@ The classic Emacs initiation file.
 *** Load enfer custom files
 #+begin_src emacs-lisp
 ;;; Set up extra load paths and functionality
-(push (locate-user-emacs-file "lisp") load-path)
+;;(push (locate-user-emacs-file "lisp") load-path)
 
 ;;; Load them all up
 (require 'enfer-utility-fn-macros)
