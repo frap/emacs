@@ -1,8 +1,8 @@
-#+TITLE: Literate Roam Clojure Emacs Config
-#+AUTHOR: gas
-#+STARTUP: overview
-#+PROPERTY: header-args :cache yes :results output :mkdirp yes :padline :async
-#+AUTO_TANGLE: yes
+#+title: Literate Roam Clojure Emacs Config
+#+author: gas
+#+startup: overview
+#+property: header-args :cache yes :results output :mkdirp yes :padline :async
+#+auto_tangle: yes
 
 * About me
 
@@ -50,12 +50,6 @@ Make startup faster by reducing the frequency of garbage collection and then use
 
 
 #+begin_src emacs-lisp
-
-  (message "Chargement en cours early-init.el...")
-
-  (define-advice load (:before (feature &rest _))
-    "Message the user when loading a library."
-    (with-temp-message (format "En cours de chargement: '%s'" feature)))
 
   (defmacro +with-message (message &rest body)
     "Execute BODY, with MESSAGE.
@@ -115,8 +109,8 @@ of unstyled content" thing. Turned off for Termux.
 *** Menu bar
 
 #+begin_src emacs-lisp
-   ;;(add-to-list 'default-frame-alist
-   ;;             '(menu-bar-lines . 0))
+   (add-to-list 'default-frame-alist
+                '(menu-bar-lines . 0))
 
   ;; (menu-bar-mode -1)
 
@@ -159,20 +153,66 @@ setting some default settings on early-init
   ) ;; end of unless IS-TERMUX
 
 #+end_src
-** Directories
+** Path & Directories
 :PROPERTIES:
-:header-args: :noweb-ref early-directories
+:header-args: :noweb-ref path-config
 :END:
 Need to setup some constants and try to keep state in a "clean" directory structure
 #+begin_src emacs-lisp
+  (defconst path-home/ (file-name-as-directory (getenv "HOME"))
+    "Path to user home directory.
+
+In a nutshell, it's just a value of $HOME.")
+
+  (defconst xdg-config/
+    (file-name-as-directory
+     (or (getenv "XDG_CONFIG_HOME")
+         (concat path-home/ ".config")))
+    "Home root directory for personal configurations.")
+
+  (defconst emacs-cache/
+    (concat
+     (file-name-as-directory
+      (or (getenv "XDG_CACHE_HOME")
+          (concat path-home/ ".cache")))
+     "emacs/")
+    "The root directory for local Emacs files.
+    Use this as permanent storage for files that are safe to share
+    across systems.")
+
+  (defconst emacs-config/
+    (file-name-as-directory
+     (expand-file-name "emacs/" xdg-config/))
+    "The path to this Emacs directory.")
+
+  (defconst emacs-private/
+    (concat path-home/ "Sync/emacs/")
+    "The root directory for private configurations.")
+
+  (defconst path-autoloads-file
+    (expand-file-name "lisp/init-autoloads.el" emacs-config/ )
+    "The path to personal autoloads file.")
+
+  (defconst emacs-etc/ (concat emacs-cache/ "etc/")
+    "Directory for non-volatile storage.
+  Use this for files that don't change much, like servers binaries,
+  external dependencies or long-term shared data.")
+
+  (defconst emacs-cache2/ (concat emacs-cache/ "cache/")
+    "Directory for volatile storage.
+  Use this for files that change often, like cache files.")
+
+  (defconst emacs-packages/
+    (expand-file-name (format "packages/%s.%s/"
+                              emacs-major-version
+                              emacs-minor-version)
+                      emacs-cache/ )
+    "Where packages are stored.")
+
   ;; For the rest of the Emacs configuration, set this directory to something
   ;; inside the standard cache directory, so we do not pollute our emacs.d
   ;; directory with files that we would then have to ignore with Git.
-  (setq user-emacs-directory
-	(expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/")))
-
-  ;; Add our custom lisp modules to the Emacs load path so they can be discovered.
-  (push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+  (setq user-emacs-directory emacs-cache/)
 
   ;; For the list of native compilation ELN cache directories, delete all but the
   ;; last element, which is always assumed to be the system path, and then cons a
@@ -180,13 +220,13 @@ Need to setup some constants and try to keep state in a "clean" directory struct
   ;; entry for the original ~/.emacs.d/eln-cache/ and any others that are
   ;; unwanted.
   (if (fboundp 'native-comp-available-p)
-       (setq native-comp-eln-load-path
-	(cons (expand-file-name "eln-cache/" user-emacs-directory)
-	      (last native-comp-eln-load-path))))
+      (setq native-comp-eln-load-path
+            (cons (expand-file-name "eln-cache/" emacs-cache2/ )
+                  (last native-comp-eln-load-path))))
 
 #+end_src
 
-** Straight Package Management
+** Emacs Package Management
 :PROPERTIES:
 :header-args: :noweb-ref early-straight
 :END:
@@ -224,7 +264,6 @@ Use Straight for package Management. Also use setup.el for easy config of packag
     ;; alias anyway, I just define it back to nil.  By the way, the alias
     ;; is `straight-package-neutering-mode'.
     (defalias 'straight-ಠ_ಠ-mode nil)
-  (message "Chargement du early-init.el terminé!")
 
   #+end_src
 ** Emacs Package Manager Setup
@@ -2055,7 +2094,7 @@ Emacs completion parlava
 :END:
 *** Org Workflow
 The ever changing Org setup part
-#+BEGIN_SRC elisp :noweb-ref pkg-org
+#+begin_src elisp :noweb-ref pkg-org
 
     (setq org-directory
           (if IS-TERMUX
@@ -2179,7 +2218,7 @@ The ever changing Org setup part
       (:load-after hl-fill-column
         (:hook gas/org-mode-setup)))
 
-#+END_SRC
+#+end_src
 
 *** Fonts, Bullets & Links
 Use bullet characters instead of asterisks, plus set the header font sizes to something more palatable.  A fair amount of inspiration has been taken from [[https://zzamboni.org/post/beautifying-org-mode-in-emacs/][this blog post]].
@@ -2301,375 +2340,238 @@ Setup Ysnippet
 *** Org Roam
 #+begin_src emacs-lisp
   (with-eval-after-load 'org
-    (defun vulpea-project-p ()
-      "Return non-nil if current buffer has any todo entry.
-              TODO entries marked as done are ignored, meaning the this
-              function returns nil if current buffer contains only completed
-              tasks."
-      (seq-find                                 ; (3)
-       (lambda (type)
-         (eq type 'todo))
-       (org-element-map                         ; (2)
-           (org-element-parse-buffer 'headline) ; (1)
-           'headline
-         (lambda (h)
-           (org-element-property :todo-type h)))))
+      (defvar dw/org-roam-project-template
+        '("p" "projet" plain "** TODO %?"
+          :if-new (file+head+olp "%<%Y%m%d%H%M%S>-${slug}.org"
+                                 "#+title: ${title}\n#+category: ${title}\n#+filetags: projet\n"
+                                 ("Tâches"))))
 
-    (defun vulpea-project-update-tag ()
-      "Update PROJECT tag in the current buffer."
-      (when (and (not (active-minibuffer-window))
-                 (vulpea-buffer-p))
-        (save-excursion
-          (goto-char (point-min))
-          (let* ((tags (vulpea-buffer-tags-get))
-                 (original-tags tags))
-            (if (vulpea-project-p)
-                (setq tags (cons "projet" tags))
-              (setq tags (remove "projet" tags)))
+      (defun my/org-roam-filter-by-tag (tagname)
+        (lambda (node)
+          (member tagname (org-roam-node-tags node))))
 
-            ;; cleanup duplicates
-            (setq tags (seq-uniq tags))
+      (defun my/org-roam-list-notes-by-tag (tagname)
+        (mapcar #'org-roam-node-file
+                (seq-filter
+                 (my/org-roam-filter-by-tag tagname)
+                 (org-roam-node-list))))
 
-            ;; update tags if changed
-            (when (or (seq-difference tags original-tags)
-                      (seq-difference original-tags tags))
-              (apply #'vulpea-buffer-tags-set tags))))))
+      (defun my/org-roam-project-finalise-hook ()
+        "Adds the captured project file to `org-agenda-files' if the
+                            capture was not aborted."
+        ;; Remove the hook since it was added temporarily
+        (remove-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
 
-    (defun vulpea-buffer-p ()
-      "Return non-nil if the currently visited buffer is a note."
-      (and buffer-file-name
-           (string-prefix-p
-            (expand-file-name (file-name-as-directory org-roam-directory))
-            (file-name-directory buffer-file-name))))
-
-    (defun vulpea-projet-files ()
-      "Return a list of note files containing 'projet' tag." ;
-      (seq-uniq
-       (seq-map
-        #'car
-        (org-roam-db-query
-         [:select [nodes:file]
-                  :from tags
-                  :left-join nodes
-                  :on (= tags:node-id nodes:id)
-                  :where (like tag (quote "%\"projet\"%"))]))))
-
-    (defun vulpea-agenda-files-update (&rest _)
-      "Update the value of `org-agenda-files'."
-      (setq org-agenda-files (vulpea-projet-files)))
-
-    (defun vulpea-buffer-tags-get ()
-      "Return filetags value in current buffer."
-      (vulpea-buffer-prop-get-list "filetags" "[ :]"))
-
-    (defun vulpea-buffer-tags-set (&rest tags)
-      "Set TAGS in current buffer.
-            If filetags value is already set, replace it."
-      (if tags
-          (vulpea-buffer-prop-set
-           "filetags" (concat ":" (string-join tags ":") ":"))
-        (vulpea-buffer-prop-remove "filetags")))
-
-    (defun vulpea-buffer-tags-add (tag)
-      "Add a TAG to filetags in current buffer."
-      (let* ((tags (vulpea-buffer-tags-get))
-             (tags (append tags (list tag))))
-        (apply #'vulpea-buffer-tags-set tags)))
-
-    (defun vulpea-buffer-tags-remove (tag)
-      "Remove a TAG from filetags in current buffer."
-      (let* ((tags (vulpea-buffer-tags-get))
-             (tags (delete tag tags)))
-        (apply #'vulpea-buffer-tags-set tags)))
-
-    (defun vulpea-buffer-prop-set (name value)
-      "Set a file property called NAME to VALUE in buffer file.
-            If the property is already set, replace its value."
-      (setq name (downcase name))
-      (org-with-point-at 1
-        (let ((case-fold-search t))
-          (if (re-search-forward (concat "^#\\+" name ":\\(.*\\)")
-                                 (point-max) t)
-              (replace-match (concat "#+" name ": " value) 'fixedcase)
-            (while (and (not (eobp))
-                        (looking-at "^[#:]"))
-              (if (save-excursion (end-of-line) (eobp))
-                  (progn
-                    (end-of-line)
-                    (insert "\n"))
-                (forward-line)
-                (beginning-of-line)))
-            (insert "#+" name ": " value "\n")))))
-
-    (defun vulpea-buffer-prop-set-list (name values &optional separators)
-      "Set a file property called NAME to VALUES in current buffer.
-            VALUES are quoted and combined into single string using
-            `combine-and-quote-strings'.
-            If SEPARATORS is non-nil, it should be a regular expression
-            matching text that separates, but is not part of, the substrings.
-            If nil it defaults to `split-string-default-separators', normally
-            \"[ \f\t\n\r\v]+\", and OMIT-NULLS is forced to t.
-            If the property is already set, replace its value."
-      (vulpea-buffer-prop-set
-       name (combine-and-quote-strings values separators)))
-
-    (defun vulpea-buffer-prop-get (name)
-      "Get a buffer property called NAME as a string."
-      (org-with-point-at 1
-        (when (re-search-forward (concat "^#\\+" name ": \\(.*\\)")
-                                 (point-max) t)
-          (buffer-substring-no-properties
-           (match-beginning 1)
-           (match-end 1)))))
-
-    (defun vulpea-buffer-prop-get-list (name &optional separators)
-      "Get a buffer property NAME as a list using SEPARATORS.
-            If SEPARATORS is non-nil, it should be a regular expression
-            matching text that separates, but is not part of, the substrings.
-            If nil it defaults to `split-string-default-separators', normally
-            \"[ \f\t\n\r\v]+\", and OMIT-NULLS is forced to t."
-      (let ((value (vulpea-buffer-prop-get name)))
-        (when (and value (not (string-empty-p value)))
-          (split-string-and-unquote value separators))))
-
-    (defun vulpea-buffer-prop-remove (name)
-      "Remove a buffer property called NAME."
-      (org-with-point-at 1
-        (when (re-search-forward (concat "\\(^#\\+" name ":.*\n?\\)")
-                                 (point-max) t)
-          (replace-match ""))))
-
-    (defvar dw/org-roam-project-template
-      '("p" "projet" plain "** TODO %?"
-        :if-new (file+head+olp "%<%Y%m%d%H%M%S>-${slug}.org"
-                               "#+title: ${title}\n#+category: ${title}\n#+filetags: projet\n"
-                               ("Tâches"))))
-
-    (defun my/org-roam-filter-by-tag (tagname)
-      (lambda (node)
-        (member tagname (org-roam-node-tags node))))
-
-    (defun my/org-roam-list-notes-by-tag (tagname)
-      (mapcar #'org-roam-node-file
-              (seq-filter
-               (my/org-roam-filter-by-tag tagname)
-               (org-roam-node-list))))
-
-    (defun my/org-roam-project-finalise-hook ()
-      "Adds the captured project file to `org-agenda-files' if the
-                          capture was not aborted."
-      ;; Remove the hook since it was added temporarily
-      (remove-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
-
-      ;; Add project file to the agenda list if the capture was confirmed
-      (unless org-note-abort
-        (with-current-buffer (org-capture-get :buffer)
-          (add-to-list 'org-agenda-files (buffer-file-name)))))
+        ;; Add project file to the agenda list if the capture was confirmed
+        (unless org-note-abort
+          (with-current-buffer (org-capture-get :buffer)
+            (add-to-list 'org-agenda-files (buffer-file-name)))))
 
 
-    (defun my/org-roam-find-project ()
-      (interactive)
-      ;; Add the project file to the agenda after capture is finished
-      (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
+      (defun my/org-roam-find-project ()
+        (interactive)
+        ;; Add the project file to the agenda after capture is finished
+        (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
 
-      ;; Select a project file to open, creating it if necessary
-      (org-roam-node-find
-       nil
-       nil
-       (my/org-roam-filter-by-tag "projet")
-       :templates
-       '(("p" "projet" plain "* Objectifs\n\n%?\n\n* Tâches\n\n** TODO Ajouter des tâches initiales\n\n* Dates\n\n"
-          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+category: ${title}\n#+filetags: projet")
-          :unnarrowed t))))
+        ;; Select a project file to open, creating it if necessary
+        (org-roam-node-find
+         nil
+         nil
+         (my/org-roam-filter-by-tag "projet")
+         :templates
+         '(("p" "projet" plain "* Objectifs\n\n%?\n\n* Tâches\n\n** TODO Ajouter des tâches initiales\n\n* Dates\n\n"
+            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+category: ${title}\n#+filetags: projet")
+            :unnarrowed t))))
 
-    (defun my/org-roam-capture-inbox ()
-      (interactive)
-      (org-roam-capture- :node (org-roam-node-create)
-                         :templates '(("i" "inbox" plain "* %?"
-                                       :if-new (file+head "inbox.org" "#+title: Boîte de Réceptione\n#+filetags: projet")))))
+      (defun my/org-roam-capture-inbox ()
+        (interactive)
+        (org-roam-capture- :node (org-roam-node-create)
+                           :templates '(("i" "inbox" plain "* %?"
+                                         :if-new (file+head "inbox.org" "#+title: Boîte de Réceptione\n")))))
 
-    (defun my/org-roam-copy-todo-to-today ()
-      (interactive)
-      (let ((org-refile-keep t) ;; Set this to nil to delete the original!
-            (org-roam-dailies-capture-templates
-             '(("t" "tâches" entry "%?"
-                :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n#+filetags: projet" ("Tâches")))))
-            (org-after-refile-insert-hook #'save-buffer)
-            today-file
-            pos)
-        (save-window-excursion
-          (org-roam-dailies--capture (current-time) t)
-          (setq today-file (buffer-file-name))
-          (setq pos (point)))
+      (defun my/org-roam-copy-todo-to-today ()
+        (interactive)
+        (let ((org-refile-keep t) ;; Set this to nil to delete the original!
+              (org-roam-dailies-capture-templates
+               '(("t" "tâches" entry "%?"
+                  :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n#+filetags: projet" ("Tâches")))))
+              (org-after-refile-insert-hook #'save-buffer)
+              today-file
+              pos)
+          (save-window-excursion
+            (org-roam-dailies--capture (current-time) t)
+            (setq today-file (buffer-file-name))
+            (setq pos (point)))
 
-        ;; Only refile if the target file is different than the current file
-        (unless (equal (file-truename today-file)
-                       (file-truename (buffer-file-name)))
-          (org-refile nil nil (list "Tâches" today-file nil pos)))))
-
-
-    ;; (add-to-list 'org-after-todo-state-change-hook
-    ;;              (lambda ()
-    ;;                (when (equal org-state "DONE")
-    ;;                  (my/org-roam-copy-todo-to-today))))
-
-    (defun org-roam-node-insert-immediate (arg &rest args)
-      (interactive "P")
-      (let ((args (push arg args))
-            (org-roam-capture-templates (list (append (car org-roam-capture-templates)
-                                                      '(:immediate-finish t)))))
-        (apply #'org-roam-node-insert args)))
-
-    (defun dw/org-roam-goto-month ()
-      (interactive)
-      (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y-%B")) '(4))
-                         :node (org-roam-node-create)
-                         :templates '(("m" "month" plain "\n* Objectifs\n\n%?* Résumé\n\n"
-                                       :if-new (file+head "%<%Y-%B>.org"
-                                                          "#+title: %<%Y-%B>\n#+filetags: projet\n")
-                                       :unnarrowed t))))
-
-    (defun dw/org-roam-goto-year ()
-      (interactive)
-      (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y")) '(4))
-                         :node (org-roam-node-create)
-                         :templates '(("y" "year" plain "\n* Objectifs\n\n%?* Résumé\n\n"
-                                       :if-new (file+head "%<%Y>.org"
-                                                          "#+title: %<%Y>\n#+filetags: projet\n")
-                                       :unnarrowed t))))
-
-    (defun dw/org-roam-capture-task ()
-      (interactive)
-      ;; Add the projet file to the agenda after capture is finished
-      (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
-
-      ;; Capture the new task, creating the project file if necessary
-      (org-roam-capture- :node (org-roam-node-read
-                                nil
-                                (my/org-roam-filter-by-tag "projet"))
-                         :templates (list dw/org-roam-project-template)))
-
-    (defun my/org-roam-refresh-agenda-list ()
-      (interactive)
-      (setq org-agenda-files (my/org-roam-list-notes-by-tag "projet")))
-
-    (defhydra dw/org-roam-jump-menu (:hint nil)
-      "
-^Dailies^        ^Capture^       ^Jump^                  ^^^^^^^^-------------------------------------------------
-_t_: today       _T_: today       _m_: current month
-_r_: tomorrow    _R_: tomorrow    _e_: current year
-_y_: yesterday   _Y_: yesterday   ^ ^
-_d_: date        ^ ^              ^ ^
-                            "
-      ("t" org-roam-dailies-goto-today)
-      ("r" org-roam-dailies-goto-tomorrow)
-      ("y" org-roam-dailies-goto-yesterday)
-      ("d" org-roam-dailies-goto-date)
-      ("T" org-roam-dailies-capture-today)
-      ("R" org-roam-dailies-capture-tomorrow)
-      ("Y" org-roam-dailies-capture-yesterday)
-      ("m" dw/org-roam-goto-month)
-      ("e" dw/org-roam-goto-year)
-      ("c" nil "cancel"))
-    )
-
-  (setup (:pkg org-roam)
-    (setq org-roam-v2-ack t)
-    (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
-          dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
+          ;; Only refile if the target file is different than the current file
+          (unless (equal (file-truename today-file)
+                         (file-truename (buffer-file-name)))
+            (org-refile nil nil (list "Tâches" today-file nil pos)))))
 
 
-    (:when-loaded
-      (org-roam-db-autosync-mode)
+      ;; (add-to-list 'org-after-todo-state-change-hook
+      ;;              (lambda ()
+      ;;                (when (equal org-state "DONE")
+      ;;                  (my/org-roam-copy-todo-to-today))))
 
-      (add-to-list 'org-tags-exclude-from-inheritance "projet") ;;stop inheriteance from filetags
-      (add-hook 'find-file-hook #'vulpea-project-update-tag)
-      (add-hook 'before-save-hook #'vulpea-project-update-tag)
+      (defun org-roam-node-insert-immediate (arg &rest args)
+        (interactive "P")
+        (let ((args (push arg args))
+              (org-roam-capture-templates (list (append (car org-roam-capture-templates)
+                                                        '(:immediate-finish t)))))
+          (apply #'org-roam-node-insert args)))
 
-      (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
-      (advice-add 'org-todo-list :before #'vulpea-agenda-files-update)
+      (defun dw/org-roam-goto-month ()
+        (interactive)
+        (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y-%B")) '(4))
+                           :node (org-roam-node-create)
+                           :templates '(("m" "month" plain "\n* Objectifs\n\n%?* Résumé\n\n"
+                                         :if-new (file+head "%<%Y-%B>.org"
+                                                            "#+title: %<%Y-%B>\n#+filetags: projet\n")
+                                         :unnarrowed t))))
+
+      (defun dw/org-roam-goto-year ()
+        (interactive)
+        (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y")) '(4))
+                           :node (org-roam-node-create)
+                           :templates '(("y" "year" plain "\n* Objectifs\n\n%?* Résumé\n\n"
+                                         :if-new (file+head "%<%Y>.org"
+                                                            "#+title: %<%Y>\n#+filetags: projet\n")
+                                         :unnarrowed t))))
+
+      (defun dw/org-roam-capture-task ()
+        (interactive)
+        ;; Add the projet file to the agenda after capture is finished
+        (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalise-hook)
+
+        ;; Capture the new task, creating the project file if necessary
+        (org-roam-capture- :node (org-roam-node-read
+                                  nil
+                                  (my/org-roam-filter-by-tag "projet"))
+                           :templates (list dw/org-roam-project-template)))
+
+      (defun my/org-roam-refresh-agenda-list ()
+        (interactive)
+        (setq org-agenda-files (my/org-roam-list-notes-by-tag "projet")))
+
+      (defhydra dw/org-roam-jump-menu (:hint nil)
+        "
+  ^Dailies^        ^Capture^       ^Jump^                  ^^^^^^^^-------------------------------------------------
+  _t_: today       _T_: today       _m_: current month
+  _r_: tomorrow    _R_: tomorrow    _e_: current year
+  _y_: yesterday   _Y_: yesterday   ^ ^
+  _d_: date        ^ ^              ^ ^
+                              "
+        ("t" org-roam-dailies-goto-today)
+        ("r" org-roam-dailies-goto-tomorrow)
+        ("y" org-roam-dailies-goto-yesterday)
+        ("d" org-roam-dailies-goto-date)
+        ("T" org-roam-dailies-capture-today)
+        ("R" org-roam-dailies-capture-tomorrow)
+        ("Y" org-roam-dailies-capture-yesterday)
+        ("m" dw/org-roam-goto-month)
+        ("e" dw/org-roam-goto-year)
+        ("c" nil "cancel"))
       )
 
-    (:option
-     org-roam-directory "~/org/roam/"
-     org-roam-dailies-directory "journal/"
-     org-roam-completion-everywhere t
-     org-roam-capture-templates
-     '(("d" "default" plain "%?"
-        :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                           "#+title: ${title}\n")
-        :unnarrowed t))
-     org-roam-dailies-capture-templates
-     `(("d" "default" entry
-        "* %?"
-        :if-new (file+head ,dw/daily-note-filename
-                           ,dw/daily-note-header))
-       ("t" "tâche" entry
-        "* TODO %?\n  %U\n  %a\n  %i"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Tâches"))
-        :empty-lines 1)
-       ("l" "log entry" entry
-        "* %<%I:%M %p> - %?"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))
-       ("j" "journal" entry
-        "* %<%I:%M %p> - Journal  :journal:\n\n%?\n\n"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))
-       ("m" "meeting" entry
-        "* %<%I:%M %p> - %^{Meeting Title}  :meetings:\n\n%?\n\n"
-        :if-new (file+head+olp ,dw/daily-note-filename
-                               ,dw/daily-note-header
-                               ("Log")))))
-    (:global "C-c n l" org-roam-buffer-toggle
-             "C-c n f" org-roam-node-find
-             "C-c n d" dw/org-roam-jump-menu/body
-             "C-c n c" org-roam-dailies-capture-today
-             "C-c n t" dw/org-roam-capture-task
-             "C-c n T" org-roam-dailies-goto-today
-             "C-c n y" dw/org-roam-goto-year
-             "C-c n m" dw/org-roam-goto-month
-             "C-c n p" my/org-roam-find-project
-             "C-c n g" org-roam-graph)
-    (:bind "C-c n i" org-roam-node-insert
-           "C-c n I" org-roam-insert-immediate))
+    (setup (:pkg org-roam)
+      (setq org-roam-v2-ack t)
+      (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
+            dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
 
 
-  ;;(setq  org-capture-templates
-  ;;       '(("x" "Note" entry
-  ;;          (file+olp+datetree "journal.org")
-  ;;          "**** [ ] %U %?" :prepend t :kill-buffer t)
-  ;;         ("t" "Tâches" entry
-  ;;          (file+headline "todo.org" "Boîte de réception")
-  ;;          "* [ ] %?\n%i" :prepend t :kill-buffer t)))
-  ;;  (setq org-capture-templates
-  ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-  ;;          "* TODO %?")
-  ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
-  ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
-  ;;               :immediate-finish t)
-  ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
-  ;;               "* TODO [[%:link][%:description]]\n\n %i"
-  ;;               :immediate-finish t)
-  ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
-  ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
-  ;;           ))
+      (:when-loaded
+        (org-roam-db-autosync-mode)
+
+        (my/org-roam-refresh-agenda-list)
+        (add-to-list 'org-tags-exclude-from-inheritance "projet") ;;stop inheritance from filetags
+       ;; (add-hook 'find-file-hook #'vulpea-project-update-tag)
+       ;; (add-hook 'before-save-hook #'vulpea-project-update-tag)
+
+      ;;  (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
+      ;;  (advice-add 'org-todo-list :before #'vulpea-agenda-files-update)
+        )
+
+      (:option
+       org-roam-directory "~/org/roam/"
+       org-roam-dailies-directory "journal/"
+       org-roam-completion-everywhere t
+       org-roam-capture-templates
+       '(("d" "default" plain "%?"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                             "#+title: ${title}\n")
+          :unnarrowed t))
+       org-roam-dailies-capture-templates
+       `(("d" "default" entry
+          "* %?"
+          :if-new (file+head ,dw/daily-note-filename
+                             ,dw/daily-note-header))
+         ("t" "tâche" entry
+          "* TODO %?\n  %U\n  %a\n  %i"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Tâches"))
+          :empty-lines 1)
+         ("l" "log entry" entry
+          "* %<%I:%M %p> - %?"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))
+         ("j" "journal" entry
+          "* %<%I:%M %p> - Journal  :journal:\n\n%?\n\n"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))
+         ("m" "meeting" entry
+          "* %<%I:%M %p> - %^{Meeting Title}  :meetings:\n\n%?\n\n"
+          :if-new (file+head+olp ,dw/daily-note-filename
+                                 ,dw/daily-note-header
+                                 ("Log")))))
+      (:global "C-c n l" org-roam-buffer-toggle
+               "C-c n f" org-roam-node-find
+               "C-c n d" dw/org-roam-jump-menu/body
+               "C-c n c" org-roam-dailies-capture-today
+               "C-c n t" dw/org-roam-capture-task
+               "C-c n T" org-roam-dailies-goto-today
+               "C-c n y" dw/org-roam-goto-year
+               "C-c n m" dw/org-roam-goto-month
+               "C-c n p" my/org-roam-find-project
+               "C-c n g" org-roam-graph)
+      (:bind "C-c n i" org-roam-node-insert
+             "C-c n I" org-roam-insert-immediate))
+
+
+    ;;(setq  org-capture-templates
+    ;;       '(("x" "Note" entry
+    ;;          (file+olp+datetree "journal.org")
+    ;;          "**** [ ] %U %?" :prepend t :kill-buffer t)
+    ;;         ("t" "Tâches" entry
+    ;;          (file+headline "todo.org" "Boîte de réception")
+    ;;          "* [ ] %?\n%i" :prepend t :kill-buffer t)))
+    ;;  (setq org-capture-templates
+    ;;        `(("i" "inbox" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;          "* TODO %?")
+    ;;         ("e" "email" entry (file+headline ,(concat gas/org-agenda-directory "emails.org") "Emails")
+    ;;              "* TODO [#A] Reply: %a :@maison:@bureau:"
+    ;;               :immediate-finish t)
+    ;;          ("c" "org-protocol-capture" entry (file ,(concat gas/org-agenda-directory "inbox.org"))
+    ;;               "* TODO [[%:link][%:description]]\n\n %i"
+    ;;               :immediate-finish t)
+    ;;          ("w" "Weekly Review" entry (file+olp+datetree ,(concat gas/org-agenda-directory "reviews.org"))
+    ;;           (file ,(concat gas/org-agenda-directory "templates/weekly_review.org")))
+    ;;           ))
 #+end_src
 *** Org Agenda
 org-capture provides a generic and extensible interface to capturing things into org-mode in
 different formats
 #+begin_src emacs-lisp
-      (setup org-agenda
-       (:load-after org
+    (setup org-agenda
+      (:load-after org
 
-            (setq org-todo-keywords
+        (setq org-todo-keywords
               '((sequence
                  "TODO(t)"  ; A task that needs doing & is ready to do
-                 "PROJ(p)"  ; A project, which usually contains other tasks
+               ;;  "PROJ(p)"  ; A project, which usually contains other tasks
                  "SUIV(s)"  ; A task that is in progress
                  "ATTE(w)"  ; Something external is holding up this task
                  "SUSP(h)"  ; This task is paused/on hold because of me
@@ -2718,69 +2620,82 @@ different formats
                  ("spanish"   . ?s))))
 
         (setq org-priority-faces
-         `((?A . ,(face-foreground 'error))
-           (?B . ,(face-foreground 'warning))
-           (?C . ,(face-foreground 'success))))
+              `((?A . ,(face-foreground 'error))
+                (?B . ,(face-foreground 'warning))
+                (?C . ,(face-foreground 'success))))
         (setq org-agenda-custom-commands
               (quote
-               (("N" "Notes" tags "NOTE"
-                 ((org-agenda-overriding-header "Notes")
-                  (org-tags-match-list-sublevels t)))
-                ("h" "Habitudes" tags-todo "STYLE=\"habit\""
-                 ((org-agenda-overriding-header "Habitudes")
-                  (org-agenda-sorting-strategy
-                   '(todo-state-down priority-down category-keep))))
-                ("e" "Eisenhower Matrix"
-                 ((agenda
-                   ""
-                   ((org-agenda-overriding-header "Calendrier Eisenhower:")
-                    (org-agenda-show-log t)
-                    (org-agenda-log-mode-items '(clock state))
-                    (org-agenda-category-filter-preset '("-Habitudes"))
-                    (org-agenda-span 5)
-                    (org-agenda-start-on-weekday t)
-                    ;;            (org-agenda-ndays 5)
-                    ;;            (org-agenda-start-day "-2d")
-                    (org-deadline-warning-days 30)))
-                  (tags-todo  "+important+urgent/!FINI"
-                              ((org-agenda-overriding-header "Tâches importantes et urgentes")
-                               (org-tags-match-list-sublevels nil)))
-                  (tags-todo  "+important-urgent"
-                              ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
-                               (org-tags-match-list-sublevels nil)))
-                  (tags-todo "-important+urgent"
-                             ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+               (("n" "Prochaines Tâches"
+                ((agenda "" ((org-deadline-warning-days 7)))
+                 (todo "SUIV"
+                       ((org-agenda-overriding-header "Prochaines Tâches")))))
+
+               ;; Low-effort next actions
+               ("l" tags-todo "+TODO=\"SUIV\"+Effort<15&+Effort>0"
+                ((org-agenda-overriding-header "Tâches à faible Effort")
+                 (org-agenda-max-todos 20)
+                 (org-agenda-files org-agenda-files)))
+               ("h" "Habitudes" tags-todo "STYLE=\"habit\""
+                ((org-agenda-overriding-header "Habitudes")
+                 (org-agenda-sorting-strategy
+                  '(todo-state-down priority-down category-keep))))
+               ("e" "Eisenhower Matrix"
+                ((agenda
+                  ""
+                  ((org-agenda-overriding-header "Calendrier Eisenhower:")
+                   (org-agenda-show-log t)
+                   (org-agenda-log-mode-items '(clock state))
+                   (org-agenda-category-filter-preset '("-Habitudes"))
+                   (org-agenda-span 5)
+                   (org-agenda-start-on-weekday t)
+                   ;;            (org-agenda-ndays 5)
+                   ;;            (org-agenda-start-day "-2d")
+                   (org-deadline-warning-days 30)))
+                 (tags-todo  "+important+urgent/!FINI"
+                             ((org-agenda-overriding-header "Tâches importantes et urgentes")
                               (org-tags-match-list-sublevels nil)))
-                  (tags-todo "-important-urgent/!TODO"
-                             ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
-                              (org-agenda-category-filter-preset '("-Habitudes"))
+                 (tags-todo  "+important-urgent"
+                             ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
                               (org-tags-match-list-sublevels nil)))
-                  (tags-todo "values"
-                             ((org-agenda-overriding-header "Valeurs")
-                              (org-tags-match-list-sublevels nil)))
-                  ))
-                (" " "Agenda"
-                 ((agenda ""
-                          ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
-                           (org-agenda-show-log t)
-                           (org-agenda-log-mode-items '(clock state))
-                           ;;   (org-agenda-span 'day)
-                           ;;   (org-agenda-ndays 3)
-                           (org-agenda-start-on-weekday nil)
-                           (org-agenda-start-day "-d")
-                           (org-agenda-todo-ignore-deadlines nil)))
-                  (tags-todo "+important"
-                             ((org-agenda-overriding-header "Tâches Importantes à Venir")
-                              (org-tags-match-list-sublevels nil)))
-                  (tags-todo "-important/TODO"
-                             ((org-agenda-overriding-header "Tâches de Travail")
-                              (org-agenda-category-filter-preset '("-Habitudes"))
-                              (org-agenda-sorting-strategy
-                               '(todo-state-down priority-down))))
-                  (tags "FINI"
-                        ((org-agenda-overriding-header "Tâches à la Représenter")
-                         (org-tags-match-list-sublevels nil)))))
-                )))))
+                 (tags-todo "-important+urgent"
+                            ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+                             (org-tags-match-list-sublevels nil)))
+                 (tags-todo "-important-urgent/!TODO"
+                            ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
+                             (org-agenda-category-filter-preset '("-Habitudes"))
+                             (org-tags-match-list-sublevels nil)))
+                 (tags-todo "values"
+                            ((org-agenda-overriding-header "Valeurs")
+                             (org-tags-match-list-sublevels nil)))
+                 ))
+               (" " "Agenda"
+                ((agenda ""
+                         ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
+                          (org-agenda-show-log t)
+                          (org-agenda-log-mode-items '(clock state))
+                         ;; (org-agenda-files '(,(/org-path "inbox.org")))
+                          (org-agenda-text-search-extra-files nil)
+                          ;;   (org-agenda-span 'day)
+                          ;;   (org-agenda-ndays 3)
+                          (org-agenda-start-on-weekday nil)
+                          (org-agenda-start-day "-d")
+                          (org-agenda-todo-ignore-deadlines nil)))
+                 (tags-todo "+important"
+                            ((org-agenda-overriding-header "Tâches Importantes à Venir")
+                             (org-tags-match-list-sublevels nil)))
+                 (tags-todo "-important/TODO"
+                            ((org-agenda-overriding-header "Tâches de Travail")
+                             (org-agenda-category-filter-preset '("-Habitudes"))
+                             (org-agenda-sorting-strategy
+                              '(todo-state-down priority-down))))
+                 (tags-todo "-important-urgent/TODO"
+                            ((org-agenda-overriding-header "Habitudes")
+                             (org-agenda-sorting-strategy
+                              '(todo-state-down priority-down))))
+                 (tags "FINI"
+                       ((org-agenda-overriding-header "Tâches à la Représenter")
+                        (org-tags-match-list-sublevels nil)))))
+               )))))
 #+end_src
 *** Distraction Free
 setup olivetti to have a distraction free editing mode
@@ -3123,7 +3038,7 @@ SLY setup
 Editing Clojure / Clojurescript code is best done using a REPL, which is provided with the cider package.
 Cider has a lot of options to customise, and here are the ones I think are most critical.
 Source comes from: [[https://stackoverflow.com/a/31080940]]
-#+BEGIN_SRC elisp :noweb-ref code-clojure
+#+begin_src elisp :noweb-ref code-clojure
 
   (setup (:pkg clojure-mode)
     (:with-hook (clojure-mode
@@ -3195,14 +3110,14 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 
   ;;(setup (:pkg eval-in-repl))
 
-#+END_SRC
+#+end_src
 
 
 **** clj templates
 Insertion templates can be used to speed up project setups. This is code of my own creation, so use at your own risk. The template files are in ~.emacs.d/templates/lib.org~.
 
 ***** slurp
-#+BEGIN_SRC elisp
+#+begin_src elisp
 (defun slurp (file)
   (with-temp-buffer
     (insert-file-contents file)
@@ -3210,7 +3125,7 @@ Insertion templates can be used to speed up project setups. This is code of my o
      (point-min)
      (point-max))))
 
-#+END_SRC
+#+end_src
 
 ***** template-reader
 #+begin_src elisp
@@ -3227,7 +3142,7 @@ Insertion templates can be used to speed up project setups. This is code of my o
 ***** clj-org-templates
 I use org mode and literate programming ideas to build my clj/cljs projects. So, it is helpful to have skeletons that take .org template files that tangle into a nice clojure project setup. Currently I only have one template, but the idea is to be able to have a few which you just bind to different keys as needed. The idea is demonstrated with 'Project' and 'Library'.
 
-#+BEGIN_SRC elisp :tangle no
+#+begin_src elisp :tangle no
 (define-skeleton cljc-lib-skeleton
   "Inserts a .org template with user's project name input.
    Use in empty file and save to desired project directory.
@@ -3245,7 +3160,7 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 ;;(global-set-key (kbd "C-S-L") 'cljc-lib-skeleton)
 ;;(global-set-key (kbd "C-S-P") 'cljc-project-skeleton)
 
-#+END_SRC
+#+end_src
 *** Fennel
 :properties:
 :header-args: :noweb-ref code-fennel
@@ -3410,6 +3325,31 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
   ;; Je t'ai prévenu putain!
 
 #+end_src
+** Emacs paths & directories
+:PROPERTIES:
+:header-args: :tangle lisp/config-path.el :noweb yes
+:END:
+
+Setup emacs paths and directory constants
+
+
+#+begin_src emacs-lisp
+;;;config-path.el --- Path constants -*- lexical-binding: t -*-
+
+<<disclaimer>>
+;;
+;; This module defines path constants used across other modules.
+;;
+;;; Code:
+(+with-message "Setup Emacs path"
+
+<<path-config>>
+
+) ;; end of +with-message
+
+(provide 'config-path)
+;;; config-path.el ends here
+#+end_src
 ** My Utility fns constants and macros
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-utility-fn-macros.el :noweb yes
@@ -3450,6 +3390,7 @@ File for my constants, macros and functions
 (provide 'enfer-utility-fn-macros)
 ;;; enfer-utility-fn-macros.el ends here
 #+end_src
+
 
 ** Emacs setup package manager and configurator setup
 :PROPERTIES:
@@ -4111,27 +4052,44 @@ Bind it to =C-z i= because =C-z C-c= is taken for capture.
 :PROPERTIES:
 :header-args: :tangle init.el :noweb yes
 :END:
+The goal of this file is to require all init-xxx files. The structure is trivial:
 
-The classic Emacs initiation file.
-
-*** Header
+- Add lisp folder to load-path, so we can use require.
+- Adjust garbage collection thresholds, so things run smoother.
+- Load config-path declaring various path constants.
+- Load init-elpa which ‘bootstraps’ your package and configuration management tools.
+- Load autoloads file.
+- Load all other init-xxx files.
+- Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
 
 #+begin_src emacs-lisp
   ;;; init.el -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
+
+;;; Set up extra load paths and functionality
+;; Since we might be running in CI or other environments, stick to
+;; XDG_CONFIG_HOME value if possible.
+(let ((/emacs-home (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+                      (expand-file-name "emacs/" xdg)
+                    user-emacs-directory)))
+;; Add Lisp directory to `load-path'.
+(add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
+
+;;; bootstrap
+;(require 'config-path)
+;(require 'init-elpa)
+
 #+end_src
 
-*** Load enfer custom files
 #+begin_src emacs-lisp
-;;; Set up extra load paths and functionality
-;;(push (locate-user-emacs-file "lisp") load-path)
-
-;;; Load them all up
+;;; core
 (require 'enfer-utility-fn-macros)
 (require 'enfer-pkgmgr)
 (require 'enfer-emacs-sanity)
 (require 'enfer-emacs-startup)
+
+;;; utilities
 (require 'enfer-pkg-builtin)
 (require 'enfer-pkg-ui)
 (require 'enfer-pkg-editor)
@@ -4139,6 +4097,8 @@ The classic Emacs initiation file.
 (require 'enfer-pkg-window)
 (require 'enfer-pkg-project)
 (require 'enfer-pkg-org)
+
+;;; languages
 (require 'enfer-code-lisp)
 (require 'enfer-code-elisp)
 (require 'enfer-code-common-lisp)
@@ -4146,6 +4106,15 @@ The classic Emacs initiation file.
 (require 'enfer-code-fennel)
 (require 'enfer-pkg-util)
 (require 'enfer-key-bindings)
+
+;; I don't use `customize' interface, but .dir-locals.el put 'safe'
+;; variables into `custom-file'. And to be honest, I hate to allow
+;; them every time I restart Emacs.
+(when (file-exists-p custom-file)
+  (load custom-file nil 'nomessage))
+
+(provide 'init)
+;;; init.el ends here
 #+end_src
 *** Load the config -disabled
 
@@ -4197,35 +4166,42 @@ Beginning with 27.1, Emacs also loads an =early-init.el= file, before
 the package manager or the UI code.
 
 #+begin_src emacs-lisp
-;;; early-init.el -*- lexical-binding: t; no-byte-compile: t; -*-
-<<disclaimer>>
-;;; Code:
+  ;;; early-init.el -*- lexical-binding: t; no-byte-compile: t; -*-
+  <<disclaimer>>
+  ;;; Code:
 
-;;; ============================================================================
-;;; Some constants for condtional compliation
-;;; ============================================================================
-<<constants>>
+  (message "Chargement en cours early-init.el...")
 
-;;; ============================================================================
-;;; Emacs startup optimisations
-;;; ============================================================================
-<<garbage-filehandler>>
+  (define-advice load (:before (feature &rest _))
+    "Message the user when loading a library."
+    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
+  ;;; ============================================================================
+  ;;; Some constants for conditional compliation
+  ;;; ============================================================================
+  <<constants>>
 
-;;; ============================================================================
-;;; Frame parameters for faster startup
-;;; ============================================================================
-<<early-init-frame>>
+  ;;; ============================================================================
+  ;;; Emacs startup optimisations
+  ;;; ============================================================================
+  <<garbage-filehandler>>
 
-;;; ============================================================================
-;;; Specify some directory paths
-;;; ============================================================================
-<<early-directories>>
+  ;;; ============================================================================
+  ;;; Frame parameters for faster startup
+  ;;; ============================================================================
+  <<early-init-frame>>
 
-;;; ============================================================================
-;;; Set up the package manager
-;;; ============================================================================
-<<early-straight>>
+  ;;; ============================================================================
+  ;;; Specify some directory paths
+  ;;; ============================================================================
+  <<early-directories>>
 
+  ;;; ============================================================================
+  ;;; Set up the package manager
+  ;;; ============================================================================
+  <<early-straight>>
+
+ (message "Chargement du early-init.el terminé!")
+ (provide 'early-init)
 ;;; early-init.el ends here
 #+end_src
 
