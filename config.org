@@ -51,39 +51,45 @@ Make startup faster by reducing the frequency of garbage collection and then use
 
 #+begin_src emacs-lisp
 
-  (defmacro +with-message (message &rest body)
-    "Execute BODY, with MESSAGE.
-        If body executes without errors, ** MESSAGE... terminé will be displayed."
-    (declare (indent 1))
-    (let ((msg (gensym)))
-      `(let ((,msg ,message))
-         (unwind-protect (progn (message "%s..." ,msg)
-                                ,@body)
-           (message "** %s... terminé!!" ,msg)))))
+      (defmacro +with-message (message &rest body)
+        "Execute BODY, with MESSAGE.
+            If body executes without errors, ** MESSAGE... terminé will be displayed."
+        (declare (indent 1))
+        (let ((msg (gensym)))
+          `(let ((,msg ,message))
+             (unwind-protect (progn (message "%s..." ,msg)
+                                    ,@body)
+               (message "** %s... terminé!!" ,msg)))))
 
-  ;; Garbage collection slows down startup time, so we maximise the threshold for
-  ;; it to run, and we will later reset it.
-  (setq gc-cons-threshold most-positive-fixnum)
-
-  ;; file-name-handler-alist is consulted on various I/O functions such as
-  ;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
-  ;; to restore when Emacs is finished starting.
-  (unless (or (daemonp) noninteractive)
-    (let ((file-name-handler-alist/old file-name-handler-alist))
-      (setq file-name-handler-alist nil)
+      ;; Garbage collection slows down startup time, so we maximise the threshold for
+      ;; it to run, and we will later reset it.
+      (let ((normal-gc-cons-threshold (* 20 1024 1024))
+          (init-gc-cons-threshold (* 128 1024 1024)))
+      (setq gc-cons-threshold init-gc-cons-threshold)
       (add-hook 'emacs-startup-hook
-                (lambda ()
-                  (let ((value (delete-dups
-                                (append file-name-handler-alist
-                                        file-name-handler-alist/old))))
-                    (setq file-name-handler-alist value))))))
+                (lambda () (setq gc-cons-threshold
+                                 normal-gc-cons-threshold))))
+      ;;(setq gc-cons-threshold most-positive-fixnum)
 
-  (unless (daemonp)
-    (advice-add #'tty-run-terminal-initialization :override #'ignore)
-    (add-hook 'window-setup-hook
-              (lambda ()
-                (advice-remove #'tty-run-terminal-initialization #'ignore)
-                (tty-run-terminal-initialization (selected-frame) nil t))))
+      ;; file-name-handler-alist is consulted on various I/O functions such as
+      ;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
+      ;; to restore when Emacs is finished starting.
+      (unless (or (daemonp) noninteractive)
+        (let ((file-name-handler-alist/old file-name-handler-alist))
+          (setq file-name-handler-alist nil)
+          (add-hook 'emacs-startup-hook
+                    (lambda ()
+                      (let ((value (delete-dups
+                                    (append file-name-handler-alist
+                                            file-name-handler-alist/old))))
+                        (setq file-name-handler-alist value))))))
+
+      (unless (daemonp)
+        (advice-add #'tty-run-terminal-initialization :override #'ignore)
+        (add-hook 'window-setup-hook
+                  (lambda ()
+                    (advice-remove #'tty-run-terminal-initialization #'ignore)
+                    (tty-run-terminal-initialization (selected-frame) nil t))))
 
 #+end_src
 ** Initial frame setup
@@ -228,41 +234,87 @@ In a nutshell, it's just a value of $HOME.")
 
 ** Emacs Package Management
 :PROPERTIES:
-:header-args: :noweb-ref early-straight
+:header-args: :noweb-ref straight-setup
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
-    ;; Pre-configure the package manager settings before it is loaded.
-    (setq package-enable-at-startup nil)
-    (setq package-quickstart nil)
-    (setq straight-check-for-modifications '(check-on-save find-when-checking))
+                      ;; Pre-configure the package manager settings before it is loaded.
+                          (setq package-enable-at-startup nil)
+                          (setq package-quickstart nil)
+                          (setq straight-check-for-modifications '(check-on-save find-when-checking))
+                      (defvar elpa-bootstrap-p nil)
 
-    ;; Bootstrap the straight.el package manager if it is not already installed,
-    ;; then unconditionally load it. We use this rather than Emacs' built-in package
-    ;; manager.
-    (unless (featurep 'straight)
-      ;; Bootstrap straight.el
-      (defvar bootstrap-version)
-      (let ((bootstrap-file
-             (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-            (bootstrap-version 5))
-        (unless (file-exists-p bootstrap-file)
-          (with-current-buffer
-              (url-retrieve-synchronously
-               "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
-               'silent 'inhibit-cookies)
-            (goto-char (point-max))
-            (eval-print-last-sexp)))
-        (load bootstrap-file nil 'nomessage)))
+                    
 
-    ;; Additional post-setup of straight.el.
-    (require 'straight-x)
+                    (setq package-user/
+                          (expand-file-name
+                           "elpa/"
+                           emacs-packages/))
+
+                    
+                    ;; bootstrap straight.el
+
+                    (setq-default
+                     straight-repository-branch "develop"
+                     straight-check-for-modifications nil
+                     straight-use-package-by-default t
+                     straight-base-dir emacs-packages/
+                     straight-profiles (list
+                                        (cons nil
+                                              (expand-file-name
+                                               "versions/default.el"
+                                               emacs-config/ ))))
+
+                    (defvar bootstrap-version)
+                    (let ((bootstrap-file
+                           (expand-file-name "straight/repos/straight.el/bootstrap.el"
+                                             emacs-packages/))
+                          (bootstrap-version 5))
+                      (unless (file-exists-p bootstrap-file)
+                        (with-current-buffer
+                            (url-retrieve-synchronously
+                             (concat "https://raw.githubusercontent.com/"
+                                     "raxod502/straight.el/"
+                                     "develop/install.el")
+                             'silent 'inhibit-cookies)
+                          (goto-char (point-max))
+                          (eval-print-last-sexp)))
+                      (load bootstrap-file nil 'nomessage))
+
+                    (defvar elpa-straight-retry-count 3
+                      "Amount of retries for `straight' operations.")
+
+                    (defun elpa-straight-with-retry (orig-fn &rest args)
+                      "Wrapper around ORIG-FN supporting retries.
+                    ORIG-FN is called with ARGS and retried
+                    `elpa-straight-retry-count' times."
+                      (let ((n elpa-straight-retry-count)
+                            (res nil))
+                        (while (> n 0)
+                          (condition-case err
+                              (progn
+                                (setq res (apply orig-fn args)
+                                      n 0)
+                                res)
+                            (error
+                             (setq n (- n 1))
+                             (unless (> n 0)
+                               (signal (car err) (cdr err))))))))
+
+                    (advice-add #'straight-fetch-package
+                                :around
+                                #'elpa-straight-with-retry)
+                    (advice-add #'straight--clone-repository
+                                :around
+                                #'elpa-straight-with-retry)
+
+                  ;; Additional post-setup of straight.el.
+                (require 'straight-x)
   ;;; Appendix
-
-    ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
-    ;; minibuffer completion functions.  Since it's a (rarely-used, even)
-    ;; alias anyway, I just define it back to nil.  By the way, the alias
-    ;; is `straight-package-neutering-mode'.
+            ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
+          ;; minibuffer completion functions.  Since it's a (rarely-used, even)
+        ;; alias anyway, I just define it back to nil.  By the way, the alias
+      ;; is `straight-package-neutering-mode'.
     (defalias 'straight-ಠ_ಠ-mode nil)
 
   #+end_src
@@ -402,7 +454,24 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 
 
 #+end_src
-Sometimes it's good to clean up unused repositories if I've removed packages from my configuration.  Use =straight-remove-unused-repos= for this purpose.
+Sometimes it's good to clean up unused repositories if I've removed packages from my configuration.
+Use =straight-remove-unused-repos= for this purpose.
+
+Setup some popular packages
+#+begin_src emacs-lisp
+;; popular packages
+(setup (:pkg el-patch))
+(setup (:pkg s))
+(setup (:pkg dash))
+(setup (:pkg async))
+(setup (:pkg request))
+
+
+
+;; profiler
+(use-package esup :defer t)
+
+#+end_src
 ** Emacs Startup Setup
 :PROPERTIES:
 :header-args: :noweb-ref emacs-startup
@@ -3356,9 +3425,6 @@ Setup emacs paths and directory constants
 :END:
 
 File for my constants, macros and functions
-
-*** Contents enfer-util
-
 #+begin_src emacs-lisp
 ;;; enfer-utility-fn-macros.el -*- lexical-binding: t -*-
 
@@ -3392,35 +3458,36 @@ File for my constants, macros and functions
 #+end_src
 
 
-** Emacs setup package manager and configurator setup
+** ELPA package management
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-pkgmgr.el :noweb yes
+:header-args: :tangle lisp/init-elpa.el :noweb yes
 :END:
 
 "Setup" of setup.el the emacs package manager and package setup to replace use-package
 
-*** Contents enfer-setup
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkgmgr.el -*- lexical-binding: t -*-
+  ;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
   <<disclaimer>>
-  ;;; Code:
+  ;;
+  ;; Setup Emacs for installing packages from MELPA and Git
+  ;; repositories. Enable configuration via `setup'.
+        ;;; Code:
 
-;;(+with-message "setup Setup.el"
-
-  ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
-  ;; installing and loading packages.
-  <<setup-pkgmgr>>
-
+  (+with-message "setup ELPA"
+    (require 'config-path)
+    ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
+    ;; installing and loading packages.
+    <<setup-pkgmgr>>
+  ;;;============================================================================ ;;; Custom setup.el local macros
   ;;; ============================================================================
-  ;;; Custom setup.el local macros
-  ;;; ============================================================================
 
-   <<setup-macros>>
+    <<setup-macros>>
 
- ;; ) ;; end of +with-message
-  (provide 'enfer-pkgmgr)
-   ;;; enfer-pkgmgr.el ends here
+    ) ;; end of +with-message
+
+  (provide 'init-elpa)
+  ;;; init-elpa.el ends here
 #+end_src
 ** Emacs Sanity setup
 :PROPERTIES:
@@ -3927,7 +3994,7 @@ Smartparens setup here
 #+end_src
 ** config.el
 :PROPERTIES:
-:header-args: :tangle config.el :noweb yes
+:header-args: :tangle no :noweb yes
 :END:
 
 While =config.el= is written above, I use Noweb references to tangle
@@ -3948,32 +4015,7 @@ my config here /logically/, while keeping the generated file organised
   <<disclaimer>>
   ;;; Code:
 
-  ;;; REQUIRES
-  <<requires>>
 
-  ;;; CONSTANTS
-  <<constants>>
-
-  ;;; VARIABLES
-  <<variables>>
-
-  ;;; FUNCTIONS
-  <<functions>>
-
-  ;;; PACKAGE SETUP
-  <<pkg-setup>>
-
-  ;;; EMACS SANITY SETTINGS
-  <<sanity>>
-
-  ;;; UI
-  <<UI>>
-
-  ;;; EDITOR WORKFLOW
-  <<editor>>
-
-  ;;; CODING
-  <<coding>>
 
   ;;; SYSTEM-DEPENDENT SETTINGS
   ;; at home
@@ -4077,15 +4119,24 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 (add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
 
 ;;; bootstrap
-;(require 'config-path)
-;(require 'init-elpa)
+(require 'config-path)
+(require 'init-elpa)
 
+;; Setup `custom-file`.
+(setq custom-file (concat emacs-config/ "custom.el"))
+
+;; load autoloads file
+(unless elpa-bootstrap-p
+  (unless (file-exists-p path-autoloads-file)
+    (error "Autoloads file doesn't exist, please run '%s'"
+           "eru install emacs"))
+  (load path-autoloads-file nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp
 ;;; core
 (require 'enfer-utility-fn-macros)
-(require 'enfer-pkgmgr)
+;;(require 'enfer-pkgmgr)
 (require 'enfer-emacs-sanity)
 (require 'enfer-emacs-startup)
 
@@ -4193,7 +4244,7 @@ the package manager or the UI code.
   ;;; ============================================================================
   ;;; Specify some directory paths
   ;;; ============================================================================
-  <<early-directories>>
+  (require 'config-path)
 
   ;;; ============================================================================
   ;;; Set up the package manager
