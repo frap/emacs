@@ -51,15 +51,7 @@ Make startup faster by reducing the frequency of garbage collection and then use
 
 #+begin_src emacs-lisp
 
-      (defmacro +with-message (message &rest body)
-        "Execute BODY, with MESSAGE.
-            If body executes without errors, ** MESSAGE... terminé will be displayed."
-        (declare (indent 1))
-        (let ((msg (gensym)))
-          `(let ((,msg ,message))
-             (unwind-protect (progn (message "%s..." ,msg)
-                                    ,@body)
-               (message "** %s... terminé!!" ,msg)))))
+
 
       ;; Garbage collection slows down startup time, so we maximise the threshold for
       ;; it to run, and we will later reset it.
@@ -238,85 +230,89 @@ In a nutshell, it's just a value of $HOME.")
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
-                      ;; Pre-configure the package manager settings before it is loaded.
-                          (setq package-enable-at-startup nil)
-                          (setq package-quickstart nil)
-                          (setq straight-check-for-modifications '(check-on-save find-when-checking))
-                      (defvar elpa-bootstrap-p nil)
+  ;; Pre-configure the package manager settings before it is loaded.
+  (setq package-enable-at-startup nil
+      package-quickstart nil
+      straight-host-usernames '((github . "duckwork")
+				(gitlab .  "acdw"))
+      straight-check-for-modifications '(check-on-save
+					 find-when-checking))
 
-                    
+  (defvar elpa-bootstrap-p nil)
 
-                    (setq package-user/
-                          (expand-file-name
-                           "elpa/"
-                           emacs-packages/))
+  
 
-                    
-                    ;; bootstrap straight.el
+  (setq package-user/
+	(expand-file-name
+	 "elpa/"
+	 emacs-packages/))
 
-                    (setq-default
-                     straight-repository-branch "develop"
-                     straight-check-for-modifications nil
-                     straight-use-package-by-default t
-                     straight-base-dir emacs-packages/
-                     straight-profiles (list
-                                        (cons nil
-                                              (expand-file-name
-                                               "versions/default.el"
-                                               emacs-config/ ))))
+  
+  ;; bootstrap straight.el
 
-                    (defvar bootstrap-version)
-                    (let ((bootstrap-file
-                           (expand-file-name "straight/repos/straight.el/bootstrap.el"
-                                             emacs-packages/))
-                          (bootstrap-version 5))
-                      (unless (file-exists-p bootstrap-file)
-                        (with-current-buffer
-                            (url-retrieve-synchronously
-                             (concat "https://raw.githubusercontent.com/"
-                                     "raxod502/straight.el/"
-                                     "develop/install.el")
-                             'silent 'inhibit-cookies)
-                          (goto-char (point-max))
-                          (eval-print-last-sexp)))
-                      (load bootstrap-file nil 'nomessage))
+  (setq-default
+   straight-repository-branch "develop"
+   straight-check-for-modifications nil
+   straight-use-package-by-default t
+   straight-base-dir emacs-packages/
+   straight-profiles (list
+		      (cons nil
+			    (expand-file-name
+			     "versions/default.el"
+			     emacs-config/ ))))
 
-                    (defvar elpa-straight-retry-count 3
-                      "Amount of retries for `straight' operations.")
+  (defvar bootstrap-version)
+  (let ((bootstrap-file
+	 (expand-file-name "straight/repos/straight.el/bootstrap.el"
+			   straight-base-dir))
+	(bootstrap-version 5))
+    (unless (file-exists-p bootstrap-file)
+      (with-current-buffer
+	  (url-retrieve-synchronously
+	   (concat "https://raw.githubusercontent.com/"
+		   "raxod502/straight.el/"
+		   "develop/install.el")
+	   'silent 'inhibit-cookies)
+	(goto-char (point-max))
+	(eval-print-last-sexp)))
+    (load bootstrap-file nil 'nomessage))
 
-                    (defun elpa-straight-with-retry (orig-fn &rest args)
-                      "Wrapper around ORIG-FN supporting retries.
-                    ORIG-FN is called with ARGS and retried
-                    `elpa-straight-retry-count' times."
-                      (let ((n elpa-straight-retry-count)
-                            (res nil))
-                        (while (> n 0)
-                          (condition-case err
-                              (progn
-                                (setq res (apply orig-fn args)
-                                      n 0)
-                                res)
-                            (error
-                             (setq n (- n 1))
-                             (unless (> n 0)
-                               (signal (car err) (cdr err))))))))
+  (defvar elpa-straight-retry-count 3
+    "Amount of retries for `straight' operations.")
 
-                    (advice-add #'straight-fetch-package
-                                :around
-                                #'elpa-straight-with-retry)
-                    (advice-add #'straight--clone-repository
-                                :around
-                                #'elpa-straight-with-retry)
+  (defun elpa-straight-with-retry (orig-fn &rest args)
+    "Wrapper around ORIG-FN supporting retries.
+		    ORIG-FN is called with ARGS and retried
+		    `elpa-straight-retry-count' times."
+    (let ((n elpa-straight-retry-count)
+	  (res nil))
+      (while (> n 0)
+	(condition-case err
+	    (progn
+	      (setq res (apply orig-fn args)
+		    n 0)
+	      res)
+	  (error
+	   (setq n (- n 1))
+	   (unless (> n 0)
+	     (signal (car err) (cdr err))))))))
 
-                  ;; Additional post-setup of straight.el.
-                (require 'straight-x)
+  (advice-add #'straight-fetch-package
+	      :around
+	      #'elpa-straight-with-retry)
+  (advice-add #'straight--clone-repository
+	      :around
+	      #'elpa-straight-with-retry)
+
+  ;; Additional post-setup of straight.el.
+  (require 'straight-x)
   ;;; Appendix
-            ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
-          ;; minibuffer completion functions.  Since it's a (rarely-used, even)
-        ;; alias anyway, I just define it back to nil.  By the way, the alias
-      ;; is `straight-package-neutering-mode'.
-    (defalias 'straight-ಠ_ಠ-mode nil)
-
+  ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
+  ;; minibuffer completion functions.  Since it's a (rarely-used, even)
+  ;; alias anyway, I just define it back to nil.  By the way, the alias
+  ;; is `straight-package-neutering-mode'.
+  (defalias 'straight-ಠ_ಠ-mode nil)
+  
   #+end_src
 ** Emacs Package Manager Setup
 :PROPERTIES:
@@ -326,33 +322,47 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 #+begin_src emacs-lisp
 
   (require 'subr-x)
+
+  ;; (dolist (pkg '(el-patch
+  ;; 	       ;;  no-littering
+  ;; 	       setup
+  ;; 	       straight                 ; already installed, but what the hell
+  ;; 	       ))
+  ;;   (straight-use-package pkg)
+  ;;   (require pkg)
+  ;;   (require (intern (format "+%s" pkg)) nil :noerror))
+
+  ;; Setup `setup'
+
+
   (straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
   (require 'setup)
 
+  (add-to-list 'setup-modifier-list 'setup-wrap-to-demote-errors)
   ;; Uncomment this for debugging purposes
   (defun dw/log-require (&rest args)
     (with-current-buffer (get-buffer-create "*require-log*")
       (insert (format "%s\n"
-                      (file-name-nondirectory (car args))))))
+		      (file-name-nondirectory (car args))))))
   (add-to-list 'after-load-functions #'dw/log-require)
   ;; added from  https://github.com/daviwil/dotfiles/blob/master/Emacs.org#org-mode
 
   (defmacro define-setup-macro (name signature &rest body)
     "Shorthand for 'setup-define'. NAME is the name of the local macro. SIGNATURE
-                is used as the argument list for FN. If BODY starts with a string, use this as
-                the value for :documentation. Any following keywords are passed as OPTS to
-                'setup-define'."
+		  is used as the argument list for FN. If BODY starts with a string, use this as
+		  the value for :documentation. Any following keywords are passed as OPTS to
+		  'setup-define'."
     (declare (debug defun))
     (let (opts)
       (when (stringp (car body))
-        (setq opts (nconc (list :documentation (pop body)) opts)))
+	(setq opts (nconc (list :documentation (pop body)) opts)))
       (while (keywordp (car body))
-        (let ((prop (pop body))
-              (val `',(pop body)))
-          (setq opts (nconc (list prop val) opts))))
+	(let ((prop (pop body))
+	      (val `',(pop body)))
+	  (setq opts (nconc (list prop val) opts))))
       `(setup-define ,name
-         (cl-function (lambda ,signature ,@body))
-         ,@opts)))
+	 (cl-function (lambda ,signature ,@body))
+	 ,@opts)))
 
   #+end_src
 *** Setup local macros
@@ -469,7 +479,42 @@ Setup some popular packages
 
 
 ;; profiler
-(use-package esup :defer t)
+(setup (:pkg esup)) ;; :defer t)
+
+#+end_src
+** Environment
+:PROPERTIES:
+:header-args: :noweb-ref environment
+:END:
+Setup the Emacs environment from the local env
+#+begin_src emacs-lisp
+  (defun doom-load-envvars-file (file &optional noerror)
+  "Read and set envvars from FILE.
+      If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
+      unreadable. Returns the names of envvars that were changed."
+  (if (null (file-exists-p file))
+      (unless noerror
+	(signal 'file-error (list "No envvar file exists" file)))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (when-let (env (read (current-buffer)))
+	(let ((tz (getenv-internal "TZ")))
+	  (setq-default
+	   process-environment
+	   (append env (default-value 'process-environment))
+	   exec-path
+	   (append (split-string (getenv "PATH") path-separator t)
+		   (list exec-directory))
+	   shell-file-name
+	   (or (getenv "SHELL")
+	       (default-value 'shell-file-name)))
+	  (when-let (newtz (getenv-internal "TZ"))
+	    (unless (equal tz newtz)
+	      (set-time-zone-rule newtz))))
+	env))))
+
+   (if IS-MAC
+      (doom-load-envvars-file "~/.cache/emacs/env"))
 
 #+end_src
 ** Emacs Startup Setup
@@ -530,21 +575,76 @@ Use no-littering to automatically set common paths to the new user-emacs-directo
 #+end_src
 
 * Emacs Sane defaults
+** Constants
 Set Up Good Defaults. Taken from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-settings.el][mifano's emacs setup]]
 
 Some constants that I use.
 #+begin_src emacs-lisp :noweb-ref constants
 
   (require 'subr-x)
-  ;;; Initialise Constants
+    ;;; Initialise Constants
   (defconst NATIVECOMP (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
   (defconst IS-MAC     (eq system-type 'darwin))
   (defconst IS-LINUX   (eq system-type 'gnu/linux))
   (defconst IS-TERMUX
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
 
+  (defmacro fn (&rest body)
+    `(lambda () ,@body))
+
+  (defun doom-enlist (exp)
+    "Return EXP wrapped in a list, or as-is if already a list."
+    (declare (pure t) (side-effect-free t))
+    (if (proper-list-p exp) exp (list exp)))
 #+end_src
 
+** Keyboard
+#+begin_src emacs-lisp :noweb-ref keyboard
+    (defvar kbd-escape-hook nil
+    "A hook run after \\[keyboard-quit] is pressed.
+  Triggers `kbd-escape'.
+  If any hook returns non-nil, all hooks after it are ignored.")
+
+  (defun kbd-escape ()
+    "Run the `kbd-escape-hook'."
+    (interactive)
+    (cond ((minibuffer-window-active-p (minibuffer-window))
+	   ;; quit the minibuffer if open.
+	   (abort-recursive-edit))
+	  ;; Run all escape hooks. If any returns non-nil, then stop
+	  ;; there.
+	  ((cl-find-if #'funcall kbd-escape-hook))
+	  ;; don't abort macros
+	  ((or defining-kbd-macro executing-kbd-macro) nil)
+	  ;; Back to the default
+	  ((keyboard-quit))))
+
+  (global-set-key [remap keyboard-quit] #'kbd-escape)
+
+   (setup (:pkg which-key)
+    (which-key-mode 1)
+    (setq which-key-add-column-padding 2)
+    (setq which-key-idle-delay 0.5)
+    (setq which-key-idle-secondary-delay 0.1)
+    (setq which-key-max-display-columns nil)
+    (setq which-key-min-display-lines 6)
+    (setq which-key-replacement-alist
+          '((("left") . ("🡸"))
+            (("right") . ("🡺"))
+            (("up") . ("🡹"))
+            (("down") . ("🡻"))
+            (("delete") . ("DEL"))
+            (("\\`DEL\\'") . ("BKSP"))
+            (("RET") . ("⏎"))
+            (("next") . ("PgDn"))
+            (("prior") . ("PgUp"))))
+    (setq which-key-sort-order 'which-key-key-order-alpha)
+    (setq which-key-sort-uppercase-first nil)
+    (which-key-setup-minibuffer)
+    (:with-hook which-key-init-buffer-hook
+      (:hook (fn (setq line-spacing 4))))
+    (:hide-mode))
+#+end_src
 * Emacs Packages
 ** Utility Functions & macros
 
@@ -645,8 +745,6 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
                    (setq type (list 'symbol-function type)))
                  (list 'cl-letf (list (cons type rest)) body)))))))
 
-  (defmacro fn (&rest body)
-    `(lambda () ,@body))
 
   (defmacro fn! (&rest body)
     `(lambda () (interactive) ,@body))
@@ -852,10 +950,6 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
       (setq exp (cadr exp)))
     exp)
 
-  (defun doom-enlist (exp)
-    "Return EXP wrapped in a list, or as-is if already a list."
-    (declare (pure t) (side-effect-free t))
-    (if (proper-list-p exp) exp (list exp)))
 
   (defun doom-keyword-intern (str)
     "Converts STR (a string) into a keyword (`keywordp')."
@@ -869,31 +963,6 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
     (cl-check-type keyword keyword)
     (substring (symbol-name keyword) 1))
 
-
-  (defun doom-load-envvars-file (file &optional noerror)
-    "Read and set envvars from FILE.
-        If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
-        unreadable. Returns the names of envvars that were changed."
-    (if (null (file-exists-p file))
-        (unless noerror
-          (signal 'file-error (list "No envvar file exists" file)))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (when-let (env (read (current-buffer)))
-          (let ((tz (getenv-internal "TZ")))
-            (setq-default
-             process-environment
-             (append env (default-value 'process-environment))
-             exec-path
-             (append (split-string (getenv "PATH") path-separator t)
-                     (list exec-directory))
-             shell-file-name
-             (or (getenv "SHELL")
-                 (default-value 'shell-file-name)))
-            (when-let (newtz (getenv-internal "TZ"))
-              (unless (equal tz newtz)
-                (set-time-zone-rule newtz))))
-          env))))
 
   (defun +ensure-after-init (function)
     "Ensure FUNCTION runs after init, or now if already initialised.
@@ -924,27 +993,26 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 ** Setup if exists Executable
 ripgrep and gist
 #+begin_src emacs-lisp :noweb-ref pkg-utils
-     (+with-message "pkg-util" (setup (:pkg rg)
-        (:when-loaded
-          (setq rg-group-result t)
-          (setq rg-ignore-case 'smart)))
+  (+with-message "pkg-util"
+    (setup (:pkg rg)
+      (:when-loaded
+	(setq rg-group-result t)
+	(setq rg-ignore-case 'smart)))
 
-      (setup (:pkg gist)
+    (setup (:pkg gist)
       (setq gist-view-gist t)
       (:hide-mode))
 
     (setup (:pkg link-hint)
       (:require link-hint))
 
-  ) ;; end of pkg-utils +with-message
+    ) ;; end of pkg-utils +with-message
 #+end_src
 *** MAC PATH specific
 #+begin_src emacs-lisp :noweb-ref pkg-editor
   ;;(cua-mode 1)
   ;; load doom-path
-  (if IS-MAC
-      (doom-load-envvars-file "~/.cache/emacs/env"))
-
+ 
   ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
@@ -962,32 +1030,86 @@ ripgrep and gist
 Some Defaults for my preferred appearance
 #+begin_src emacs-lisp
 
-  (+with-message "Gas UI"
-    (setup appearance
-      (setq blink-matching-paren nil)
-      (setq display-time-default-load-average nil)
-      (setq echo-keystrokes 0.1)
-      (setq highlight-nonselected-windows nil)
-      (setq idle-update-delay 1.0)
-      (setq inhibit-startup-echo-area-message t)
-      (setq inhibit-startup-screen t)
-      (setq use-dialog-box nil)
-      (setq use-file-dialog nil)
-      (setq visible-bell nil)
-      (setq x-gtk-use-system-tooltips nil)
-      (setq x-stretch-cursor nil)
-      (setq-default bidi-display-reordering 'left-to-right)
-      (setq-default bidi-paragraph-direction 'left-to-right)
-      (setq-default cursor-in-non-selected-windows nil)
-      (setq-default cursor-type 'hbar)
-      (setq-default display-line-numbers-widen t)
-      (setq-default display-line-numbers-width 3)
-      (setq-default indicate-buffer-boundaries nil)
-      (setq-default truncate-lines t)
-      (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
-        (:hook display-line-numbers-mode))
-      (:with-hook text-mode-hook
-        (:hook visual-line-mode)))
+    (+with-message "Gas UI"
+
+    ;; be quiet at startup; don't load or display anything unnecessary
+  (setq-default
+   inhibit-startup-message t
+   inhibit-startup-screen t
+   inhibit-startup-echo-area-message user-login-name
+   inhibit-default-init t
+   initial-major-mode 'fundamental-mode
+   initial-scratch-message nil
+   use-file-dialog nil
+   use-dialog-box nil)
+
+  ;; disable cursort blinking
+  (blink-cursor-mode -1)
+
+  ;; play around with frame title (which I rarely see)
+  (setq frame-title-format
+        '("%b@"
+          (:eval (or (file-remote-p default-directory 'host)
+                     system-name))
+          " — Emacs"))
+
+  ;; for some reason only this removes the clutter with xmonad
+  (setup  (:feature scroll-bar)
+    ;;    :commands (scroll-bar-mode)
+    (scroll-bar-mode -1))
+
+  ;; y/n instead of yes/no
+  (fset #'yes-or-no-p #'y-or-n-p)
+
+  ;; mode line
+  (column-number-mode)
+  (size-indication-mode)
+
+  (setq-default
+   ;; no beeping and no blinking please
+   ring-bell-function #'ignore
+   visible-bell nil
+
+   ;; make sure that trash is not drawed
+   indicate-buffer-boundaries nil
+   indicate-empty-lines nil
+
+   ;; don't resize emacs in steps, it looks weird and plays bad with
+   ;; window manager.
+   window-resize-pixelwise t
+   frame-resize-pixelwise t
+
+   ;; disable bidirectional text for tiny performance boost
+   bidi-display-reordering nil
+
+   ;; hide cursors in other windoes
+   cursor-in-non-selected-windows nil)
+
+      ;; (setup appearance
+      ;;   ;;(setq blink-matching-paren nil)
+      ;;   (setq display-time-default-load-average nil)
+      ;;   (setq echo-keystrokes 0.1)
+      ;;   (setq highlight-nonselected-windows nil)
+      ;;   (setq idle-update-delay 1.0)
+      ;;   (setq inhibit-startup-echo-area-message t)
+      ;;   (setq inhibit-startup-screen t)
+      ;;   (setq use-dialog-box nil)
+      ;;   (setq use-file-dialog nil)
+      ;;   (setq visible-bell nil)
+      ;;   (setq x-gtk-use-system-tooltips nil)
+      ;;   (setq x-stretch-cursor nil)
+      ;;   (setq-default bidi-display-reordering 'left-to-right)
+      ;;   (setq-default bidi-paragraph-direction 'left-to-right)
+      ;;   (setq-default cursor-in-non-selected-windows nil)
+      ;;   (setq-default cursor-type 'hbar)
+      ;;   (setq-default display-line-numbers-widen t)
+      ;;   (setq-default display-line-numbers-width 3)
+      ;;   (setq-default indicate-buffer-boundaries nil)
+      ;;   (setq-default truncate-lines t)
+      ;;   (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
+      ;;     (:hook display-line-numbers-mode))
+      ;;   (:with-hook text-mode-hook
+      ;;     (:hook visual-line-mode)))
 #+end_src
 *** Menu and Tool bars
 #+begin_src elisp
@@ -997,10 +1119,8 @@ Some Defaults for my preferred appearance
   (tool-bar-mode -1)          ; Disable the toolbar
   (tooltip-mode -1)           ; Disable tooltips
   (set-fringe-mode 10)        ; Give some breathing room
-  (menu-bar-mode 1))
+  (menu-bar-mode 1))          ; I like menu whilst learning
 
-;; Set up the visible bell
-(setq visible-bell t)
 #+end_src
 *** Fonts & Emojis
 
@@ -1064,54 +1184,72 @@ On Linux, I have a custom build of Iosevka that I like.
   (setup (:pkg dimmer)
     (setq dimmer-fraction 0.3)
     (dimmer-mode 1))
+
+  ;; Install it from sources, because ELPA version has invalid
+;; signature.
+(setup (:pkg (spinner
+             :type git
+             :host github
+             :repo "Malabarba/spinner.el")))
 #+end_src
 
 *** Frame titles, sizes and mouse setup
 
 #+begin_src emacs-lisp
-    (setq-default frame-title-format
-                  (concat invocation-name "@" (system-name)
-                          ": %b %+%+ %f"))
+   ;; (setq-default frame-title-format
+   ;;               (concat invocation-name "@" (system-name)
+   ;;                       ": %b %+%+ %f"))
+  (unless IS-TERMUX
+   (setup mouse
+     (setq focus-follows-mouse t)
+     (setq make-pointer-invisible t)
+     (setq mouse-1-click-follows-link t)
+     (setq mouse-autoselect-window t)
+     (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+     (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+     ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+     (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+     (setq mouse-wheel-scroll-amount-horizontal 2)
+     (setq mouse-yank-at-point t)
+     (setq scroll-step 1) ;; keyboard scroll one line at a time
+     (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
-    (unless IS-TERMUX
-    (setup mouse
-      (setq focus-follows-mouse t)
-      (setq make-pointer-invisible t)
-      (setq mouse-1-click-follows-link t)
-      (setq mouse-autoselect-window t)
-      (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-      (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-      ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-      (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-      (setq mouse-wheel-scroll-amount-horizontal 2)
-      (setq mouse-yank-at-point t)
-      (setq scroll-step 1) ;; keyboard scroll one line at a time
-      (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
+   (unless IS-TERMUX
+     (setup scrolling
+     (setq auto-hscroll-mode 'current-line)
+     (setq auto-window-vscroll nil)
+     (setq fast-but-imprecise-scrolling t)
+     (setq hscroll-margin 16)
+     (setq hscroll-step 1)
+     (setq scroll-conservatively 101)
+     (setq scroll-margin 8)
+     (setq scroll-preserve-screen-position t)
+     (setq scroll-step 1)))
 
-    (unless IS-TERMUX
-      (setup scrolling
-      (setq auto-hscroll-mode 'current-line)
-      (setq auto-window-vscroll nil)
-      (setq fast-but-imprecise-scrolling t)
-      (setq hscroll-margin 16)
-      (setq hscroll-step 1)
-      (setq scroll-conservatively 101)
-      (setq scroll-margin 8)
-      (setq scroll-preserve-screen-position t)
-      (setq scroll-step 1)))
-
-    (unless IS-TERMUX
-      (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-      (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-      (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-      (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+   (unless IS-TERMUX
+     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
+     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
+     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+     (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 #+end_src
 
 *** Themes & Modeline
 
 #+begin_src emacs-lisp
   (setup (:pkg spacegray-theme))
+
+  (setup (:pkg modus-themes)
+  (:only-if IS-MAC)
+  (setq-default
+   modus-themes-diffs 'desaturated
+   modus-themes-headings '((t . section))
+   modus-themes-bold-constructs t
+   modus-themes-syntax 'faint
+   modus-themes-prompts 'subtle
+   modus-themes-completions 'opionated)
+  (load-theme 'modus-operandi t))
+
   (setup (:pkg doom-themes)
     (setq doom-themes-enable-bold t)
     (setq doom-themes-enable-italic t)
@@ -1513,6 +1651,101 @@ Setup Scatch and minibuffer
 :PROPERTIES:
 :header-args: :noweb-ref pkg-editor
 :END:
+*** Reading mode
+What does it do?
+#+begin_src emacs-lisp
+(setup (:require reading)
+  ;;(:hook-into view-mode)                ; XXX doesn't go back
+  )
+#+end_src
+*** Indentation
+use electric-indent but have a way of turning it off
+#+begin_src emacs-lisp
+;; easier to search
+(setq-default
+search-default-mode #'char-fold-to-regexp
+replace-char-fold t)
+
+
+
+;; electric everything (but there must be a way to disable it)
+(when (fboundp 'electric-pair-mode)
+(add-hook 'after-init-hook 'electric-pair-mode))
+(add-hook 'after-init-hook 'electric-indent-mode)
+
+(defun editor-disable-electric-indent ()
+"Disable the command `electric-indent-mode' locally."
+(electric-indent-local-mode -1))
+
+(defun editor-disable-electric-pair ()
+"Disable the command `electric-pair-mode' locally."
+  (electric-pair-local-mode -1))
+  
+#+end_src>
+
+*** Whitespaces
+#+begin_src emacs-lisp
+;; Whitespaces
+
+(setq-default
+ indent-tabs-mode nil
+ tab-width 2
+ require-final-newline t
+ tab-always-indent t)
+
+(defun editor-show-trailing-whitespace ()
+  "Enable display of trailing whitespace in this buffer."
+  (setq-local show-trailing-whitespace t))
+
+(dolist (hook '(prog-mode-hook text-mode-hook conf-mode-hook))
+  (add-hook hook 'editor-show-trailing-whitespace))
+  
+#+end_src>
+
+*** Formatting
+use ws-butler
+#+begin_src emacs-lisp
+  ;; Formatting
+  (setq-default
+   ;; `ws-butler' is used for better whitespace handling
+   delete-trailing-lines nil
+   sentence-end-double-space nil
+   word-wrap t)
+
+  (setup (:pkg (ws-butler
+               :type git
+               :host github
+               :repo "hlissner/ws-butler"))
+   (:hide-mode)
+   ;; :commands (ws-butler-global-mode)
+    (setq ws-butler-global-exempt-modes
+          (append ws-butler-global-exempt-modes
+                  '(special-mode comint-mode term-mode eshell-mode)))
+    (ws-butler-global-mode))
+
+  
+  ;; Disable backup files. While I find them useful in general, they
+  ;; keep interfering with `org-roam'.
+
+  (setq make-backup-files nil)
+
+  ,#+end_src>
+
+  ACDW setup whitespace defaults
+  ,#+begin_src emacs-lisp :tangle no
+    (setup whitespace
+      (setq backward-delete-char-untabify-method 'hungry)
+      (setq next-line-add-newlines nil)
+      (setq sentence-end-double-space nil)
+      (setq-default indent-tabs-mode nil)
+      (setq-default indicate-empty-lines nil)
+      (setq-default tab-always-indent nil)
+      (setq-default tab-width 4)
+      (:with-hook before-save-hook
+        (:hook delete-trailing-whitespace)))
+
+#+end_src
+*** Long lines
 The visual-line-mode function enables line-wrapping. You can run the function separately for each buffer, but ideally, you hook it to all text modes.
 
 When you select (mark) a section of text and start typing, Emacs will not replace the selected text. To enable Emacs deleting selected text, you set the delete-selection-mode variable, as below.
@@ -1520,15 +1753,30 @@ When you select (mark) a section of text and start typing, Emacs will not replac
 One last sensible default is to enure that Emacs lets you use the page-up and page-down buttons to
 go to the first and last line in the buffer.
 #+begin_src emacs-lisp
-    ;; Sensible line breaking
-  ;;(add-hook 'text-mode-hook 'visual-line-mode)
+  ;; Long lines
+
+  (setup (:pkg visual-fill-column)
+    (:option visual-fill-column-center-text t
+             (append reading-modes) '(visual-fill-column-mode . +1))
+    (:hook #'visual-line-mode)
+    (:hook-into org-mode)
+    (advice-add #'text-scale-adjust :after #'visual-fill-column-adjust))
+
+  (setup (:pkg adaptive-wrap)
+    (:with-mode adaptive-wrap-prefix-mode
+      (:hook-into visual-column-mode)))
+
+
+  (setup (:pkg unfill)
+    ;;:commands (unfill-toggle)
+    (:global "M-q"  #'unfill-toggle))
 
   ;; Overwrite selected text
-  (setup (:require delsel)
-    (delete-selection-mode t))
+  ;; (setup (:require delsel)
+  ;;  (delete-selection-mode t))
 
   ;; Scroll to the first and last line of the buffer
-  (setq scroll-error-top-bottom t)
+  ;;(setq scroll-error-top-bottom t)
 #+end_src
 Undo is a key function of an editor - bind to Ctrl-Z - disabled
 #+begin_src emacs-lisp :tangle no
@@ -1540,89 +1788,26 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
     (setq undo-tree-auto-save-history nil)
     (global-undo-tree-mode 1))
     #+end_src
-*** Spelling
-The configuration below enables Flyspell for all text modes and sets Hunspell as the default checking program. The M-F7 key checks the spelling for all words in the buffer and F7 checks the word that you cursor is standing on.
-
-A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
+*** Move Text
 #+begin_src emacs-lisp
-  (setup flyspell
-    (:load-after avy
-      (or (executable-find "ispell")
-          (executable-find "aspell")
-          (executable-find "hunspell"))
-
-      (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
-      (:bind "M-<f7>"  flyspell-buffer
-             "<f7>"    flyspell-word
-             "C-;"     flyspell-auto-correct-previous-word
-             )
-      (progn
-        (cond
-         ((executable-find "aspell")
-          (setq ispell-program-name "aspell")
-          (setq ispell-extra-args   '("--sug-mode=ultra"
-                                      "--lang=en_AU")))
-         ((executable-find "hunspell")
-          (setq ispell-program-name "hunspell")
-          (setq ispell-extra-args   '("-d en_AU"))))
-
-        ;; Save a new word to personal dictionary without asking
-        (setq ispell-silently-savep t)
-        (setq ispell-default-dictionary "en_AU"))
-
-      (defun avy-action-flyspell (pt)
-        (save-excursion
-          (goto-char pt)
-          (when (require 'flyspell nil t)
-            (flyspell-auto-correct-word)))
-        (select-window
-         (cdr (ring-ref avy-ring 0)))
-        t)
-
-      ;; Bind to semicolon (flyspell uses C-;)
-      (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
-
-      (:when-loaded
-        (:hide-mode))))
+  (setup (:pkg move-text)
+   ;; :commands (move-text-up
+   ;;            move-text-down)
+    (:global [M-S-down]  #'move-text-down
+             [M-S-up]    #'move-text-up))
 #+end_src
-
-I use the dictionary package for Emacs, and I’m lazy about it:
+*** Move where I Mean
 #+begin_src emacs-lisp
-  (setup (:pkg dictionary)
-  (:load-after avy
-  (defun dictionary-search-dwim (&optional arg)
-    "Search for definition of word at point. If region is active,
-  search for contents of region instead. If called with a prefix
-  argument, query for word to search."
-    (interactive "P")
-    (if arg
-        (dictionary-search nil)
-      (if (use-region-p)
-          (dictionary-search (buffer-substring-no-properties
-                              (region-beginning)
-                              (region-end)))
-        (if (thing-at-point 'word)
-            (dictionary-lookup-definition)
-          (dictionary-search-dwim '(4))))))
-
-    ;; dictionary
-    (defun avy-action-define (pt)
-      (save-excursion
-        (goto-char pt)
-        (dictionary-search-dwim))
-      (select-window
-       (cdr (ring-ref avy-ring 0)))
-      t)
-
-    (setf (alist-get ?= avy-dispatch-alist) 'dictionary-search-dwim)))
-
-#+end_src
+(setup  (:pkg mwim)
+  (:delay 1)
+  (:global "C-a"  mwim-beginning))
+#+end_src>
 
 *** Avy - Filter, Select, Act
 Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
     (setup (:pkg avy)
-    (:disable)
+   ;; (:disable)
       (:global  "M-j"  'avy-goto-char-timer
                 "C-M-s" 'isearch-forward-other-window
                 "C-M-r" 'isearch-backward-other-window)
@@ -1742,7 +1927,88 @@ Setup avy in filter, select, act mode
 
 #+end_src
 
-*** Encodings & Whitespace
+
+*** Spelling
+The configuration below enables Flyspell for all text modes and sets Hunspell as the default checking program. The M-F7 key checks the spelling for all words in the buffer and F7 checks the word that you cursor is standing on.
+
+A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
+#+begin_src emacs-lisp
+    (setup flyspell
+      (:needs (or "hunspell"
+                  "aspell"))
+      (:load-after avy
+        (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
+        (:bind "M-<f7>"  flyspell-buffer
+               "<f7>"    flyspell-word
+               "C-;"     flyspell-auto-correct-previous-word
+               )
+        (progn
+          (cond
+           ((executable-find "aspell")
+            (setq ispell-program-name "aspell")
+            (setq ispell-extra-args   '("--sug-mode=ultra"
+                                        "--lang=en_AU")))
+           ((executable-find "hunspell")
+            (setq ispell-program-name "hunspell")
+            (setq ispell-extra-args   '("-d en_AU"))))
+
+          ;; Save a new word to personal dictionary without asking
+          (setq ispell-silently-savep t)
+          (setq ispell-default-dictionary "en_AU"))
+
+        (defun avy-action-flyspell (pt)
+          (save-excursion
+            (goto-char pt)
+            (when (require 'flyspell nil t)
+              (flyspell-auto-correct-word)))
+          (select-window
+           (cdr (ring-ref avy-ring 0)))
+          t)
+
+        ;; Bind to semicolon (flyspell uses C-;)
+        (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
+
+        (:when-loaded
+          (:hide-mode))))
+#+end_src
+
+I use the dictionary package for Emacs, and I’m lazy about it:
+#+begin_src emacs-lisp
+  (setup (:pkg dictionary)
+    (:load-after avy
+      (defun dictionary-search-dwim (&optional arg)
+        "Search for definition of word at point. If region is active,
+    search for contents of region instead. If called with a prefix
+    argument, query for word to search."
+        (interactive "P")
+        (if arg
+            (dictionary-search nil)
+          (if (use-region-p)
+              (dictionary-search (buffer-substring-no-properties
+                                  (region-beginning)
+                                  (region-end)))
+            (if (thing-at-point 'word)
+                (dictionary-lookup-definition)
+              (dictionary-search-dwim '(4))))))
+
+      ;; dictionary
+      (defun avy-action-define (pt)
+        (save-excursion
+          (goto-char pt)
+          (dictionary-search-dwim))
+        (select-window
+         (cdr (ring-ref avy-ring 0)))
+        t)
+
+      (setf (alist-get ?= avy-dispatch-alist) 'dictionary-search-dwim))
+    (:option dictionary-use-single-buffer t)
+    (autoload 'dictionary-search "dictionary"
+      "Ask for a word and search it in all dictionaries" t)
+    (:hook #'reading-mode))
+
+#+end_src
+
+*** Encodings & expand region
 Setup encodings
 #+begin_src emacs-lisp :noweb-ref sanity
 
@@ -1765,51 +2031,35 @@ Setup encodings
 #+end_src
 Setup undo , whitespace, expand, indentation
 #+begin_src emacs-lisp
-   (setup (:pkg aggressive-indent)
-     (:hook-into prog-mode)
-     (:hide-mode))
-
-   (setup (:pkg hungry-delete)
-     (:load-after smartparens
-       (setq hungry-delete-join-reluctantly t)
-       (global-hungry-delete-mode 1)
-       (:hook-into smartparens-enabled)
-       (:hide-mode)))
-
-   (setup (:pkg expand-region)
-     (:require expand-region)
-     )
-
-   (setup (:pkg undo-fu undo-fu-session)
-     (:with-map (prog-mode-map text-mode-map)
-       (:bind
-        "u" undo-fu-only-undo
-        "C-r" undo-fu-only-redo))
-     (setq undo-fu-session-incompatible-files
-           '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
-     (global-undo-fu-session-mode 1))
-
-  ;; (setup (:pkg whitespace-cleanup-mode)
-  ;;   (global-whitespace-cleanup-mode 1)
-  ;;   (:with-hook before-save-hook
-  ;;     (:hook delete-trailing-whitespace))
+  ;; (setup (:pkg aggressive-indent)
+  ;;   (:hook-into prog-mode)
   ;;   (:hide-mode))
 
-#+end_src
-whitespace defaults
-#+begin_src emacs-lisp :noweb-ref sanity
-  (setup whitespace
-    (setq backward-delete-char-untabify-method 'hungry)
-    (setq next-line-add-newlines nil)
-    (setq sentence-end-double-space nil)
-    (setq-default indent-tabs-mode nil)
-    (setq-default indicate-empty-lines nil)
-    (setq-default tab-always-indent nil)
-    (setq-default tab-width 4)
-    (:with-hook before-save-hook
-      (:hook delete-trailing-whitespace)))
+  ;; (setup (:pkg hungry-delete)
+  ;;   (:load-after smartparens
+  ;;     (setq hungry-delete-join-reluctantly t)
+  ;;     (global-hungry-delete-mode 1)
+  ;;     (:hook-into smartparens-enabled)
+  ;;     (:hide-mode)))
+
+  ;; (setup (
+          :pkg expand-region)
+    (:require expand-region)
+    )
+
+  ;; (setup (:pkg undo-fu undo-fu-session)
+  ;;   (:with-map (prog-mode-map text-mode-map)
+  ;;     (:bind
+  ;;      "u" undo-fu-only-undo
+  ;;      "C-r" undo-fu-only-redo))
+  ;;   (setq undo-fu-session-incompatible-files
+  ;;         '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+  ;;   (global-undo-fu-session-mode 1))
+
+
 
 #+end_src
+
 *** Emacs *Help* functions
 
  Help and which functions
@@ -1841,41 +2091,17 @@ whitespace defaults
                     (switch-to-buffer x)
                   (pop-to-buffer x)))))))
 
-  (setup (:pkg which-key)
-    (which-key-mode 1)
-    (setq which-key-add-column-padding 2)
-    (setq which-key-idle-delay 0.5)
-    (setq which-key-idle-secondary-delay 0.1)
-    (setq which-key-max-display-columns nil)
-    (setq which-key-min-display-lines 6)
-    (setq which-key-replacement-alist
-          '((("left") . ("🡸"))
-            (("right") . ("🡺"))
-            (("up") . ("🡹"))
-            (("down") . ("🡻"))
-            (("delete") . ("DEL"))
-            (("\\`DEL\\'") . ("BKSP"))
-            (("RET") . ("⏎"))
-            (("next") . ("PgDn"))
-            (("prior") . ("PgUp"))))
-    (setq which-key-sort-order 'which-key-key-order-alpha)
-    (setq which-key-sort-uppercase-first nil)
-    (which-key-setup-minibuffer)
-    (:with-hook which-key-init-buffer-hook
-      (:hook (fn (setq line-spacing 4))))
-    (:hide-mode))
-
 #+end_src
 
 *** Navigation
 setup Marginalia for navigation
 #+begin_src emacs-lisp
-    ;; Enable richer annotations using the Marginalia package
-      (setup (:pkg marginalia)
-        (:load-after vertico
-          (marginalia-mode 1))
-        (:with-map minibuffer-local-map
-          (:bind "M-A" marginalia-cycle)))
+  ;; Enable richer annotations using the Marginalia package
+  (setup (:pkg marginalia)
+    (:load-after vertico
+		 (marginalia-mode 1))
+    (:with-map minibuffer-local-map
+      (:bind "M-A" marginalia-cycle)))
 
 #+end_src
 keychords with hydra
@@ -2165,127 +2391,127 @@ Emacs completion parlava
 The ever changing Org setup part
 #+begin_src elisp :noweb-ref pkg-org
 
-    (setq org-directory
-          (if IS-TERMUX
-              "~/storage/shared/org"
-            "~/org/roam"))
+  (setq org-directory
+	(if IS-TERMUX
+	    "~/storage/shared/org"
+	  "~/org/roam"))
 
-    (defun /org-path (path)
-      (expand-file-name path org-directory))
+  (defun /org-path (path)
+    (expand-file-name path org-directory))
 
-    (setq org-default-notes-file (/org-path "inbox.org"))
+  (setq org-default-notes-file (/org-path "inbox.org"))
 
-    ;; Turn on indentation and auto-fill mode for Org files
-    (defun gas/org-mode-setup ()
-      (org-indent-mode)       ;; turn on org indent
-      (variable-pitch-mode 1) ;; turn on variable-pitch
-      (auto-fill-mode 0)      ;; turn off auto-fill
-      (visual-line-mode 1)    ;; turn on visual-line-mode
-      (show-paren-mode 1)     ;; show parentheses
-      )
+  ;; Turn on indentation and auto-fill mode for Org files
+  (defun gas/org-mode-setup ()
+    (org-indent-mode)       ;; turn on org indent
+    (variable-pitch-mode 1) ;; turn on variable-pitch
+    (auto-fill-mode 0)      ;; turn off auto-fill
+    (visual-line-mode 1)    ;; turn on visual-line-mode
+    (show-paren-mode 1)     ;; show parentheses
+    )
 
-    (setup (:pkg org)
-      (:also-load org-tempo)
-      ;; (:hook gas/org-mode-setup)
-      (:global "C-c a"  org-agenda)
-      (:bind   "C-c c"  org-capture
-               "C-c l"  org-store-link)
-      (setq ;;org-adapt-indentation nil ; don't indent things
-       org-capture-bookmark nil
-       org-catch-invisible-edits 'smart            ;; try not to accidently do weird stuff in invisible regions
-       org-confirm-babel-evaluate nil
-       org-cycle-separator-lines 2
-       org-edit-src-content-indentation 2
-       org-ellipsis " …"
-       org-export-coding-system 'utf-8-unix
-       org-export-headline-levels 8
-       org-export-in-background t                  ;; run export processes in external emacs process
-       org-export-with-section-numbers nil
-       org-export-with-smart-quotes t
-       org-export-with-sub-superscripts '{}        ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
-       org-export-with-toc t
-       org-fontify-quote-and-verse-blocks t
-       org-fontify-whole-heading-line t
-       org-hide-block-startup nil
-       org-hide-emphasis-markers t                 ;; so dont see text markers aka bold italic
-       org-html-coding-system 'utf-8-unix
-       org-html-todo-kwd-class-prefix "keyword "
-       org-id-link-to-org-use-id 'create-if-interactive
-       org-id-locations-file (/org-path ".orgids")
-       org-image-actual-width '(300)
-       org-list-allow-alphabetical t               ;; have a. A. a\) A\) list bullets
-       org-log-done 'time                          ;; having the time a item is done sounds convenient
-       org-outline-path-complete-in-steps nil
-       org-pretty-entities t                       ;; special symbols, latex
-       org-return-follows-link t
-       org-src-tab-acts-natively t
-       org-src-fontify-natively t
-       org-src-preserve-indentation nil
-       org-startup-folded 'content
-       org-startup-indented t                       ;; removed leading * for nicer view
-       org-startup-with-inline-images t
-       ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behaviour in headings.
-       org-special-ctrl-a/e t
-       org-special-ctrl-k t
-       org-use-property-inheritance t              ; it's convenient to have properties inherited
-       )
+  (setup (:pkg org)
+    (:also-load org-tempo)
+    ;; (:hook gas/org-mode-setup)
+    (:global "C-c a"  org-agenda)
+    (:bind   "C-c c"  org-capture
+	     "C-c l"  org-store-link)
+    (setq ;;org-adapt-indentation nil ; don't indent things
+     org-capture-bookmark nil
+     org-catch-invisible-edits 'smart            ;; try not to accidently do weird stuff in invisible regions
+     org-confirm-babel-evaluate nil
+     org-cycle-separator-lines 2
+     org-edit-src-content-indentation 2
+     org-ellipsis " …"
+     org-export-coding-system 'utf-8-unix
+     org-export-headline-levels 8
+     org-export-in-background t                  ;; run export processes in external emacs process
+     org-export-with-section-numbers nil
+     org-export-with-smart-quotes t
+     org-export-with-sub-superscripts '{}        ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+     org-export-with-toc t
+     org-fontify-quote-and-verse-blocks t
+     org-fontify-whole-heading-line t
+     org-hide-block-startup nil
+     org-hide-emphasis-markers t                 ;; so dont see text markers aka bold italic
+     org-html-coding-system 'utf-8-unix
+     org-html-todo-kwd-class-prefix "keyword "
+     org-id-link-to-org-use-id 'create-if-interactive
+     org-id-locations-file (/org-path ".orgids")
+     org-image-actual-width '(300)
+     org-list-allow-alphabetical t               ;; have a. A. a\) A\) list bullets
+     org-log-done 'time                          ;; having the time a item is done sounds convenient
+     org-outline-path-complete-in-steps nil
+     org-pretty-entities t                       ;; special symbols, latex
+     org-return-follows-link t
+     org-src-tab-acts-natively t
+     org-src-fontify-natively t
+     org-src-preserve-indentation nil
+     org-startup-folded 'content
+     org-startup-indented t                       ;; removed leading * for nicer view
+     org-startup-with-inline-images t
+     ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behaviour in headings.
+     org-special-ctrl-a/e t
+     org-special-ctrl-k t
+     org-use-property-inheritance t              ; it's convenient to have properties inherited
+     )
 
-      (setq org-modules
-            '(org-crypt
-              org-habit
-              ;;org-bookmark
-              ;;org-eshell
-              ;;org-irc
-              ))
+    (setq org-modules
+	  '(org-crypt
+	    org-habit
+	    ;;org-bookmark
+	    ;;org-eshell
+	    ;;org-irc
+	    ))
 
-      (setq org-refile-targets '((nil :maxlevel . 3)
-                                 (org-agenda-files :maxlevel . 3))
-            org-refile-use-outline-path t)
+    (setq org-refile-targets '((nil :maxlevel . 3)
+			       (org-agenda-files :maxlevel . 3))
+	  org-refile-use-outline-path t)
 
-      (org-babel-do-load-languages
-       'org-babel-load-languages
-       '((emacs-lisp . t)
-         (clojure . t)
-         (shell . t)
-         (python . t)
-         ;;(ledger . t)
-         ))
-      ;;(with-no-warnings
-      (setq org-ts-regexp-both-braket "\\([[<]\\)\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ?[^]\n>]*?\\)\\([]>]\\)")
-      (defface org-deadline-custom-braket '((t (:inherit 'default))) "org-deadline" :group 'org)
-      (defface org-scheduled-custom-braket '((t (:inherit 'default))) "org-schedule" :group 'org)
-      (defface org-priority-hide '((t ())) "org-priority-hide" :group 'org)
-      (defface org-scheduled-custom '((t (:inherit 'default))) "org-schedule" :group 'org)
-      (defface org-closed-custom '((t (:inherit 'default))) "org-close" :group 'org)
-      (defface org-todo-keyword-done '((t ())) "org-done" :group 'org)
-      (defface org-todo-keyword-next '((t ())) "org-next" :group 'org)
-      (defface org-todo-keyword-proj '((t ())) "org-proj" :group 'org)
-      (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
-      (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
-      (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
-      ;;)
-       (with-no-warnings
-         (custom-declare-face 'org-todo-keyword-next  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
-         (custom-declare-face 'org-todo-keyword-proj '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
-         (custom-declare-face 'org-todo-keyword-wait  '((t (:inherit (bold warning org-todo)))) "")
-         (custom-declare-face 'org-todo-keyword-kill  '((t (:inherit (bold error org-todo)))) ""))
-      ;; change CAPITAL Keywords to lowercase
-      (defun org-syntax-convert-keyword-case-to-lower ()
-        "Convert all #+KEYWORDS to #+keywords."
-        (interactive)
-        (save-excursion
-          (goto-char (point-min))
-          (let ((count 0)
-                (case-fold-search nil))
-            (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-              (unless (s-matches-p "RESULTS" (match-string 0))
-                (replace-match (downcase (match-string 0)) t)
-                (setq count (1+ count))))
-            (message "Remplacement de %d occurrences" count))))
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (clojure . t)
+       (shell . t)
+       (python . t)
+       ;;(ledger . t)
+       ))
+    ;;(with-no-warnings
+    (setq org-ts-regexp-both-braket "\\([[<]\\)\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ?[^]\n>]*?\\)\\([]>]\\)")
+    (defface org-deadline-custom-braket '((t (:inherit 'default))) "org-deadline" :group 'org)
+    (defface org-scheduled-custom-braket '((t (:inherit 'default))) "org-schedule" :group 'org)
+    (defface org-priority-hide '((t ())) "org-priority-hide" :group 'org)
+    (defface org-scheduled-custom '((t (:inherit 'default))) "org-schedule" :group 'org)
+    (defface org-closed-custom '((t (:inherit 'default))) "org-close" :group 'org)
+    (defface org-todo-keyword-done '((t ())) "org-done" :group 'org)
+    (defface org-todo-keyword-next '((t ())) "org-next" :group 'org)
+    (defface org-todo-keyword-proj '((t ())) "org-proj" :group 'org)
+    (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
+    (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
+    (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
+    ;;)
+    (with-no-warnings
+      (custom-declare-face 'org-todo-keyword-next  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+      (custom-declare-face 'org-todo-keyword-proj '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+      (custom-declare-face 'org-todo-keyword-wait  '((t (:inherit (bold warning org-todo)))) "")
+      (custom-declare-face 'org-todo-keyword-kill  '((t (:inherit (bold error org-todo)))) ""))
+    ;; change CAPITAL Keywords to lowercase
+    (defun org-syntax-convert-keyword-case-to-lower ()
+      "Convert all #+KEYWORDS to #+keywords."
+      (interactive)
+      (save-excursion
+	(goto-char (point-min))
+	(let ((count 0)
+	      (case-fold-search nil))
+	  (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+	    (unless (s-matches-p "RESULTS" (match-string 0))
+	      (replace-match (downcase (match-string 0)) t)
+	      (setq count (1+ count))))
+	  (message "Remplacement de %d occurrences" count))))
 
-      (push '("conf-unix" . conf-unix) org-src-lang-modes)
-      (:load-after hl-fill-column
-        (:hook gas/org-mode-setup)))
+    (push '("conf-unix" . conf-unix) org-src-lang-modes)
+    (:load-after hl-fill-column
+		 (:hook gas/org-mode-setup)))
 
 #+end_src
 
@@ -3111,44 +3337,55 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 
   (setup (:pkg clojure-mode)
     (:with-hook (clojure-mode
-                 clojurec-mode
-                 clojurescript-mode)
+		 clojurec-mode
+		 clojurescript-mode)
+      (:bind "<M-return>" 'clerk-show)
       (:file-match (rx "/.edn" eos))
       (defun clojure-mode-setup ()
-        "Setup Clojure buffer."
-        (all-lisp-modes-mode)
-        (clojure-set-compile-command)
-        (flycheck-mode))
+	"Setup Clojure buffer."
+	(all-lisp-modes-mode)
+	(clojure-set-compile-command)
+	(flycheck-mode))
       (:hook #'clojure-mode-setup)
       (defvar org-babel-default-header-args:clojure '((:results . "silent")))'
+      (defun clerk-show ()
+	(interactive)
+	(save-buffer)
+	(let
+	    ((filename
+	      (buffer-file-name)))
+	  (when filename
+	    (cider-interactive-eval
+	     (concat "(nextjournal.clerk/show! \"" filename "\")")))))
+
       (defun org-babel-execute:clojure (body params)
-        "Evaluate a block of Clojure code with Babel."
-        (lisp-eval-string body))
+	"Evaluate a block of Clojure code with Babel."
+	(lisp-eval-string body))
       (defun clojure-set-compile-command ()
-        (let ((project-dir (clojure-project-dir)))
-          (cond ((and (file-exists-p (expand-file-name "project.clj" project-dir))
-                      (executable-find "lein"))
-                 (setq-local compile-command "lein "))
-                ((and (file-exists-p (expand-file-name "deps.edn" project-dir))
-                      (executable-find "clojure"))
-                 (setq-local compile-command "clojure ")))))))
+	(let ((project-dir (clojure-project-dir)))
+	  (cond ((and (file-exists-p (expand-file-name "project.clj" project-dir))
+		      (executable-find "lein"))
+		 (setq-local compile-command "lein "))
+		((and (file-exists-p (expand-file-name "deps.edn" project-dir))
+		      (executable-find "clojure"))
+		 (setq-local compile-command "clojure ")))))))
 
   (setup (:pkg cider)
     (:load-after clojure-mode
       (:option nrepl-log-messages nil
-               nrepl-use-ssh-fallback-for-remote-hosts t
-               nrepl-hide-special-buffers t
-               cider-allow-jack-in-without-project t
-               cider-enrich-classpath t
-               cider-font-lock-dynamically '(macro var deprecated)
-               cider-repl-clear-help-banner t
-               cider-repl-display-help-banner nil
-               cider-repl-tab-command #'indent-for-tab-command
-               ;;cider-repl-use-pretty-printing t
-               ;;cider-repl-pop-to-buffer-on-connect t
-               cider-save-file-on-load nil
-               cider-test-show-report-on-success t
-               cider-use-fringe-indicators nil)
+	       nrepl-use-ssh-fallback-for-remote-hosts t
+	       nrepl-hide-special-buffers t
+	       cider-allow-jack-in-without-project t
+	       cider-enrich-classpath t
+	       cider-font-lock-dynamically '(macro var deprecated)
+	       cider-repl-clear-help-banner t
+	       cider-repl-display-help-banner nil
+	       cider-repl-tab-command #'indent-for-tab-command
+	       ;;cider-repl-use-pretty-printing t
+	       ;;cider-repl-pop-to-buffer-on-connect t
+	       cider-save-file-on-load nil
+	       cider-test-show-report-on-success t
+	       cider-use-fringe-indicators nil)
       (:bind "C-c C-S-o" cider-repl-clear-buffer )
       ;; (cider-result-overlay-face ((t (:box (:line-width -1 :color "grey50")))))
       ;; (cider-error-highlight-face ((t (:inherit flymake-error))))
@@ -3159,8 +3396,8 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 
   ;; Allow cider-repl to be cleared with shortcut
   ;;(add-hook 'cider-repl-mode-hook
-                       ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
-                                          ;                        'cider-repl-clear-buffer)))
+			 ;;;          '(lambda () (define-key cider-repl-mode-map (kbd "C-c M-b")
+					  ;                        'cider-repl-clear-buffer)))
 
   ;; (add-hook 'cider-mode-hook (lambda () (show-paren-mode 1)))
   ;; (add-hook 'cider-mode-hook #'eldoc-mode)
@@ -3283,7 +3520,7 @@ Setup of Fennel and Lua
 #+end_src
 * Keybindings
 :PROPERTIES:
-:header-args: :noweb-ref keybindings
+:header-args: :noweb-ref keyboard
 :END:
 Change the Mac modifiers to my liking. I also disable passing Control characters to the system, to avoid that C-M-space launches the Character viewer instead of running mark-sexp.
 #+begin_src emacs-lisp
@@ -3297,58 +3534,58 @@ When at the beginning of the line, make Ctrl-K remove the whole line, instead of
 #+begin_src emacs-lisp
 (setq kill-whole-line t)
 #+end_src
-**** Emulating Vi's % key
+*** Emulating Vi's % key
 One of the few things I missed in Emacs from vi was the % key, which jumps to the parenthesis, bracket or brace which matches the one below the cursor. This function implements this functionality, bound to the same key. Inspired by NavigatingParentheses, but modified to use smartparens instead of the default commands, and to work on brackets and braces.
 #+begin_src emacs-lisp
-        (setup
-          (:pkg smartparens)
-          (defun zz/goto-match-paren (arg)
-            "Go to the matching paren/bracket, otherwise (or if ARG is not
-            nil) insert %.  vi style of % jumping to matching brace."
-            (interactive "p")
-            (if (not (memq last-command '(set-mark
-                                          cua-set-mark
-                                          zz/goto-match-paren
-                                          down-list
-                                          up-list
-                                          end-of-defun
-                                          beginning-of-defun
-                                          backward-sexp
-                                          forward-sexp
-                                          backward-up-list
-                                          forward-paragraph
-                                          backward-paragraph
-                                          end-of-buffer
-                                          beginning-of-buffer
-                                          backward-word
-                                          forward-word
-                                          mwheel-scroll
-                                          backward-word
-                                          forward-word
-                                          mouse-start-secondary
-                                          mouse-yank-secondary
-                                          mouse-secondary-save-then-kill
-                                          move-end-of-line
-                                          move-beginning-of-line
-                                          backward-char
-                                          forward-char
-                                          scroll-up
-                                          scroll-down
-                                          scroll-left
-                                          scroll-right
-                                          mouse-set-point
-                                          next-buffer
-                                          previous-buffer
-                                          previous-line
-                                          next-line
-                                          back-to-indentation
-                                          )))
-                (self-insert-command (or arg 1))
-              (cond ((looking-at "\\s\(") (sp-forward-sexp) (backward-char 1))
-                    ((looking-at "\\s\)") (forward-char 1) (sp-backward-sexp))
-                    (t (self-insert-command (or arg 1)))))
-          )
-          (:global "%" 'zz/goto-match-paren))
+  (setup
+      (:pkg smartparens)
+    (defun zz/goto-match-paren (arg)
+      "Go to the matching paren/bracket, otherwise (or if ARG is not
+      nil) insert %.  vi style of % jumping to matching brace."
+      (interactive "p")
+      (if (not (memq last-command '(set-mark
+				    cua-set-mark
+				    zz/goto-match-paren
+				    down-list
+				    up-list
+				    end-of-defun
+				    beginning-of-defun
+				    backward-sexp
+				    forward-sexp
+				    backward-up-list
+				    forward-paragraph
+				    backward-paragraph
+				    end-of-buffer
+				    beginning-of-buffer
+				    backward-word
+				    forward-word
+				    mwheel-scroll
+				    backward-word
+				    forward-word
+				    mouse-start-secondary
+				    mouse-yank-secondary
+				    mouse-secondary-save-then-kill
+				    move-end-of-line
+				    move-beginning-of-line
+				    backward-char
+				    forward-char
+				    scroll-up
+				    scroll-down
+				    scroll-left
+				    scroll-right
+				    mouse-set-point
+				    next-buffer
+				    previous-buffer
+				    previous-line
+				    next-line
+				    back-to-indentation
+				    )))
+	  (self-insert-command (or arg 1))
+	(cond ((looking-at "\\s\(") (sp-forward-sexp) (backward-char 1))
+	      ((looking-at "\\s\)") (forward-char 1) (sp-backward-sexp))
+	      (t (self-insert-command (or arg 1)))))
+      )
+    (:global "%" 'zz/goto-match-paren))
 #+end_src
 
 * Maybe to applied - not tangled at present
@@ -3379,19 +3616,23 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 :END:
 
 #+begin_src emacs-lisp
-  ;; Copyright (C) 2021 Gas
+;; Copyright (C) 2021 Gas
 
-  ;; Author: Gas <gas@tuatara.red>
-  ;; Created: Sometime during the Covid-19 lockdown
-  ;; Keywords: configuration, emacs
-  ;; URL: https://github.com/frap/emacs.d
+;; Author: Gas <gas@tuatara.red>
+;; Version: 1.0
+;; Package-Version: 0.1
+;; Created: Sometime during the Covid-19 lockdown
+;; Keywords: configuration, emacs
+;; URL: https://github.com/frap/emacs.d
+;; Package-Requires: ((emacs "27.2"))
 
-  ;; This file is not part of GNU Emacs.
+;; Time-stamp: <>
+;; This file is not part of GNU Emacs.
 
-  ;;; Commentary:
-  ;; This file is automatically tangled from config.org.
-  ;; Hand edits will be overwritten!
-  ;; Je t'ai prévenu putain!
+;;; Commentary:
+;; This file is automatically tangled from config.org.
+;; Hand edits will be overwritten!
+;; Je t'ai prévenu putain!
 
 #+end_src
 ** Emacs paths & directories
@@ -3403,30 +3644,77 @@ Setup emacs paths and directory constants
 
 
 #+begin_src emacs-lisp
-;;;config-path.el --- Path constants -*- lexical-binding: t -*-
+;;; config-path.el --- Path constants -*- lexical-binding: t -*-
 
 <<disclaimer>>
 ;;
 ;; This module defines path constants used across other modules.
 ;;
 ;;; Code:
-(+with-message "Setup Emacs path"
+;;(+with-message "Setup Emacs path"
 
 <<path-config>>
 
-) ;; end of +with-message
+;;) ;; end of +with-message
 
 (provide 'config-path)
 ;;; config-path.el ends here
 #+end_src
+** Shell Environment
+:PROPERTIES:
+:header-args: :tangle lisp/init-env.el :noweb yes
+:END:
+
+Setup emacs paths and directory constants
+
+
+#+begin_src emacs-lisp
+;;; init-env.el --- Setup Environment -*- lexical-binding: t -*-
+
+<<disclaimer>>
+;;
+;; This module uses doom load-envars to load shell ENV
+;;
+;;; Code:
+
+
+<<environment>>
+
+
+(provide 'init-env)
+;;; init-env.el ends here
+#+end_src
+** Keyboard
+:PROPERTIES:
+:header-args: :tangle lisp/init-kbd.el :noweb yes
+:END:
+
+Setup keyboard
+
+#+begin_src emacs-lisp
+    ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
+
+    <<disclaimer>>
+    ;;
+    ;; This module sets up keyboard
+    ;;
+    ;;; Code:
+
+    (require 'init-elpa)
+    (require 'init-env)
+    <<keyboard>>
+
+    (provide 'init-kbd)
+    ;;; init-kbd.el ends here
+#+end_src
 ** My Utility fns constants and macros
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-utility-fn-macros.el :noweb yes
+:header-args: :tangle lisp/init-fn-macros.el :noweb yes
 :END:
 
 File for my constants, macros and functions
 #+begin_src emacs-lisp
-;;; enfer-utility-fn-macros.el -*- lexical-binding: t -*-
+;;; init-fn-macros.el --- Util fns -*- lexical-binding: t -*-
 
 <<disclaimer>>
 
@@ -3453,8 +3741,8 @@ File for my constants, macros and functions
 
 ) ;; end of +with-message
 
-(provide 'enfer-utility-fn-macros)
-;;; enfer-utility-fn-macros.el ends here
+(provide 'init-fn-macros)
+;;; init-fn-macros.el ends here
 #+end_src
 
 
@@ -3467,27 +3755,29 @@ File for my constants, macros and functions
 
 
 #+begin_src emacs-lisp
-  ;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;
-  ;; Setup Emacs for installing packages from MELPA and Git
-  ;; repositories. Enable configuration via `setup'.
-        ;;; Code:
+   ;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
+   <<disclaimer>>
+   ;;
+   ;; Setup Emacs for installing packages from MELPA and Git
+   ;; repositories. Enable configuration via `setup'.
+   ;;; Code:
 
-  (+with-message "setup ELPA"
-    (require 'config-path)
-    ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
-    ;; installing and loading packages.
-    <<setup-pkgmgr>>
-  ;;;============================================================================ ;;; Custom setup.el local macros
-  ;;; ============================================================================
+  ;; (+with-message "setup ELPA"
+     (require 'config-path)
 
-    <<setup-macros>>
+     <<straight-setup>>
+     ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
+     ;; installing and loading packages.
+     <<setup-pkgmgr>>
+   ;;;============================================================================ ;;; Custom setup.el local macros
+   ;;; ============================================================================
 
-    ) ;; end of +with-message
+     <<setup-macros>>
 
-  (provide 'init-elpa)
-  ;;; init-elpa.el ends here
+   ;;  ) ;; end of +with-message
+
+   (provide 'init-elpa)
+   ;;; init-elpa.el ends here
 #+end_src
 ** Emacs Sanity setup
 :PROPERTIES:
@@ -3496,10 +3786,8 @@ File for my constants, macros and functions
 
 "Setup" of Emacs to some sort of sanity
 
-*** Contents enfer-emacs-sanity
-
 #+begin_src emacs-lisp
-  ;;; enfer-emacs-sanity.el -*- lexical-binding: t -*-
+  ;;; enfer-emacs-sanity.el --- Sanity -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3541,10 +3829,8 @@ File for my constants, macros and functions
 
 Setup auto-compile, no littering and GMCH
 
-*** Contents enfer-emacs-startup
-
 #+begin_src emacs-lisp
-  ;;; enfer-emacs-startup.el -*- lexical-binding: t -*-
+  ;;; enfer-emacs-startup.el --- Startup -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3553,7 +3839,7 @@ Setup auto-compile, no littering and GMCH
 
   )
   (provide 'enfer-emacs-startup)
-   ;;; enfer-emacs-startup.el ends here
+  ;;; enfer-emacs-startup.el ends here
 #+end_src
 ** Emacs Builtins
 :PROPERTIES:
@@ -3562,10 +3848,9 @@ Setup auto-compile, no littering and GMCH
 
 Setup Emacs builtins
 
-*** Contents enfer-pkg-builtin
 
 #+begin_src emacs-lisp
-    ;;; enfer-pkg-builtin.el -*- lexical-binding: t -*-
+    ;;; enfer-pkg-builtin.el --- Builtins -*- lexical-binding: t -*-
         <<disclaimer>>
     ;;; Code:
 
@@ -3768,54 +4053,57 @@ Setup utility packages
 *** Contents enfer-pkg-util
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-util.el -*- lexical-binding: t -*-
+  ;;; enfer-pkg-util.el --- Utilities -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
   <<pkg-utils>>
 
   (provide 'enfer-pkg-util)
-   ;;; enfer-pkg-util.el ends here
+  ;;; enfer-pkg-util.el ends here
 #+end_src
 ** Emacs UI Appearance
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-pkg-ui.el :noweb yes
+:header-args: :tangle lisp/init-ui.el :noweb yes
 :END:
 
-Setup
-
-*** Contents enfer-pkg-ui
+Setup UI
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-ui.el -*- lexical-binding: t -*-
+  ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
   <<pkg-ui>>
 
-  (provide 'enfer-pkg-ui)
-   ;;; enfer-pkg-ui.el ends here
+  (provide 'init-ui)
+   ;;; init-ui.el ends here
 #+end_src
 ** Emacs Editor Setup
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-pkg-editor.el :noweb yes
+:header-args: :tangle lisp/init-editor.el :noweb yes
 :END:
 
 Setup Editor functions
 
-*** Contents enfer-pkg-editor
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-editor.el -*- lexical-binding: t -*-
+  ;;; init-editor.el --- Editor  -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message  "Editor"
-  <<pkg-editor>>
+  (require 'init-elpa)
+  (require 'init-kbd)
+  (require 'lib-vcs)
+  (require 'lib-string)
 
-   )
-  (provide 'enfer-pkg-editor)
-   ;;; enfer-pkg-editor.el ends here
+  (+with-message  "Editor"
+
+    <<pkg-editor>>
+
+    );; end of +with-message
+  (provide 'init-editor)
+   ;;; init-editor.el ends here
 #+end_src
 ** Emacs Completion Frameworks
 :PROPERTIES:
@@ -3824,10 +4112,9 @@ Setup Editor functions
 
 Setup embark, vertico and consult
 
-*** Contents enfer-pkg-completion
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-completion.el -*- lexical-binding: t -*-
+  ;;; enfer-pkg-completion.el --- Completion -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3845,10 +4132,8 @@ Setup embark, vertico and consult
 
 windose
 
-*** Contents enfer-pkg-window
-
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-window.el -*- lexical-binding: t -*-
+  ;;; enfer-pkg-window.el --- Windose -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3866,10 +4151,9 @@ windose
 
 Setup projects
 
-*** Contents enfer-pkg-project
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-project.el -*- lexical-binding: t -*-
+  ;;; enfer-pkg-project.el --- Projects -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3888,10 +4172,9 @@ Setup projects
 
 Setup org-mode
 
-*** Contents enfer-pkg-org
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-org.el -*- lexical-binding: t -*-
+  ;;; enfer-pkg-org.el --- Org Workflow -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3907,25 +4190,25 @@ Setup Coding languages
 
 *** LISP setup
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-code-lisp.el :noweb yes
+:header-args: :tangle lisp/init-lisp.el :noweb yes
 :END:
 Smartparens setup here
 #+begin_src emacs-lisp
-  ;;; enfer-code-lisp.el -*- lexical-binding: t -*-
+  ;;; init-lisp.el --- Code LISP -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
   <<code-paren>>
 
-  (provide 'enfer-code-lisp)
-   ;;; enfer-code-lisp.el ends here
+  (provide 'init-lisp)
+   ;;; init-lisp.el ends here
 #+end_src
 *** Emacs-lisp setup
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-code-elisp.el :noweb yes
 :END:
 #+begin_src emacs-lisp
-  ;;; enfer-code-elisp.el -*- lexical-binding: t -*-
+  ;;; enfer-code-elisp.el --- Emacs LISP -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3939,7 +4222,7 @@ Smartparens setup here
 :header-args: :tangle lisp/enfer-code-common-lisp.el :noweb yes
 :END:
 #+begin_src emacs-lisp
-  ;;; enfer-code-common-lisp.el -*- lexical-binding: t -*-
+  ;;; enfer-code-common-lisp.el --- Common-LISP -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3950,24 +4233,24 @@ Smartparens setup here
 #+end_src
 *** Clojure setup
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-code-clojure.el :noweb yes
+:header-args: :tangle lisp/init-clojure.el :noweb yes
 :END:
 #+begin_src emacs-lisp
-  ;;; enfer-code-clojure.el -*- lexical-binding: t -*-
+  ;;; init-clojure.el --- Clojure -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
   <<code-clojure>>
 
-  (provide 'enfer-code-clojure)
-  ;;; enfer-code-clojure.el ends here
+  (provide 'init-clojure)
+  ;;; init-clojure.el ends here
 #+end_src
 *** Fennel/LUA setup
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-code-fennel.el :noweb yes
 :END:
 #+begin_src emacs-lisp
-  ;;; enfer-code-fennel.el -*- lexical-binding: t -*-
+  ;;; enfer-code-fennel.el --- Fennel LUA  -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -3981,7 +4264,7 @@ Smartparens setup here
 :header-args: :tangle lisp/enfer-key-bindings.el :noweb yes
 :END:
 #+begin_src emacs-lisp
-  ;;; enfer-key-bindings.el -*- lexical-binding: t -*-
+  ;;; enfer-key-bindings.el --- Keys -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -4105,67 +4388,85 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 - Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
 
 #+begin_src emacs-lisp
-  ;;; init.el -*- lexical-binding: t -*-
+  ;;; init.el --- Std Init -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
+  <<constants>>
+  (defmacro +with-message (message &rest body)
+    "Execute BODY, with MESSAGE.
+	      If body executes without errors, ** MESSAGE... terminé will be displayed."
+    (declare (indent 1))
+    (let ((msg (gensym)))
+      `(let ((,msg ,message))
+	 (unwind-protect (progn (message "%s..." ,msg)
+				,@body)
+	   (message "** %s... terminé!!" ,msg)))))
+  ;;; Set up extra load paths and functionality
+  ;; Since we might be running in CI or other environments, stick to
+  ;; XDG_CONFIG_HOME value if possible.
+  (let ((/emacs-home (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+			 (expand-file-name "emacs/" xdg)
+		       user-emacs-directory)))
+    ;; Add Lisp directory to `load-path'.
+    (add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
 
-;;; Set up extra load paths and functionality
-;; Since we might be running in CI or other environments, stick to
-;; XDG_CONFIG_HOME value if possible.
-(let ((/emacs-home (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-                      (expand-file-name "emacs/" xdg)
-                    user-emacs-directory)))
-;; Add Lisp directory to `load-path'.
-(add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
+  ;;; bootstrap
+  (require 'config-path)
+  (require 'init-elpa)
 
-;;; bootstrap
-(require 'config-path)
-(require 'init-elpa)
+  ;; Setup `custom-file`.
+  (setq custom-file (concat emacs-config/ "custom.el"))
 
-;; Setup `custom-file`.
-(setq custom-file (concat emacs-config/ "custom.el"))
-
-;; load autoloads file
-(unless elpa-bootstrap-p
-  (unless (file-exists-p path-autoloads-file)
-    (error "Autoloads file doesn't exist, please run '%s'"
-           "eru install emacs"))
-  (load path-autoloads-file nil 'nomessage))
+  ;; load autoloads file
+  (unless elpa-bootstrap-p
+    (unless (file-exists-p path-autoloads-file)
+      (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+	     "eru install emacs"))
+    (load path-autoloads-file nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp
-;;; core
-(require 'enfer-utility-fn-macros)
-;;(require 'enfer-pkgmgr)
-(require 'enfer-emacs-sanity)
-(require 'enfer-emacs-startup)
+    ;;; core
+      (require 'init-env)
+      (require 'init-kbd)
+      (require 'init-fn-macros)
+      (require 'init-editor)
+      (require 'init-ui)
+      ;;  (require 'init-buffer)
+      ;;  (require 'init-window)
+      ;;  (require 'enfer-emacs-sanity)
+      (require 'enfer-emacs-startup)
 
-;;; utilities
-(require 'enfer-pkg-builtin)
-(require 'enfer-pkg-ui)
-(require 'enfer-pkg-editor)
-(require 'enfer-pkg-completion)
-(require 'enfer-pkg-window)
-(require 'enfer-pkg-project)
-(require 'enfer-pkg-org)
+  ;;; utilities
+      ;;  (require 'init-selection)
+      ;;  (require 'init-project)
+      ;;  (require 'init-vcs)
+      ;;  (require 'init-ide)
+      (require 'enfer-pkg-builtin)
+      ;;  (require 'enfer-pkg-ui)
+      ;; (require 'enfer-pkg-editor)
+      (require 'enfer-pkg-completion)
+      (require 'enfer-pkg-window)
+      (require 'enfer-pkg-project)
+      (require 'enfer-pkg-org)
 
-;;; languages
-(require 'enfer-code-lisp)
-(require 'enfer-code-elisp)
-(require 'enfer-code-common-lisp)
-(require 'enfer-code-clojure)
-(require 'enfer-code-fennel)
-(require 'enfer-pkg-util)
-(require 'enfer-key-bindings)
+	      ;;; languages
+      (require 'init-lisp)
+      (require 'enfer-code-elisp)
+      (require 'enfer-code-common-lisp)
+      (require 'init-clojure)
+      (require 'enfer-code-fennel)
+      (require 'enfer-pkg-util)
+      (require 'enfer-key-bindings)
 
-;; I don't use `customize' interface, but .dir-locals.el put 'safe'
-;; variables into `custom-file'. And to be honest, I hate to allow
-;; them every time I restart Emacs.
-(when (file-exists-p custom-file)
-  (load custom-file nil 'nomessage))
+      ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
+      ;; variables into `custom-file'. And to be honest, I hate to allow
+      ;; them every time I restart Emacs.
+      (when (file-exists-p custom-file)
+	(load custom-file nil 'nomessage))
 
-(provide 'init)
-;;; init.el ends here
+      (provide 'init)
+	      ;;; init.el ends here
 #+end_src
 *** Load the config -disabled
 
@@ -4217,7 +4518,7 @@ Beginning with 27.1, Emacs also loads an =early-init.el= file, before
 the package manager or the UI code.
 
 #+begin_src emacs-lisp
-  ;;; early-init.el -*- lexical-binding: t; no-byte-compile: t; -*-
+  ;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
   <<disclaimer>>
   ;;; Code:
 
@@ -4244,7 +4545,7 @@ the package manager or the UI code.
   ;;; ============================================================================
   ;;; Specify some directory paths
   ;;; ============================================================================
-  (require 'config-path)
+  ;;(require 'config-path)
 
   ;;; ============================================================================
   ;;; Set up the package manager
@@ -4254,6 +4555,223 @@ the package manager or the UI code.
  (message "Chargement du early-init.el terminé!")
  (provide 'early-init)
 ;;; early-init.el ends here
+#+end_src
+
+** Libraries
+*** String
+:PROPERTIES:
+:header-args: :tangle lisp/lib-string.el :noweb yes
+:END:
+#+begin_src emacs-lisp
+    ;;; lib-string.el --- String Utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+    ;;; Code:
+
+  (require 'init-elpa)
+  (require 's)
+
+  ;;;###autoload
+  (defun string-match-1 (regexp val)
+    "Get the first group from REGEXP match of the VAL.
+  VAL can be either a string or a region (beg . end) of the
+  buffer."
+    (string-match-n 1 regexp val))
+
+  ;;;###autoload
+  (defun string-match-n (n regexp val)
+    "Get the Nth group from REGEXP match of the VAL.
+  VAL can be either a string or a region (beg . end) of the
+  buffer."
+    (let ((s (if (stringp val)
+                 val
+               (buffer-substring (car val) (cdr val)))))
+      (string-match regexp s)
+      (match-string n s)))
+
+  ;;;###autoload
+  (defun string-join-g (strs sep)
+    "Join a list of STRS using SEP."
+    (pcase strs
+      (`nil "")
+      (`(,str) str)
+      (_ (mapconcat #'identity strs sep))))
+
+  ;;;###autoload
+  (defun string-chop-prefix-regexp (prefix s)
+    "Remove PREFIX regexp if it is at the start of S."
+    (s-chop-prefix (car (s-match prefix s)) s))
+
+  ;;;###autoload
+  (defun string-chop-suffix-regexp (suffix s)
+    "Remove SUFFIX regexp if it is at the end of S."
+    (s-chop-suffix (car (s-match suffix s)) s))
+
+  (defvar string-http-url-regexp
+    "\\(https?://.*\\)"
+    "HTTP(s) URL regexp.")
+
+  (defvar string-uuid-regexp
+    (concat
+     "\\("
+     "[a-zA-Z0-9]\\{8\\}"
+     "-"
+     "[a-zA-Z0-9]\\{4\\}"
+     "-"
+     "[a-zA-Z0-9]\\{4\\}"
+     "-"
+     "[a-zA-Z0-9]\\{4\\}"
+     "-"
+     "[a-zA-Z0-9]\\{12\\}"
+     "\\)")
+    "UUID regexp.")
+
+  (defun string-from (value)
+    "Convert VALUE to string."
+    (cond
+     ((stringp value) value)
+     ((numberp value) (number-to-string value))
+     ((symbolp value) (symbol-name value))
+     (t (user-error
+         "Unsupported type of \"%s\"" value))))
+
+  (cl-defun string-table (&key data
+                               pad-type
+                               pad-str
+                               sep
+                               row-start
+                               row-end)
+    "Format DATA as a table.
+  DATA is list of lists. Each column is aligned by padding with
+  PAD-STR either on left or right depending on value of PAD-TYPE.
+  Each row begins with ROW-START and ends with ROW-END. Each value
+  in row is separated by SEP."
+    (let* ((widths (seq-reduce
+                    (lambda (r v)
+                      (seq-map-indexed
+                       (lambda (a i)
+                         (max
+                          (length (string-from a))
+                          (or (nth i r)
+                              0)))
+                       v))
+                    data
+                    nil))
+           (pad-fn (pcase (or pad-type 'left)
+                     (`left #'s-pad-left)
+                     (`right #'s-pad-right)))
+           (pad-str (or pad-str " "))
+           (row-start (or row-start ""))
+           (row-end (or row-end ""))
+           (sep (or sep " ")))
+      (seq-reduce
+       (lambda (r v)
+         (concat
+          r
+          row-start
+          (string-join
+           (seq-map-indexed
+            (lambda (a i)
+              (funcall pad-fn
+                       (nth i widths)
+                       pad-str
+                       (string-from a)))
+            v)
+           sep)
+          row-end
+          "\n"))
+       data
+       "")))
+
+  (provide 'lib-string)
+    ;;; lib-string.el ends here
+#+end_src
+*** other lib
+:PROPERTIES:
+:header-args: :tangle no :noweb yes
+:END:
+#+begin_src emacs-lisp
+  ;;; lib-vcs.el --- Library -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+
+  (provide 'lib-vcs)
+  ;;; lib-vcs.el ends here
+#+end_src
+*** VCS
+:PROPERTIES:
+:header-args: :tangle lisp/lib-vcs.el :noweb yes
+:END:
+#+begin_src emacs-lisp
+  ;;; lib-vcs.el --- Libaray -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  (require 'init-kbd)
+
+
+
+(defvar vcs-url-github-issue-regexp
+  (format "\\(%s/\\(%s\\)/\\(%s\\)/\\(%s\\)/\\(%s\\)\\).*"
+          "https://github\\.com"
+          "[-\\.[:alnum:]]+"
+          "[-\\.[:alnum:]]+"
+          "[[:alpha:]]+"
+          "[[:alnum:]]+")
+  "GitHub issue/pull URL regexp.
+- 1st group is whole URL.
+- 2nd group is owner.
+- 3rd group is repository name.
+- 4th group is type of the object - issue/pull/miliestone/commit.
+- 5th group is the number of the object.")
+
+(defvar vcs-url-github-project-regexp
+  (format "\\(%s/\\(%s\\)/\\(%s\\)/?\\)"
+          "https://github\\.com"
+          "[-\\.[:alnum:]]+"
+          "[-\\.[:alnum:]]+")
+  "GitHub project URL regexp.
+- 1st group is whole URL.
+- 2nd group is owner.
+- 3rd group is repository name.")
+
+(defvar vcs-url-known-github-users '("frap"
+                                     "agasson")
+  "List of 'known' GitHub users.")
+
+
+
+;;;###autoload
+(defun vcs-url-format-github-issue (owner repo type number)
+  "Format GitHub issue.
+Depending on the TYPE format can be one of the following:
+- OWNER/REPO#NUMBER if TYPE is not milestone;
+- OWNER/REPOmNUMBER otherwise.
+In case OWNER is a member of `vcs-url-known-github-users', then OWNER
+part of format is omitted."
+  (concat
+   (if (seq-contains-p vcs-url-known-github-users owner)
+       repo
+     (concat owner "/" repo))
+   (if (string-equal type "milestone")
+       "m"
+     "#")
+   (if (string-equal type "commit")
+       (substring number 0 (min 7 (length number)))
+     number)))
+
+;;;###autoload
+(defun vcs-url-format-github-project (owner repo)
+  "Format GitHub REPO.
+In case OWNER is a member of `vcs-url-known-github-users', then OWNER
+part of format is omitted."
+  (concat
+   (if (seq-contains-p vcs-url-known-github-users owner)
+       repo
+     (concat owner "/" repo))))
+
+  (provide 'lib-vcs)
+  ;;; lib-vcs.el ends here
 #+end_src
 
 ** License

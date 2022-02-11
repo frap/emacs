@@ -2,3 +2,7 @@
 *~
 eln-cache/
 .org-id-locations
+
+# Added automatically by ‘eldev init’.
+/.eldev
+/Eldev-local
