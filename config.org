@@ -2060,7 +2060,152 @@ Setup undo , whitespace, expand, indentation
 
 #+end_src
 
-*** Emacs *Help* functions
+** Buffers in Emacs
+:PROPERTIES:
+:header-args: :noweb-ref buffers
+:END:
+Setup the buffers to my liking
+#+begin_src emacs-lisp
+(defvar buffer-fallback-name "*scratch*"
+  "The name of the buffer to fall back to.
+Used when no other buffers exist.")
+
+(defun buffer-fallback ()
+  "Return the fallback buffer, creating it if necessary.
+By default this is the scratch buffer. See
+`buffer-fallback-name' to change this."
+  (get-buffer-create buffer-fallback-name))
+
+
+
+(defun buffer-display-and-switch (buffer-or-name)
+  "Display BUFFER-OR-NAME in some window and switch to it."
+  (select-window (display-buffer buffer-or-name)))
+
+
+
+(defvar buffer-messages-display-fn #'buffer-display-and-switch
+  "The function to use to display messages buffer.
+Must accept one argument: the buffer to display.")
+
+(defvar buffer-messages-name "*Messages*"
+  "The name of the messages buffer.")
+
+(defun buffer-pop-messages ()
+  "Open `buffer-messages-name' buffer."
+  (interactive)
+  (funcall buffer-messages-display-fn
+           (get-buffer-create buffer-messages-name)))
+
+(defun buffer-switch-to-messages ()
+  "Open `buffer-messages-name' buffer."
+  (interactive)
+  (let ((buffer-messages-display-fn #'switch-to-buffer))
+    (buffer-pop-messages)))
+
+
+
+(defvar buffer-scratch-files-dir (concat emacs-etc/ "scratch/")
+  "Where to store project scratch files.
+Files are created by `buffer-open-project-scratch'.")
+
+(defvar buffer-scratch-display-fn #'buffer-display-and-switch
+  "The function to use to display the scratch buffer.
+Must accept one argument: the buffer to display.")
+
+(defvar buffer-scratch-major-mode nil
+  "What major mode to use in scratch buffers.
+This can be one of the following:
+  t          Inherits the major mode of the last buffer you had
+             selected.
+  nil        Uses `fundamental-mode'
+  MAJOR-MODE  Any major mode symbol")
+
+(defvar buffer-scratch-hook ()
+  "The hooks to run after a scratch buffer is made.")
+
+(defun buffer-scratch (&optional file mode text)
+  "Return a scratch buffer in major MODE with TEXT in it.
+If FILE is a valid path, open it as if it were a persistent
+scratch."
+  (if file (setq file (file-truename file)))
+  (let ((buffer
+         (if file
+             (with-current-buffer (find-file-noselect file)
+               (rename-buffer (format "*scratch (%s)*"
+                                      (file-name-nondirectory file)))
+               (current-buffer))
+           (get-buffer-create "*scratch*"))))
+    (with-current-buffer buffer
+      (when (and (functionp mode)
+                 (not (eq major-mode mode)))
+        (funcall mode))
+      (when text
+        (insert text))
+      (run-hooks 'buffer-scratch-hook)
+      (current-buffer))))
+
+(defun buffer-pop-scratch (&optional arg)
+  "Opens a scratch pad window in the same `major-mode'.
+If ARG (universal argument), then open a persistent scratch
+buffer. You'll be prompted for its name, or to open a previously
+created. These are stored in `buffer-scratch-files-dir'.
+If a region is active, copy its contents to the scratch."
+  (interactive "P")
+  (funcall
+   buffer-scratch-display-fn
+   (buffer-scratch
+    (when arg
+      (if-let* ((file (read-file-name
+                       "Open scratch file > "
+                       buffer-scratch-files-dir
+                       "scratch")))
+          file
+        (user-error "Aborting")))
+    (cond ((eq buffer-scratch-major-mode t)
+           (unless (or buffer-read-only
+                       (derived-mode-p 'special-mode)
+                       (string-match-p "^ ?\\*" (buffer-name)))
+             major-mode))
+          ((null buffer-scratch-major-mode) nil)
+          ((symbolp buffer-scratch-major-mode)
+           buffer-scratch-major-mode))
+    (and (region-active-p)
+         (buffer-substring-no-properties
+          (region-beginning) (region-end))))))
+
+(defun buffer-switch-to-scratch (&optional arg)
+  "Switch to a scratch buffer in the current window.
+Otherwise, does exactly what `buffer-pop-scratch' does.
+ARG is passed to `buffer-pop-scratch'."
+  (interactive "P")
+  (let ((buffer-scratch-display-fn #'switch-to-buffer))
+    (buffer-pop-scratch arg)))
+
+(defun buffer-delete-scratch-files ()
+  "Deletes all scratch buffers in `buffer-scratch-files-dir'."
+  (interactive)
+  (dolist (file (directory-files buffer-scratch-files-dir
+                                 t "[^.]" t))
+    (delete-file file)
+    (message "Deleted '%s'" (file-name-nondirectory file))))
+
+
+
+(defun buffer-sudo-edit (&optional arg)
+  "Edit currently visited file as root.
+With a prefix ARG prompt for a file to visit. Will also prompt
+for a file to visit if current buffer is not visiting a file."
+  (interactive "P")
+  (if (or arg (not buffer-file-name))
+      (find-file (concat "/sudo:root@localhost:"
+                         (read-file-name "Find file(as root): ")))
+    (find-alternate-file
+     (concat "/sudo:root@localhost:"
+             buffer-file-name))))
+
+#+end_src
+** Emacs *Help* functions
 
  Help and which functions
 
@@ -2093,7 +2238,7 @@ Setup undo , whitespace, expand, indentation
 
 #+end_src
 
-*** Navigation
+** Navigation
 setup Marginalia for navigation
 #+begin_src emacs-lisp
   ;; Enable richer annotations using the Marginalia package
@@ -3779,7 +3924,7 @@ File for my constants, macros and functions
    (provide 'init-elpa)
    ;;; init-elpa.el ends here
 #+end_src
-** Emacs Sanity setup
+** Sanity & User setup
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-emacs-sanity.el :noweb yes
 :END:
@@ -3800,7 +3945,7 @@ File for my constants, macros and functions
     (setq bidi-inhibit-bpa t)
     (setq command-line-ns-option-alist nil)
     (setq confirm-kill-processes nil)
-    (setq custom-file (/etc-file "custom.el"))
+   ;; (setq custom-file (/etc-file "custom.el"))
     ;;(setq default-input-method "TeX")
     (setq ffap-machine-p-known 'reject)
     (setq inhibit-compacting-font-caches t)
@@ -4035,8 +4180,6 @@ Setup Emacs builtins
         (setup (:require url)
           (setq url-cookie-file (/etc-file "url-cookies")))
 
-        (setup (:require visual-line-mode)
-          (:hide-mode))
 
         ) ;; end of +with-message
 
@@ -4049,9 +4192,6 @@ Setup Emacs builtins
 :END:
 
 Setup utility packages
-
-*** Contents enfer-pkg-util
-
 #+begin_src emacs-lisp
   ;;; enfer-pkg-util.el --- Utilities -*- lexical-binding: t -*-
   <<disclaimer>>
@@ -4061,23 +4201,6 @@ Setup utility packages
 
   (provide 'enfer-pkg-util)
   ;;; enfer-pkg-util.el ends here
-#+end_src
-** Emacs UI Appearance
-:PROPERTIES:
-:header-args: :tangle lisp/init-ui.el :noweb yes
-:END:
-
-Setup UI
-
-#+begin_src emacs-lisp
-  ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<pkg-ui>>
-
-  (provide 'init-ui)
-   ;;; init-ui.el ends here
 #+end_src
 ** Emacs Editor Setup
 :PROPERTIES:
@@ -4104,6 +4227,43 @@ Setup Editor functions
     );; end of +with-message
   (provide 'init-editor)
    ;;; init-editor.el ends here
+#+end_src
+** Emacs UI Appearance
+:PROPERTIES:
+:header-args: :tangle lisp/init-ui.el :noweb yes
+:END:
+
+Setup UI
+
+#+begin_src emacs-lisp
+  ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<pkg-ui>>
+
+  (provide 'init-ui)
+   ;;; init-ui.el ends here
+#+end_src
+** Buffers
+:PROPERTIES:
+:header-args: :tangle lisp/init-buffer.el :noweb yes
+:END:
+
+Setup the Emacs buffer
+
+#+begin_src emacs-lisp
+  ;;; init-buffer.el --- Buffer Setup -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  (require 'config-path)
+  (require 'init-kbd)
+
+  <<buffers>>
+
+  (provide 'init-buffer)
+   ;;; init-buffer.el ends here
 #+end_src
 ** Emacs Completion Frameworks
 :PROPERTIES:
@@ -4388,85 +4548,89 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 - Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
 
 #+begin_src emacs-lisp
-  ;;; init.el --- Std Init -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-  <<constants>>
-  (defmacro +with-message (message &rest body)
-    "Execute BODY, with MESSAGE.
-	      If body executes without errors, ** MESSAGE... terminé will be displayed."
-    (declare (indent 1))
-    (let ((msg (gensym)))
-      `(let ((,msg ,message))
-	 (unwind-protect (progn (message "%s..." ,msg)
-				,@body)
-	   (message "** %s... terminé!!" ,msg)))))
-  ;;; Set up extra load paths and functionality
-  ;; Since we might be running in CI or other environments, stick to
-  ;; XDG_CONFIG_HOME value if possible.
-  (let ((/emacs-home (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-			 (expand-file-name "emacs/" xdg)
-		       user-emacs-directory)))
-    ;; Add Lisp directory to `load-path'.
-    (add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
+    ;;; init.el --- Std Init -*- lexical-binding: t -*-
+    <<disclaimer>>
+    ;;; Code:
+    (defmacro +with-message (message &rest body)
+      "Execute BODY, with MESSAGE.
+                If body executes without errors, ** MESSAGE... terminé will be displayed."
+      (declare (indent 1))
+      (let ((msg (gensym)))
+        `(let ((,msg ,message))
+           (unwind-protect (progn (message "%s..." ,msg)
+                                  ,@body)
+             (message "** %s... terminé!!" ,msg)))))
+    ;;; Set up extra load paths and functionality
+    ;; Since we might be running in CI or other environments, stick to
+    ;; XDG_CONFIG_HOME value if possible.
+    (let ((/emacs-home (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+                           (expand-file-name "emacs/" xdg)
+                         user-emacs-directory)))
+      ;; Add Lisp directory to `load-path'.
+      (add-to-list 'load-path (expand-file-name "lisp" /emacs-home)))
 
-  ;;; bootstrap
-  (require 'config-path)
-  (require 'init-elpa)
+    ;;; bootstrap
+    ;;; ============================================================================
+    ;;; Specify some directory paths
+    ;;; ============================================================================
+    (require 'config-path)
+    ;;; ============================================================================
+    ;;; Set up the package manager
+    ;;; ============================================================================
+    (require 'init-elpa)
 
-  ;; Setup `custom-file`.
-  (setq custom-file (concat emacs-config/ "custom.el"))
+    ;; Setup `custom-file`.
+    (setq custom-file (concat emacs-config/ "custom.el"))
 
-  ;; load autoloads file
-  (unless elpa-bootstrap-p
-    (unless (file-exists-p path-autoloads-file)
-      (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-	     "eru install emacs"))
-    (load path-autoloads-file nil 'nomessage))
+    ;; load autoloads file
+    (unless elpa-bootstrap-p
+      (unless (file-exists-p path-autoloads-file)
+        (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+               "eru install emacs"))
+      (load path-autoloads-file nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp
-    ;;; core
-      (require 'init-env)
-      (require 'init-kbd)
-      (require 'init-fn-macros)
-      (require 'init-editor)
-      (require 'init-ui)
-      ;;  (require 'init-buffer)
-      ;;  (require 'init-window)
-      ;;  (require 'enfer-emacs-sanity)
-      (require 'enfer-emacs-startup)
+  ;;; core
+  (require 'init-env)
+  (require 'init-kbd)
+  (require 'init-fn-macros)
+  (require 'init-editor)
+  (require 'init-ui)
+  (require 'init-buffer)
+  ;;  (require 'init-window)
+  ;;  (require 'enfer-emacs-sanity)
+  (require 'enfer-emacs-startup)
+     ;;; utilities
+  ;;  (require 'init-selection)
+  ;;  (require 'init-project)
+  ;;  (require 'init-vcs)
+  ;;  (require 'init-ide)
+  (require 'enfer-pkg-builtin)
+  ;;  (require 'enfer-pkg-ui)
+  ;; (require 'enfer-pkg-editor)
+  (require 'enfer-pkg-completion)
+  (require 'enfer-pkg-window)
+  (require 'enfer-pkg-project)
+  (require 'enfer-pkg-org)
 
-  ;;; utilities
-      ;;  (require 'init-selection)
-      ;;  (require 'init-project)
-      ;;  (require 'init-vcs)
-      ;;  (require 'init-ide)
-      (require 'enfer-pkg-builtin)
-      ;;  (require 'enfer-pkg-ui)
-      ;; (require 'enfer-pkg-editor)
-      (require 'enfer-pkg-completion)
-      (require 'enfer-pkg-window)
-      (require 'enfer-pkg-project)
-      (require 'enfer-pkg-org)
+                     ;;; languages
+  (require 'init-lisp)
+  (require 'enfer-code-elisp)
+  (require 'enfer-code-common-lisp)
+  (require 'init-clojure)
+  (require 'enfer-code-fennel)
+  (require 'enfer-pkg-util)
+  (require 'enfer-key-bindings)
 
-	      ;;; languages
-      (require 'init-lisp)
-      (require 'enfer-code-elisp)
-      (require 'enfer-code-common-lisp)
-      (require 'init-clojure)
-      (require 'enfer-code-fennel)
-      (require 'enfer-pkg-util)
-      (require 'enfer-key-bindings)
+  ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
+  ;; variables into `custom-file'. And to be honest, I hate to allow
+  ;; them every time I restart Emacs.
+  (when (file-exists-p custom-file)
+    (load custom-file nil 'nomessage))
 
-      ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
-      ;; variables into `custom-file'. And to be honest, I hate to allow
-      ;; them every time I restart Emacs.
-      (when (file-exists-p custom-file)
-	(load custom-file nil 'nomessage))
-
-      (provide 'init)
-	      ;;; init.el ends here
+  (provide 'init)
+    ;;; init.el ends here
 #+end_src
 *** Load the config -disabled
 
@@ -4518,43 +4682,33 @@ Beginning with 27.1, Emacs also loads an =early-init.el= file, before
 the package manager or the UI code.
 
 #+begin_src emacs-lisp
-  ;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
-  <<disclaimer>>
-  ;;; Code:
+    ;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
+    <<disclaimer>>
+    ;;; Code:
 
-  (message "Chargement en cours early-init.el...")
+    (message "Chargement en cours early-init.el...")
 
-  (define-advice load (:before (feature &rest _))
-    "Message the user when loading a library."
-    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
-  ;;; ============================================================================
-  ;;; Some constants for conditional compliation
-  ;;; ============================================================================
-  <<constants>>
+    (define-advice load (:before (feature &rest _))
+      "Message the user when loading a library."
+      (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
+    ;;; ============================================================================
+    ;;; Some constants for conditional compliation
+    ;;; ============================================================================
+    <<constants>>
 
-  ;;; ============================================================================
-  ;;; Emacs startup optimisations
-  ;;; ============================================================================
-  <<garbage-filehandler>>
+    ;;; ============================================================================
+    ;;; Emacs startup optimisations
+    ;;; ============================================================================
+    <<garbage-filehandler>>
 
-  ;;; ============================================================================
-  ;;; Frame parameters for faster startup
-  ;;; ============================================================================
-  <<early-init-frame>>
+    ;;; ============================================================================
+    ;;; Frame parameters for faster startup
+    ;;; ============================================================================
+    <<early-init-frame>>
 
-  ;;; ============================================================================
-  ;;; Specify some directory paths
-  ;;; ============================================================================
-  ;;(require 'config-path)
-
-  ;;; ============================================================================
-  ;;; Set up the package manager
-  ;;; ============================================================================
-  <<early-straight>>
-
- (message "Chargement du early-init.el terminé!")
- (provide 'early-init)
-;;; early-init.el ends here
+   (message "Chargement du early-init.el terminé!")
+   (provide 'early-init)
+  ;;; early-init.el ends here
 #+end_src
 
 ** Libraries
