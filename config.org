@@ -312,7 +312,7 @@ Use Straight for package Management. Also use setup.el for easy config of packag
   ;; alias anyway, I just define it back to nil.  By the way, the alias
   ;; is `straight-package-neutering-mode'.
   (defalias 'straight-ಠ_ಠ-mode nil)
-  
+
   #+end_src
 ** Emacs Package Manager Setup
 :PROPERTIES:
@@ -644,6 +644,11 @@ Some constants that I use.
     (:with-hook which-key-init-buffer-hook
       (:hook (fn (setq line-spacing 4))))
     (:hide-mode))
+#+end_src
+keychords with hydra
+#+begin_src emacs-lisp :noweb-ref keyboard
+  (setup (:pkg hydra)
+    (require 'hydra))
 #+end_src
 * Emacs Packages
 ** Utility Functions & macros
@@ -1012,7 +1017,7 @@ ripgrep and gist
 #+begin_src emacs-lisp :noweb-ref pkg-editor
   ;;(cua-mode 1)
   ;; load doom-path
- 
+
   ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
@@ -1054,8 +1059,7 @@ Some Defaults for my preferred appearance
           " — Emacs"))
 
   ;; for some reason only this removes the clutter with xmonad
-  (setup  (:feature scroll-bar)
-    ;;    :commands (scroll-bar-mode)
+  (setup  scroll-bar
     (scroll-bar-mode -1))
 
   ;; y/n instead of yes/no
@@ -1240,8 +1244,9 @@ On Linux, I have a custom build of Iosevka that I like.
   (setup (:pkg spacegray-theme))
 
   (setup (:pkg modus-themes)
+    (:disable)
   (:only-if IS-MAC)
-  (setq-default
+  (:option
    modus-themes-diffs 'desaturated
    modus-themes-headings '((t . section))
    modus-themes-bold-constructs t
@@ -1680,8 +1685,8 @@ replace-char-fold t)
 (defun editor-disable-electric-pair ()
 "Disable the command `electric-pair-mode' locally."
   (electric-pair-local-mode -1))
-  
-#+end_src>
+
+#+end_src
 
 *** Whitespaces
 #+begin_src emacs-lisp
@@ -1699,40 +1704,41 @@ replace-char-fold t)
 
 (dolist (hook '(prog-mode-hook text-mode-hook conf-mode-hook))
   (add-hook hook 'editor-show-trailing-whitespace))
-  
-#+end_src>
+
+#+end_src
 
 *** Formatting
 use ws-butler
 #+begin_src emacs-lisp
-  ;; Formatting
-  (setq-default
-   ;; `ws-butler' is used for better whitespace handling
-   delete-trailing-lines nil
-   sentence-end-double-space nil
-   word-wrap t)
+    ;; Formatting
+    (setq-default
+     ;; `ws-butler' is used for better whitespace handling
+     delete-trailing-lines nil
+     sentence-end-double-space nil
+     word-wrap t)
 
-  (setup (:pkg (ws-butler
-               :type git
-               :host github
-               :repo "hlissner/ws-butler"))
-   (:hide-mode)
-   ;; :commands (ws-butler-global-mode)
-    (setq ws-butler-global-exempt-modes
-          (append ws-butler-global-exempt-modes
-                  '(special-mode comint-mode term-mode eshell-mode)))
-    (ws-butler-global-mode))
+    (setup (:pkg (ws-butler
+                 :type git
+                 :host github
+                 :repo "hlissner/ws-butler"))
+     (:hide-mode)
+     ;; :commands (ws-butler-global-mode)
+      (ws-butler-global-mode)
+      (setq ws-butler-global-exempt-modes
+            (append ws-butler-global-exempt-modes
+                    '(special-mode comint-mode term-mode eshell-mode))))
 
-  
-  ;; Disable backup files. While I find them useful in general, they
-  ;; keep interfering with `org-roam'.
 
-  (setq make-backup-files nil)
+    
+    ;; Disable backup files. While I find them useful in general, they
+    ;; keep interfering with `org-roam'.
 
-  ,#+end_src>
+    (setq make-backup-files nil)
+
+  #+end_src
 
   ACDW setup whitespace defaults
-  ,#+begin_src emacs-lisp :tangle no
+  #+begin_src emacs-lisp :tangle no
     (setup whitespace
       (setq backward-delete-char-untabify-method 'hungry)
       (setq next-line-add-newlines nil)
@@ -1756,8 +1762,8 @@ go to the first and last line in the buffer.
   ;; Long lines
 
   (setup (:pkg visual-fill-column)
-    (:option visual-fill-column-center-text t
-             (append reading-modes) '(visual-fill-column-mode . +1))
+    (:option visual-fill-column-center-text t)
+;;             (append reading-modes) '(visual-fill-column-mode . +1))
     (:hook #'visual-line-mode)
     (:hook-into org-mode)
     (advice-add #'text-scale-adjust :after #'visual-fill-column-adjust))
@@ -1801,13 +1807,13 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 (setup  (:pkg mwim)
   (:delay 1)
   (:global "C-a"  mwim-beginning))
-#+end_src>
+#+end_src
 
 *** Avy - Filter, Select, Act
 Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
     (setup (:pkg avy)
-   ;; (:disable)
+     (:disable)
       (:global  "M-j"  'avy-goto-char-timer
                 "C-M-s" 'isearch-forward-other-window
                 "C-M-r" 'isearch-backward-other-window)
@@ -2042,10 +2048,8 @@ Setup undo , whitespace, expand, indentation
   ;;     (:hook-into smartparens-enabled)
   ;;     (:hide-mode)))
 
-  ;; (setup (
-          :pkg expand-region)
-    (:require expand-region)
-    )
+   (setup (:pkg expand-region)
+    (:require expand-region))
 
   ;; (setup (:pkg undo-fu undo-fu-session)
   ;;   (:with-map (prog-mode-map text-mode-map)
@@ -2249,11 +2253,7 @@ setup Marginalia for navigation
       (:bind "M-A" marginalia-cycle)))
 
 #+end_src
-keychords with hydra
-#+begin_src emacs-lisp
-  (setup (:pkg hydra)
-    (require 'hydra))
-#+end_src
+
 *** Completion
 Emacs completion parlava
 #+begin_src emacs-lisp :noweb-ref pkg-completion
@@ -3161,199 +3161,220 @@ setup olivetti to have a distraction free editing mode
 
 ** Coding Settings
 I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP setup
-*** LISP Paren Setup
-Setup smartparens and rainbow delimiters
-#+begin_src emacs-lisp :noweb-ref code-paren
-    ;; matching braces
-    (setup (:require paren)
-      (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
-      (show-paren-mode 1))
+*** Code IDE Setup
 
-    (setup (:pkg paren-face)
+Set basic subword mode and eldoc setting for prog-mode
+#+begin_src emacs-lisp :noweb-ref code-paren
+  (setup (:require subword)
+    (global-subword-mode 1)
+    (:hide-mode))
+
+  (setup (:require eldoc)
+    (setq eldoc-echo-area-use-multiline-p nil)
+    (setq eldoc-idle-delay 0.1)
+    (:with-mode prog-mode
+      (:hook turn-on-eldoc-mode))
+    (:hook-into clojure-mode
+                cider-repl-mode
+                elisp-mode
+                lisp-interactive-mode)
+    (:hide-mode))
+
+  (setup (:require elec-pair)
+    (electric-pair-mode 1))
+#+end_src
+  Setup smartparens and rainbow delimiters
+#+begin_src emacs-lisp :noweb-ref code-paren
+  ;; matching braces
+  (setup (:require paren)
+    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+    (show-paren-mode 1))
+
+  (setup (:pkg paren-face)
     (:hook-into emacs-lisp-mode
                 ielm-mode sly-repl-mode
                 lisp-mode
                 lisp-interaction-mode
                 clojure-mode))
 
-    (setup hideshow
-      (defun +hs-cycle (&optional level)
-        (interactive "p")
-        (let (message-log-max
-              (inhibit-message t))
-          (if (= level 1)
-              (pcase last-command
-                ('+hs-cycle
+  (setup hideshow
+    (defun +hs-cycle (&optional level)
+      (interactive "p")
+      (let (message-log-max
+            (inhibit-message t))
+        (if (= level 1)
+            (pcase last-command
+              ('+hs-cycle
+               (hs-hide-level 1)
+               (setq this-command 'hs-cycle-children))
+              ('hs-cycle-children
+               ;; TODO: Fix this case. `hs-show-block' needs to be
+               ;; called twice to open all folds of the parent
+               ;; block.
+               (save-excursion (hs-show-block))
+               (hs-show-block)
+               (setq this-command 'hs-cycle-subtree))
+              ('hs-cycle-subtree
+               (hs-hide-block))
+              (_
+               (if (not (hs-already-hidden-p))
+                   (hs-hide-block)
                  (hs-hide-level 1)
-                 (setq this-command 'hs-cycle-children))
-                ('hs-cycle-children
-                 ;; TODO: Fix this case. `hs-show-block' needs to be
-                 ;; called twice to open all folds of the parent
-                 ;; block.
-                 (save-excursion (hs-show-block))
-                 (hs-show-block)
-                 (setq this-command 'hs-cycle-subtree))
-                ('hs-cycle-subtree
-                 (hs-hide-block))
-                (_
-                 (if (not (hs-already-hidden-p))
-                     (hs-hide-block)
-                   (hs-hide-level 1)
-                   (setq this-command 'hs-cycle-children))))
-            (hs-hide-level level)
-            (setq this-command 'hs-hide-level))))
+                 (setq this-command 'hs-cycle-children))))
+          (hs-hide-level level)
+          (setq this-command 'hs-hide-level))))
 
-      (defun +hs-global-cycle ()
-        (interactive)
-        (pcase last-command
-          ('+hs-global-cycle
-           (save-excursion (hs-show-all))
-           (setq this-command 'hs-global-show))
-          (_ (hs-hide-all))))
-      (:with-mode hs-minor-mode
-        (:hook-into prog-mode)
-        (:bind "C-<tab>"   #'+hs-cycle
-               "C-S-<tab>" #'+hs-global-cycle)))
-    ;; Setup a "Common" ALL Lisp modes MAP
+    (defun +hs-global-cycle ()
+      (interactive)
+      (pcase last-command
+        ('+hs-global-cycle
+         (save-excursion (hs-show-all))
+         (setq this-command 'hs-global-show))
+        (_ (hs-hide-all))))
+    (:with-mode hs-minor-mode
+      (:hook-into prog-mode)
+      (:bind "C-<tab>"   #'+hs-cycle
+             "C-S-<tab>" #'+hs-global-cycle)))
+  ;; Setup a "Common" ALL Lisp modes MAP
 
-    (setup all-lisp-modes
-      (define-minor-mode all-lisp-modes-mode
-        "Mode for enabling all modes that are common for ALL lisps.
+  (setup all-lisp-modes
+    (define-minor-mode all-lisp-modes-mode
+      "Mode for enabling all modes that are common for ALL lisps.
 
-    \\<all-lisp-modes-mode-map>"
-        :lighter " Almm"
-        :keymap (make-sparse-keymap))
-      (defun all-lisp-modes-indent-or-fill-sexp ()
-        "Indent s-expression or fill string/comment."
-        (interactive)
-        (let ((ppss (syntax-ppss)))
-          (if (or (nth 3 ppss)
-                  (nth 4 ppss))
-              (fill-paragraph)
-            (save-excursion
-              (mark-sexp)
-              (indent-region (point) (mark))))))
-      (provide 'all-lisp-modes)
-      (:with-map all-lisp-modes-mode-map
-        (:bind "M-q" all-lisp-modes-indent-or-fill-sexp)))
+          \\<all-lisp-modes-mode-map>"
+      :lighter " Almm"
+      :keymap (make-sparse-keymap))
+    (defun all-lisp-modes-indent-or-fill-sexp ()
+      "Indent s-expression or fill string/comment."
+      (interactive)
+      (let ((ppss (syntax-ppss)))
+        (if (or (nth 3 ppss)
+                (nth 4 ppss))
+            (fill-paragraph)
+          (save-excursion
+            (mark-sexp)
+            (indent-region (point) (mark))))))
+    (provide 'all-lisp-modes)
+    (:with-map all-lisp-modes-mode-map
+      (:bind "M-q" all-lisp-modes-indent-or-fill-sexp)))
 
-    (setup (:pkg rainbow-delimiters)
-      (setq rainbow-delimiters-max-face-count 2)
-      (:hook-into emacs-lisp-mode-hook
-                  eval-expression-minibuffer-setup-hook
-                  ielm-mode-hook
-                  lisp-interaction-mode-hook
-                  lisp-mode-hook
-                  sly-mrepl-mode-hook
-                  clojure-mode
-                  prog-mode)
-      ;;(:hide-mode)
-      )
+  (setup (:pkg rainbow-delimiters)
+    (setq rainbow-delimiters-max-face-count 2)
+    (:hook-into emacs-lisp-mode-hook
+                eval-expression-minibuffer-setup-hook
+                ielm-mode-hook
+                lisp-interaction-mode-hook
+                lisp-mode-hook
+                sly-mrepl-mode-hook
+                clojure-mode
+                prog-mode)
+    ;;(:hide-mode)
+    )
 
-    (setup (:pkg smartparens)
-      (:require smartparens-config)
-      (:with-map smartparens-mode-map
-        (:bind "C-M-q" sp-indent-defun))
-      ;;(:with-map all-lisp-modes-mode-map
-      ;;  (:bind ";" sp-comment))
-      ;; use paredit bindings
-      (sp-use-paredit-bindings)
-      ;; needs to be set manually, because :bind section runs before :config
-      (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
-      (setq sp-cancel-autoskip-on-backward-movement nil)
-      (setq sp-echo-match-when-visible nil)
-      ;; Overlays are too distracting and not terribly helpful. show-parens does
-      ;; this for us already (and is faster), so...
-      (setq sp-highlight-pair-overlay nil)
-      (setq sp-highlight-wrap-overlay nil)
-      (setq sp-highlight-wrap-tag-overlay nil)
-      ;; No pair has any business being longer than 4 characters; if they must, set
-      ;; it buffer-locally. It's less work for smartparens.
-      (setq sp-max-pair-length 2)
-      ;; The default is 100, because smartparen's scans are relatively expensive
-      ;; (especially with large pair lists for some modes), we reduce it, as a
-      ;; better compromise between performance and accuracy.
-      (setq sp-max-prefix-length 32)
-      (setq sp-message-width nil)
-      (setq sp-navigate-consider-sgml-tags nil)
-      (setq sp-navigate-skip-match nil)
-      (setq sp-show-pair-from-inside t)
-      (setq sp-show-pair-delay 0)
-      (sp-pair "'" nil :actions :rem)
-      (sp-pair "`" nil :actions :rem)
-      (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
-      (defun minibuffer-enable-sp ()
-        "Enable `smartparens-strict-mode' in the minibuffer, during `eval-expression'."
-        (setq-local comment-start ";")
-        (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
-        (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
-        (sp-update-local-pairs 'minibuffer-pairs)
-        (smartparens-strict-mode 1))
+  (setup (:pkg smartparens)
+    (:require smartparens-config)
+    (:with-map smartparens-mode-map
+      (:bind "C-M-q" sp-indent-defun))
+    ;;(:with-map all-lisp-modes-mode-map
+    ;;  (:bind ";" sp-comment))
+    ;; use paredit bindings
+    (sp-use-paredit-bindings)
+    ;; needs to be set manually, because :bind section runs before :config
+    (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
+    (setq sp-cancel-autoskip-on-backward-movement nil)
+    (setq sp-echo-match-when-visible nil)
+    ;; Overlays are too distracting and not terribly helpful. show-parens does
+    ;; this for us already (and is faster), so...
+    (setq sp-highlight-pair-overlay nil)
+    (setq sp-highlight-wrap-overlay nil)
+    (setq sp-highlight-wrap-tag-overlay nil)
+    ;; No pair has any business being longer than 4 characters; if they must, set
+    ;; it buffer-locally. It's less work for smartparens.
+    (setq sp-max-pair-length 2)
+    ;; The default is 100, because smartparen's scans are relatively expensive
+    ;; (especially with large pair lists for some modes), we reduce it, as a
+    ;; better compromise between performance and accuracy.
+    (setq sp-max-prefix-length 32)
+    (setq sp-message-width nil)
+    (setq sp-navigate-consider-sgml-tags nil)
+    (setq sp-navigate-skip-match nil)
+    (setq sp-show-pair-from-inside t)
+    (setq sp-show-pair-delay 0)
+    (sp-pair "'" nil :actions :rem)
+    (sp-pair "`" nil :actions :rem)
+    (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
+    (defun minibuffer-enable-sp ()
+      "Enable `smartparens-strict-mode' in the minibuffer, during `eval-expression'."
+      (setq-local comment-start ";")
+      (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
+      (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
+      (sp-update-local-pairs 'minibuffer-pairs)
+      (smartparens-strict-mode 1))
 
 
-      ;; Define a hydra
-      ;; (defhydra hydra-smartparens (:idle 1 :hint nil)
-      ;;   "
-      ;;     Sexps (quit with _q_)
+    ;; Define a hydra
+    ;; (defhydra hydra-smartparens (:idle 1 :hint nil)
+    ;;   "
+    ;;     Sexps (quit with _q_)
 
-      ;;     ^Nav^            ^Barf/Slurp^          ^Depth^
-      ;;     ^---^------------^----------^----------^-----^-----------------------
-      ;;     _f_: forward     _s_:  slurp forward   _R_:      splice
-      ;;     _b_: backward    _S_:  barf forward    _r_:      raise
-      ;;     _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
-      ;;     _e_: end         _D_:  barf backward   _<down>_: raise forward
-      ;;     _m_: mark
+    ;;     ^Nav^            ^Barf/Slurp^          ^Depth^
+    ;;     ^---^------------^----------^----------^-----^-----------------------
+    ;;     _f_: forward     _s_:  slurp forward   _R_:      splice
+    ;;     _b_: backward    _S_:  barf forward    _r_:      raise
+    ;;     _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
+    ;;     _e_: end         _D_:  barf backward   _<down>_: raise forward
+    ;;     _m_: mark
 
-      ;;     ^Kill^           ^Misc^                       ^Wrap^
-      ;;     ^----^-----------^----^-----------------------^----^------------------
-      ;;     _w_: copy        _j_: join                    _(_: wrap with ( )
-      ;;     _k_: kill        _s_: split                   _{_: wrap with { }
-      ;;     ^^               _t_: transpose               _'_: wrap with ' '
-      ;;     ^^               _c_: convolute               _\"_: wrap with \" \"
-      ;;     ^^               _i_: indent defun"
-      ;;   ("q" nil)
-      ;;   ;; Wrapping
-      ;;   ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
-      ;;   ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
-      ;;   ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
-      ;;   ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
-      ;;   ;; Navigation
-      ;;   ("f" sp-beginning-of-next-sexp)
-      ;;   ("b" sp-beginning-of-previous-sexp)
-      ;;   ("a" sp-beginning-of-sexp)
-      ;;   ("e" sp-end-of-sexp)
-      ;;   ("m" sp-mark-sexp)
-      ;;   ;; Kill/copy
-      ;;   ("w" sp-copy-sexp :exit t)
-      ;;   ("k" sp-kill-sexp :exit t)
-      ;;   ;; Misc
-      ;;   ("t" sp-transpose-sexp)
-      ;;   ("j" sp-join-sexp)
-      ;;   ("c" sp-convolute-sexp)
-      ;;   ("i" sp-indent-defun)
-      ;;   ;; Depth changing
-      ;;   ("R" sp-splice-sexp)
-      ;;   ("r" sp-splice-sexp-killing-around)
-      ;;   ("<up>" sp-splice-sexp-killing-backward)
-      ;;   ("<down>" sp-splice-sexp-killing-forward)
-      ;;   ;; Barfing/slurping
-      ;;   ("s" sp-forward-slurp-sexp)
-      ;;   ("S" sp-forward-barf-sexp)
-      ;;   ("D" sp-backward-barf-sexp)
-      ;;   ("d" sp-backward-slurp-sexp))
-      (:with-hook (emacs-lisp-mode-hook
-                   expression-minibuffer-setup-hook
-                   ielm-mode-hook
-                   lisp-interaction-mode-hook
-                   lisp-mode-hook
-                   all-lisp-modes-mode-map
-                   sly-mrepl-mode-hook
-                   clojure-mode-hook
-                   clojurescript-mode-hook
-                   cider-repl-mode-hook)
-        (:hook smartparens-strict-mode))
-      ;; (:hide-mode)
-      )
+    ;;     ^Kill^           ^Misc^                       ^Wrap^
+    ;;     ^----^-----------^----^-----------------------^----^------------------
+    ;;     _w_: copy        _j_: join                    _(_: wrap with ( )
+    ;;     _k_: kill        _s_: split                   _{_: wrap with { }
+    ;;     ^^               _t_: transpose               _'_: wrap with ' '
+    ;;     ^^               _c_: convolute               _\"_: wrap with \" \"
+    ;;     ^^               _i_: indent defun"
+    ;;   ("q" nil)
+    ;;   ;; Wrapping
+    ;;   ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
+    ;;   ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
+    ;;   ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
+    ;;   ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
+    ;;   ;; Navigation
+    ;;   ("f" sp-beginning-of-next-sexp)
+    ;;   ("b" sp-beginning-of-previous-sexp)
+    ;;   ("a" sp-beginning-of-sexp)
+    ;;   ("e" sp-end-of-sexp)
+    ;;   ("m" sp-mark-sexp)
+    ;;   ;; Kill/copy
+    ;;   ("w" sp-copy-sexp :exit t)
+    ;;   ("k" sp-kill-sexp :exit t)
+    ;;   ;; Misc
+    ;;   ("t" sp-transpose-sexp)
+    ;;   ("j" sp-join-sexp)
+    ;;   ("c" sp-convolute-sexp)
+    ;;   ("i" sp-indent-defun)
+    ;;   ;; Depth changing
+    ;;   ("R" sp-splice-sexp)
+    ;;   ("r" sp-splice-sexp-killing-around)
+    ;;   ("<up>" sp-splice-sexp-killing-backward)
+    ;;   ("<down>" sp-splice-sexp-killing-forward)
+    ;;   ;; Barfing/slurping
+    ;;   ("s" sp-forward-slurp-sexp)
+    ;;   ("S" sp-forward-barf-sexp)
+    ;;   ("D" sp-backward-barf-sexp)
+    ;;   ("d" sp-backward-slurp-sexp))
+    (:with-hook (emacs-lisp-mode-hook
+                 expression-minibuffer-setup-hook
+                 ielm-mode-hook
+                 lisp-interaction-mode-hook
+                 lisp-mode-hook
+                 all-lisp-modes-mode-map
+                 sly-mrepl-mode-hook
+                 clojure-mode-hook
+                 clojurescript-mode-hook
+                 cider-repl-mode-hook)
+      (:hook smartparens-strict-mode))
+    ;; (:hide-mode)
+    )
 #+end_src
 *** Emacs Lisp
 ielm setup
@@ -3837,20 +3858,24 @@ Setup emacs paths and directory constants
 Setup keyboard
 
 #+begin_src emacs-lisp
-    ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
+  ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
 
-    <<disclaimer>>
-    ;;
-    ;; This module sets up keyboard
-    ;;
-    ;;; Code:
+  <<disclaimer>>
+  ;;
+  ;; This module sets up keyboard
+  ;;
+  ;;; Code:
 
-    (require 'init-elpa)
-    (require 'init-env)
-    <<keyboard>>
+  (require 'init-elpa)
+  (require 'init-env)
+  (+with-message "KeyBoard Setup"
+   <<keyboard>>
 
-    (provide 'init-kbd)
-    ;;; init-kbd.el ends here
+   <<keybindings>>
+   )
+
+  (provide 'init-kbd)
+  ;;; init-kbd.el ends here
 #+end_src
 ** My Utility fns constants and macros
 :PROPERTIES:
@@ -4107,20 +4132,6 @@ Setup Emacs builtins
             (diredfl-global-mode 1)
           )
 
-        (setup (:require eldoc)
-          (setq eldoc-echo-area-use-multiline-p nil)
-          (setq eldoc-idle-delay 0.1)
-          (:with-mode prog-mode
-            (:hook turn-on-eldoc-mode))
-          (:hook-into clojure-mode
-                      cider-repl-mode
-                      elisp-mode
-                      lisp-interactive-mode)
-          (:hide-mode))
-
-        (setup (:require elec-pair)
-          (electric-pair-mode 1))
-
         (setup executable
           (setq executable-prefix-env t)
           (:with-hook after-save-hook
@@ -4173,10 +4184,6 @@ Setup Emacs builtins
           (unless (server-running-p)
             (server-start)))
 
-        (setup (:require subword)
-          (global-subword-mode 1)
-          (:hide-mode))
-
         (setup (:require url)
           (setq url-cookie-file (/etc-file "url-cookies")))
 
@@ -4220,7 +4227,7 @@ Setup Editor functions
   (require 'lib-vcs)
   (require 'lib-string)
 
-  (+with-message  "Editor"
+  (+with-message  "Editing functions"
 
     <<pkg-editor>>
 
@@ -4236,14 +4243,16 @@ Setup Editor functions
 Setup UI
 
 #+begin_src emacs-lisp
-  ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+    ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
+    <<disclaimer>>
+    ;;; Code:
 
-  <<pkg-ui>>
+    (+with-message  "the UI!"
+    <<pkg-ui>>
 
-  (provide 'init-ui)
-   ;;; init-ui.el ends here
+    )
+    (provide 'init-ui)
+     ;;; init-ui.el ends here
 #+end_src
 ** Buffers
 :PROPERTIES:
@@ -4260,8 +4269,10 @@ Setup the Emacs buffer
   (require 'config-path)
   (require 'init-kbd)
 
-  <<buffers>>
+  (+with-message "Buffer setup"
 
+  <<buffers>>
+  )
   (provide 'init-buffer)
    ;;; init-buffer.el ends here
 #+end_src
@@ -4297,9 +4308,8 @@ windose
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message "Windose"
+  (+with-message "Windose(w)"
   <<pkg-window>>
-
   )
   (provide 'enfer-pkg-window)
    ;;; enfer-pkg-window.el ends here
@@ -4347,6 +4357,9 @@ Setup org-mode
 #+end_src
 ** Coding
 Setup Coding languages
+
+*** Basic IDE
+Setup the basic Coding IDE
 
 *** LISP setup
 :PROPERTIES:
@@ -4418,22 +4431,6 @@ Smartparens setup here
 
   (provide 'enfer-code-fennel)
   ;;; enfer-code-fennel.el ends here
-#+end_src
-** Keybindings
-:PROPERTIES:
-:header-args: :tangle lisp/enfer-key-bindings.el :noweb yes
-:END:
-#+begin_src emacs-lisp
-  ;;; enfer-key-bindings.el --- Keys -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  (+with-message "KeyBindings"
-  <<keybindings>>
-
-  )
-  (provide 'enfer-key-bindings)
-   ;;; enfer-key-bindings.el ends here
 #+end_src
 ** config.el
 :PROPERTIES:
@@ -4606,13 +4603,14 @@ The goal of this file is to require all init-xxx files. The structure is trivial
   ;;  (require 'init-project)
   ;;  (require 'init-vcs)
   ;;  (require 'init-ide)
-  (require 'enfer-pkg-builtin)
   ;;  (require 'enfer-pkg-ui)
   ;; (require 'enfer-pkg-editor)
   (require 'enfer-pkg-completion)
   (require 'enfer-pkg-window)
   (require 'enfer-pkg-project)
   (require 'enfer-pkg-org)
+  (require 'enfer-pkg-builtin)
+
 
                      ;;; languages
   (require 'init-lisp)
