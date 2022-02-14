@@ -7,3 +7,10 @@ eln-cache/
 # Added automatically by ‘eldev init’.
 /.eldev
 /Eldev-local
+
+# straight downloads
+etc/
+straight/
+var/
+
+

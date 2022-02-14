@@ -1,5 +1,17 @@
 ; -*- mode: emacs-lisp; lexical-binding: t; no-byte-compile: t -*-
 
+(defconst IS-MAC     (eq system-type 'darwin))
+(defconst IS-TERMUX
+    (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
+  
+(defmacro fn (&rest body)
+    `(lambda () ,@body))
+  
+(defun doom-enlist (exp)
+    "Return EXP wrapped in a list, or as-is if already a list."
+    (declare (pure t) (side-effect-free t))
+    (if (proper-list-p exp) exp (list exp)))
+
 ;; Be explicit about main file.
 (setf eldev-project-main-file "init.el"
       eldev-main-fileset '("init.el"

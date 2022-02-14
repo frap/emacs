@@ -6,6 +6,7 @@
 
 * About me
 
+Some scripts to setup whether I am on work computer or not
 #+begin_src emacs-lisp :noweb-ref user-config
   (if (getenv "USER")
       (defconst IS-WORK (string-match "810989" (getenv "USER")))
@@ -22,7 +23,7 @@
 
 #+end_src
 
-** Where I am
+** Where am I?
 
 #+begin_src emacs-lisp :noweb-ref user-config
   (setq calendar-location-name "Wellington, NZ"
@@ -50,9 +51,6 @@ Make startup faster by reducing the frequency of garbage collection and then use
 
 
 #+begin_src emacs-lisp
-
-
-
       ;; Garbage collection slows down startup time, so we maximise the threshold for
       ;; it to run, and we will later reset it.
       (let ((normal-gc-cons-threshold (* 20 1024 1024))
@@ -233,8 +231,8 @@ Use Straight for package Management. Also use setup.el for easy config of packag
   ;; Pre-configure the package manager settings before it is loaded.
   (setq package-enable-at-startup nil
       package-quickstart nil
-      straight-host-usernames '((github . "duckwork")
-				(gitlab .  "acdw"))
+      straight-host-usernames '((github . "frap")
+				(gitlab .  "agasson"))
       straight-check-for-modifications '(check-on-save
 					 find-when-checking))
 
@@ -323,35 +321,25 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 
   (require 'subr-x)
 
-  ;; (dolist (pkg '(el-patch
-  ;; 	       ;;  no-littering
-  ;; 	       setup
-  ;; 	       straight                 ; already installed, but what the hell
-  ;; 	       ))
-  ;;   (straight-use-package pkg)
-  ;;   (require pkg)
-  ;;   (require (intern (format "+%s" pkg)) nil :noerror))
-
   ;; Setup `setup'
-
 
   (straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
   (require 'setup)
 
   (add-to-list 'setup-modifier-list 'setup-wrap-to-demote-errors)
   ;; Uncomment this for debugging purposes
-  (defun dw/log-require (&rest args)
-    (with-current-buffer (get-buffer-create "*require-log*")
-      (insert (format "%s\n"
-		      (file-name-nondirectory (car args))))))
-  (add-to-list 'after-load-functions #'dw/log-require)
+   (defun dw/log-require (&rest args)
+     (with-current-buffer (get-buffer-create "*require-log*")
+       (insert (format "%s\n"
+                       (file-name-nondirectory (car args))))))
+   (add-to-list 'after-load-functions #'dw/log-require)
   ;; added from  https://github.com/daviwil/dotfiles/blob/master/Emacs.org#org-mode
 
   (defmacro define-setup-macro (name signature &rest body)
     "Shorthand for 'setup-define'. NAME is the name of the local macro. SIGNATURE
-		  is used as the argument list for FN. If BODY starts with a string, use this as
-		  the value for :documentation. Any following keywords are passed as OPTS to
-		  'setup-define'."
+	is used as the argument list for FN. If BODY starts with a string, use this as
+	the value for :documentation. Any following keywords are passed as OPTS to
+	'setup-define'."
     (declare (debug defun))
     (let (opts)
       (when (stringp (car body))
@@ -371,7 +359,7 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 :END:
  local-macros for setup.el
  #+begin_src emacs-lisp
-   (define-setup-macro :pkg (recipe)
+   (define-setup-macro :straight (recipe)
      "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
                           and will replace itself with the first RECIPE's package."
      :repeatable t
@@ -392,7 +380,7 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
      :documentation "Customise FACE with SPEC using `custom-set-faces'."
      :repeatable t)
 
-   (setup-define :pkg-when
+   (setup-define :straight-when
      (lambda (recipe condition)
        `(if ,condition
             (straight-use-package ',recipe)
@@ -469,18 +457,20 @@ Use =straight-remove-unused-repos= for this purpose.
 
 Setup some popular packages
 #+begin_src emacs-lisp
-;; popular packages
-(setup (:pkg el-patch))
-(setup (:pkg s))
-(setup (:pkg dash))
-(setup (:pkg async))
-(setup (:pkg request))
+  ;; popular packages
+  (setup (:straight el-patch))
+  (setup (:straight s))
+  (setup (:straight dash))
+  (setup (:straight async))
+  (setup (:straight request))
 
-
+  
 
-;; profiler
-(setup (:pkg esup)) ;; :defer t)
+  ;; profiler
+  (setup (:straight esup)) ;; :defer t)
 
+  ;;use-package - for copied configs
+  (straight-use-package 'use-package) ;; use use-package for complicated copied config
 #+end_src
 ** Environment
 :PROPERTIES:
@@ -513,8 +503,7 @@ Setup the Emacs environment from the local env
 	      (set-time-zone-rule newtz))))
 	env))))
 
-   (if IS-MAC
-      (doom-load-envvars-file "~/.cache/emacs/env"))
+      (doom-load-envvars-file "~/.cache/emacs/env")
 
 #+end_src
 ** Emacs Startup Setup
@@ -532,7 +521,7 @@ Show startup time
 *** Garbage collection automatic
 Configure grabage collection
 #+begin_src emacs-lisp
-  (setup (:pkg gcmh)
+  (setup (:straight gcmh)
     (setq gcmh-auto-idle-delay-factor 10)
     (setq gcmh-high-cons-threshold (* 128 1024 1024))
     (setq gcmh-idle-delay 'auto)
@@ -544,7 +533,7 @@ Configure grabage collection
 *** Auto compile and Benchmarking
 #+begin_src emacs-lisp
 
-  (setup (:pkg benchmark-init)
+  (setup (:straight benchmark-init)
     (:disable) ; Disabled when not benchmarking.
     (define-advice define-obsolete-function-alias (:filter-args (ll))
       (let ((obsolete-name (pop ll))
@@ -559,7 +548,7 @@ Configure grabage collection
     (:with-hook after-init-hook
       (:hook benchmark-init/deactivate)))
 
-  (setup (:pkg auto-compile)
+  (setup (:straight auto-compile)
     (auto-compile-on-load-mode 1)
     (auto-compile-on-save-mode 1)
     (:hide-mode)
@@ -569,7 +558,7 @@ Configure grabage collection
 *** Keep Emacs Directory clean
 Use no-littering to automatically set common paths to the new user-emacs-directory
 #+begin_src emacs-lisp
-(setup (:pkg no-littering)
+(setup (:straight no-littering)
   (require 'no-littering))
 
 #+end_src
@@ -600,29 +589,29 @@ Some constants that I use.
 
 ** Keyboard
 #+begin_src emacs-lisp :noweb-ref keyboard
-    (defvar kbd-escape-hook nil
-    "A hook run after \\[keyboard-quit] is pressed.
-  Triggers `kbd-escape'.
-  If any hook returns non-nil, all hooks after it are ignored.")
+  ;;   (defvar kbd-escape-hook nil
+  ;;   "A hook run after \\[keyboard-quit] is pressed.
+  ;; Triggers `kbd-escape'.
+  ;; If any hook returns non-nil, all hooks after it are ignored.")
 
-  (defun kbd-escape ()
-    "Run the `kbd-escape-hook'."
-    (interactive)
-    (cond ((minibuffer-window-active-p (minibuffer-window))
-	   ;; quit the minibuffer if open.
-	   (abort-recursive-edit))
-	  ;; Run all escape hooks. If any returns non-nil, then stop
-	  ;; there.
-	  ((cl-find-if #'funcall kbd-escape-hook))
-	  ;; don't abort macros
-	  ((or defining-kbd-macro executing-kbd-macro) nil)
-	  ;; Back to the default
-	  ((keyboard-quit))))
+  ;; (defun kbd-escape ()
+  ;;   "Run the `kbd-escape-hook'."
+  ;;   (interactive)
+  ;;   (cond ((minibuffer-window-active-p (minibuffer-window))
+  ;; 	 ;; quit the minibuffer if open.
+  ;; 	 (abort-recursive-edit))
+  ;; 	;; Run all escape hooks. If any returns non-nil, then stop
+  ;; 	;; there.
+  ;; 	((cl-find-if #'funcall kbd-escape-hook))
+  ;; 	;; don't abort macros
+  ;; 	((or defining-kbd-macro executing-kbd-macro) nil)
+  ;; 	;; Back to the default
+  ;; 	((keyboard-quit))))
 
-  (global-set-key [remap keyboard-quit] #'kbd-escape)
+  ;; (global-set-key [remap keyboard-quit] #'kbd-escape)
 
-   (setup (:pkg which-key)
-    (which-key-mode 1)
+    (setup (:straight which-key)
+     (which-key-mode 1)
     (setq which-key-add-column-padding 2)
     (setq which-key-idle-delay 0.5)
     (setq which-key-idle-secondary-delay 0.1)
@@ -642,12 +631,12 @@ Some constants that I use.
     (setq which-key-sort-uppercase-first nil)
     (which-key-setup-minibuffer)
     (:with-hook which-key-init-buffer-hook
-      (:hook (fn (setq line-spacing 4))))
+      (:hook (lambda (setq line-spacing 4))))
     (:hide-mode))
 #+end_src
 keychords with hydra
 #+begin_src emacs-lisp :noweb-ref keyboard
-  (setup (:pkg hydra)
+  (setup (:straight hydra)
     (require 'hydra))
 #+end_src
 * Emacs Packages
@@ -999,16 +988,16 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 ripgrep and gist
 #+begin_src emacs-lisp :noweb-ref pkg-utils
   (+with-message "pkg-util"
-    (setup (:pkg rg)
+    (setup (:straight rg)
       (:when-loaded
 	(setq rg-group-result t)
 	(setq rg-ignore-case 'smart)))
 
-    (setup (:pkg gist)
+    (setup (:straight gist)
       (setq gist-view-gist t)
       (:hide-mode))
 
-    (setup (:pkg link-hint)
+    (setup (:straight link-hint)
       (:require link-hint))
 
     ) ;; end of pkg-utils +with-message
@@ -1018,7 +1007,7 @@ ripgrep and gist
   ;;(cua-mode 1)
   ;; load doom-path
 
-  ;;    (setup (:pkg-when exec-path-from-shell IS-MAC)
+  ;;    (setup (:straight-when exec-path-from-shell IS-MAC)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
   ;;      (exec-path-from-shell-initialize)
@@ -1131,25 +1120,25 @@ Some Defaults for my preferred appearance
 On Linux, I have a custom build of Iosevka that I like.
 
 #+begin_src emacs-lisp :noweb-ref pkg-ui
-  (setup (:pkg all-the-icons)
+  (setup (:straight all-the-icons)
     (:load-after marginalia
-      (:pkg all-the-icons-completion)
+      (:straight all-the-icons-completion)
       (all-the-icons-completion-mode 1)
       (:with-mode marginalia-mode
         (:hook all-the-icons-completion-marginalia-setup)))
     (:load-after dired
-      (:pkg all-the-icons-dired)
+      (:straight all-the-icons-dired)
       (:with-mode dired-mode
         (:hook all-the-icons-dired-mode))))
 
-  (setup (:pkg emojify)
+  (setup (:straight emojify)
     (setq emojify-emoji-styles '(unicode))
     (global-emojify-mode 1))
 
-  (setup (:pkg unicode-fonts)
+  (setup (:straight unicode-fonts)
     (unicode-fonts-setup))
 
-  (setup (:pkg mixed-pitch)
+  (setup (:straight mixed-pitch)
       (:hook-into text-mode)
 
   ;; Set the font face based on platform
@@ -1175,23 +1164,23 @@ On Linux, I have a custom build of Iosevka that I like.
                       :weight 'light))
 
   ;; Required for proportional font in posframe
-  (setup (:pkg company-posframe)
+  (setup (:straight company-posframe)
     (company-posframe-mode 1))
 
-  (setup (:pkg default-text-scale)
+  (setup (:straight default-text-scale)
     (:bind
      "M--" default-text-scale-decrease
      "M-+" default-text-scale-increase
      "M-=" default-text-scale-reset)
     (default-text-scale-mode 1))
 
-  (setup (:pkg dimmer)
+  (setup (:straight dimmer)
     (setq dimmer-fraction 0.3)
     (dimmer-mode 1))
 
   ;; Install it from sources, because ELPA version has invalid
 ;; signature.
-(setup (:pkg (spinner
+(setup (:straight (spinner
              :type git
              :host github
              :repo "Malabarba/spinner.el")))
@@ -1241,62 +1230,62 @@ On Linux, I have a custom build of Iosevka that I like.
 *** Themes & Modeline
 
 #+begin_src emacs-lisp
-  (setup (:pkg spacegray-theme))
+    (setup (:straight spacegray-theme))
 
-  (setup (:pkg modus-themes)
-    (:disable)
-  (:only-if IS-MAC)
-  (:option
-   modus-themes-diffs 'desaturated
-   modus-themes-headings '((t . section))
-   modus-themes-bold-constructs t
-   modus-themes-syntax 'faint
-   modus-themes-prompts 'subtle
-   modus-themes-completions 'opionated)
-  (load-theme 'modus-operandi t))
+  ;; (use-package modus-themes
+  ;;   :if IS-MAC
+  ;;   :init
+  ;;   (setq-default
+  ;;    modus-themes-diffs 'desaturated
+  ;;    modus-themes-headings '((t . section))
+  ;;    modus-themes-bold-constructs t
+  ;;    modus-themes-syntax 'faint
+  ;;    modus-themes-prompts 'subtle
+  ;;    modus-themes-completions 'opionated)
+  ;;   (load-theme 'modus-operandi t))
 
-  (setup (:pkg doom-themes)
-    (setq doom-themes-enable-bold t)
-    (setq doom-themes-enable-italic t)
-    (doom-themes-org-config))
+    (setup (:straight doom-themes)
+      (setq doom-themes-enable-bold t)
+      (setq doom-themes-enable-italic t)
+      (doom-themes-org-config))
 
-  (unless IS-TERMUX
-   ;; (load-theme 'doom-palenight t)
-    (doom-themes-visual-bell-config))
+    (unless IS-TERMUX
+     ;; (load-theme 'doom-palenight t)
+      (doom-themes-visual-bell-config))
 
-  ;; Mode-line
-  ;;Basic Customisation
-  (setq display-time-format "%l:%M %p %b %y"
-        display-time-default-load-average nil)
+    ;; Mode-line
+    ;;Basic Customisation
+    (setq display-time-format "%l:%M %p %b %y"
+          display-time-default-load-average nil)
 
-  ;; Doom Modeline
+    ;; Doom Modeline
 
-  (setup (:pkg minions)
-    (:hook-into doom-modeline-mode))
+    (setup (:straight minions)
+      (:hook-into doom-modeline-mode))
 
-  (setup (:pkg doom-modeline)
-   ;; (setq doom-modeline-bar-width 4)
-    (setq doom-modeline-buffer-encoding nil)
-    (setq doom-modeline-buffer-file-name-style 'relative-from-project)
-    (setq doom-modeline-height 30)
-    (setq doom-modeline-major-mode-icon t)
-    (setq doom-modeline-minor-modes t)
-    (:with-hook window-setup-hook
-      (:hook (fn (set-face-attribute
-                  'mode-line nil :family "Iosevka Slab" :height 130))))
-    (:hook-into window-setup)
-    (:option doom-modeline-height 15
-             doom-modeline-bar-width 6
-             doom-modeline-lsp t
-             doom-modeline-github nil
-             doom-modeline-mu4e nil
-             doom-modeline-irc t
-             doom-modeline-minor-modes t
-             doom-modeline-persp-name nil
-             doom-modeline-buffer-file-name-style 'truncate-except-project
-             doom-modeline-major-mode-icon nil)
-    (custom-set-faces '(mode-line ((t (:height 0.85))))
-                      '(mode-line-inactive ((t (:height 0.85))))))
+    (setup (:straight doom-modeline)
+     ;; (setq doom-modeline-bar-width 4)
+      (setq doom-modeline-buffer-encoding nil)
+      (setq doom-modeline-buffer-file-name-style 'relative-from-project)
+      (setq doom-modeline-height 30)
+      (setq doom-modeline-major-mode-icon t)
+      (setq doom-modeline-minor-modes t)
+      (:with-hook window-setup-hook
+        (:hook (fn (set-face-attribute
+                    'mode-line nil :family "Iosevka Slab" :height 130))))
+      (:hook-into window-setup)
+      (:option doom-modeline-height 15
+               doom-modeline-bar-width 6
+               doom-modeline-lsp t
+               doom-modeline-github nil
+               doom-modeline-mu4e nil
+               doom-modeline-irc t
+               doom-modeline-minor-modes t
+               doom-modeline-persp-name nil
+               doom-modeline-buffer-file-name-style 'truncate-except-project
+               doom-modeline-major-mode-icon nil)
+      (custom-set-faces '(mode-line ((t (:height 0.85))))
+                        '(mode-line-inactive ((t (:height 0.85))))))
 
 
 #+end_src
@@ -1305,27 +1294,29 @@ On Linux, I have a custom build of Iosevka that I like.
 Wait until my *fancy* modeline is loaded -- from [[https://github.com/KaratasFurkan/.emacs.d#remove-redundant-ui][Furkan Karataş]].
 
 #+begin_src emacs-lisp
-  (setq-default mode-line-format nil)
+    (setq-default mode-line-format nil)
+
+  ) ;; end of +with_message pkg-ui
 
 #+end_src
 *** highlights and diff
 setup diff and highlights
 #+begin_src emacs-lisp
-    (setup (:pkg highlight-numbers)
+    (setup (:straight highlight-numbers)
       (:hook-into prog-mode)
       (:hide-mode))
 
-    (setup (:pkg hl-fill-column)
+    (setup (:straight hl-fill-column)
       (:require hl-fill-column)
       (:hook-into prog-mode text-mode conf-mode))
 
-    (setup (:pkg hl-line)
+    (setup (:straight hl-line)
       (global-hl-line-mode 1))
 
-    (setup (:pkg hl-todo)
+    (setup (:straight hl-todo)
       (global-hl-todo-mode 1))
 
-  (setup (:pkg diff-hl)
+  (setup (:straight diff-hl)
     (global-diff-hl-mode 1)
     (:with-mode dired-mode
       (:hook diff-hl-dired-mode))
@@ -1335,11 +1326,10 @@ setup diff and highlights
       (:with-hook magit-post-refresh-hook
         (:hook diff-hl-magit-post-refresh))))
 
-) ;; end Of +with_message pkg-ui
 #+end_src
-*** Window Setup
+** Window Setup
 :PROPERTIES:
-:header-args: :noweb-ref pkg-window
+:header-args: :noweb-ref windose
 :END:
 
 1st some defaults
@@ -1354,29 +1344,17 @@ setup diff and highlights
       (setq window-resize-pixelwise nil))
 
 #+end_src
-#+begin_src emacs-lisp :noweb-ref pkg-window
-  (setup (:pkg ace-window)
+#+begin_src emacs-lisp
+  (setup (:straight ace-window)
     (setq aw-background t)
     (setq aw-scope 'frame)
     (ace-window-display-mode 1)
     (:hide-mode))
 
-  (setup (:pkg shackle)
-  (setq shackle-rules
-        `((compilation-mode
-           :select t :align right :size 0.33)
-          (magit-status-mode
-           :select t :align right :size 0.5)
-          ((help-mode helpful-mode)
-           :select t :align right :size 0.4)
-          ((sly-xref-mode "\\*\\(sly-mrepl\\|ielm\\)")
-           :regexp t :noselect t :align below :size 0.24)))
-  (shackle-mode 1))
-
-(setup (:pkg windmove)
+(setup (:straight windmove)
   (windmove-default-keybindings))
 
-(setup (:pkg winner)
+(setup (:straight winner)
   (winner-mode 1))
   (setq-default window-divider-default-places 'right-only ; only right
                 window-divider-default-bottom-width 2
@@ -1387,19 +1365,49 @@ setup diff and highlights
   (window-divider-mode +1)
 #+end_src
 
-**** Splitting windows sensibly
+*** Splitting windows sensibly
 
 This is extremely fiddly and I'd love another option.
 - [[https://www.emacswiki.org/emacs/ToggleWindowSplit][ToggleWindowSplit, EmacsWiki]]
 
 #+begin_src emacs-lisp :noweb-ref pkg-window
-  (setq-default split-width-threshold 100
-                split-height-threshold 50)
+     (defun window-split-vertically ()
+      "Split window vertically."
+      (interactive)
+      (split-window-right))
+
+    (defun window-split-vertically-and-focus ()
+      "Split window vertically and focus it."
+      (interactive)
+      (split-window-right)
+      (windmove-right))
+
+    (defun window-split-horizontally ()
+      "Split window horizontally."
+      (interactive)
+      (split-window-below))
+
+    (defun window-split-horizontally-and-focus ()
+      "Split window horizontally and focus it."
+      (interactive)
+      (split-window-below)
+      (windmove-down))
+
+    (defun window-zoom ()
+      "Close other windows to focus on this one.
+    Activate again to undo this. If the window changes before then,
+    the undo expires."
+      (interactive)
+      (if (and (one-window-p)
+               (assq ?_ register-alist))
+          (jump-to-register ?_)
+        (window-configuration-to-register ?_)
+        (delete-other-windows)))
+
+  ;;(setq-default split-width-threshold 100
+  ;;                  split-height-threshold 50)
 #+end_src
 *** Fringes
-:PROPERTIES:
-:header-args: :noweb-ref pkg-window
-:END:
 
 I have grown to love Emacs's little fringes on the side of the
 windows.  In fact, I love them so much that I really went overboard
@@ -1456,202 +1464,6 @@ and have made a custom fringe bitmap.
      #b00101010
      #b00000000])
 #+end_src
-*** Project Setup
-setup of git and projectile
-#+begin_src emacs-lisp :noweb-ref pkg-project
-
-(setup (:pkg git-timemachine)
-    (:bind
-     "[" git-timemachine-show-previous-revision
-     "]" git-timemachine-show-next-revision
-     "b" git-timemachine-blame))
-
-(setup (:pkg magit)
-  (setq git-commit-summary-max-length 120)
-  (setq magit-commit-show-diff nil)
-  (setq magit-delete-by-moving-to-trash nil)
-  (setq magit-display-buffer-function
-        #'magit-display-buffer-same-window-except-diff-v1)
-  (setq magit-log-auto-more t)
-  (setq magit-log-margin-show-committer-date t)
-  (setq magit-revert-buffers 'silent)
-  (setq magit-save-repository-buffers 'dontask)
-  (setq magit-wip-after-apply-mode t)
-  (setq magit-wip-after-save-mode t)
-  (setq magit-wip-before-change-mode t)
-  (setq transient-values
-        '((magit-log:magit-log-mode "--graph" "--color" "--decorate"))))
-
-(setup magit-wip
-  (:load-after magit
-    (magit-wip-mode 1)
-    (:hide-mode)))
-
-(setup (:pkg magit-todos)
-  (:load-after magit
-    (magit-todos-mode 1)))
-
-(setup (:pkg persp-projectile)
-  (:load-after (perspective projectile)))
-
-(setup (:pkg perspective)
-  (setq persp-modestring-short t)
-  (setq persp-show-modestring t)
-  (setq persp-sort 'name)
-  (setq persp-state-default-file (/etc-file "perspectives"))
-  (setq persp-switch-wrap nil)
-  (persp-mode 1)
-  (:global
-   "M-1" (fn! (persp-switch-by-number 1))
-   "M-2" (fn! (persp-switch-by-number 2))
-   "M-3" (fn! (persp-switch-by-number 3))
-   "M-4" (fn! (persp-switch-by-number 4))
-   "M-5" (fn! (persp-switch-by-number 5))
-   "M-6" (fn! (persp-switch-by-number 6))
-   "M-7" (fn! (persp-switch-by-number 7))
-   "M-8" (fn! (persp-switch-by-number 8))
-   "M-9" (fn! (persp-switch-by-number 9))))
-
-(setup (:pkg projectile)
-  (setq projectile-cache-file (/etc-file "projectile.cache"))
-  (setq projectile-kill-buffers-filter 'kill-only-files)
-  (setq projectile-known-projects-file (/etc-file "projectile-bookmarks"))
-  (projectile-mode 1)
-  (setq projectile-find-dir-includes-top-level t)
-  (setf projectile-globally-ignored-directories
-        (delete-dups (append projectile-globally-ignored-directories
-                             enfer/ignored-directories)))
-  (setq projectile-globally-ignored-file-suffixes enfer/ignored-suffixes)
-  (:with-idle-delay 15 (quiet! (projectile-cleanup-known-projects)))
-  (:hide-mode))
-#+end_src
-*** Buffers
-PROPERTIES:
-:header-args: :noweb-ref sanity
-:END:
-Setup Scatch and minibuffer
-#+begin_src emacs-lisp
-
-  (setup files
-    (setq auto-mode-case-fold nil)
-    (setq auto-save-default nil)
-    (setq auto-save-list-file-prefix nil)
-    (setq backup-inhibited t)
-    (setq create-lockfiles nil)
-    (setq delete-by-moving-to-trash nil)
-    (setq find-file-suppress-same-file-warnings t)
-    (setq find-file-visit-truename t)
-    (setq load-prefer-newer t)
-    (setq make-backup-files nil)
-    (setq require-final-newline t)
-    (setq vc-follow-symlinks t))
-
-
-  (setup selection
-    (setq kill-do-not-save-duplicates t)
-    (setq select-enable-clipboard t)
-    (setq select-enable-primary t)
-    (setq x-select-enable-clipboard-manager nil))
-
-  (setup scratch
-    (setq initial-major-mode #'emacs-lisp-mode)
-    (setq initial-scratch-message
-          ";; ABANDONNEZ TOUT ESPOIR VOUS QUI ENTREZ ICI\n\n" )
-    (defun +scratch-immortal ()
-      "Bury, don't kill \"*scratc*\" buffer.
-        For `kill-buffer-query-functions'."
-      (if (eq (current-buffer) (get-buffer "*scratch*"))
-          (progn (bury-buffer)
-                 nil)
-        t))
-    (defun +scratch-buffer-setup ()
-      "Add comment to `scratch' buffer and name it accordingly."
-      (let* ((mode (format "%s" major-mode))
-             (string (concat "Scratch buffer for:" mode "\n\n")))
-        (when scratch-buffer
-          (save-excursion
-            (insert string)
-            (goto-char (point-min))
-            (comment-region (point-at-bol) (point-at-eol)))
-          (next-line 2))
-        (rename-buffer (concat "*scratch<" mode ">*") t)))
-    (add-hook 'kill-buffer-query-functions #'+scratch-immortal))
-
-  (setup minibuffer
-    (file-name-shadow-mode 1)
-    (minibuffer-depth-indicate-mode 1)
-    (minibuffer-electric-default-mode 1)
-    (fset #'yes-or-no-p #'y-or-n-p)
-    (setq enable-recursive-minibuffers t)
-    (setq file-name-shadow-properties '(invisible t intangible t))
-    (setq minibuffer-eldef-shorten-default t)
-    (setq minibuffer-prompt-properties
-          '(read-only t cursor-intangible t face minibuffer-prompt))
-    (setq read-answer-short t)
-    (setq read-extended-command-predicate #'command-completion-default-include-p)
-    (setq use-short-answers t)
-    ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
-    (defun +minibuffer-complete-history ()
-      "Complete minibuffer history."
-      (interactive)
-      (completion-in-region (minibuffer--completion-prompt-end) (point-max)
-                            (symbol-value minibuffer-history-variable)
-                            nil))
-    (:with-hook minibuffer-setup-hook
-      (:hook cursor-intangible-mode))
-    (:with-map minibuffer-local-map
-      (:bind "M-/" #'+minibuffer-complete-history))
-    (:with-map minibuffer-inactive-mode-map
-      (:bind "<mouse-1>" ignore)))
-
-  (setup ibuffer
-    (:also-load ibuf-ext)
-    (:option ibuffer-expert t
-             ibuffer-show-empty-filter-groups nil
-             ibuffer-saved-filter-groups
-             '(("default"
-                ("Org" (mode . org-mode))
-                ("emacs" (or (name . "^\\*scratch\\*$")
-                             (name . "^\\*Messages\\*$")
-                             (name . "^\\*Warnings\\*$")
-                             (name . "^\\*straight-process\\*$")
-                             (name . "^\\*Calendar\\*$")))
-                ("customize" (mode . Custom-mode))
-                ("emacs-config" (or (filename . ".emacs.d")
-                                    (mode . +init-mode)))
-                ("git" (or (name . "^\*magit")
-                           (name . "^\magit")))
-                ("help" (or (mode . help-mode)
-                            (mode . Info-mode)
-                            (mode . helpful-mode)))
-                ("irc" (or (mode . erc-mode)
-                           (mode . circe-server-mode)
-                           (mode . circe-channel-mode)))
-                ("shell" (or (mode . eshell-mode)
-                             (mode . shell-mode)
-                             (mode . vterm-mode)))
-                ("web" (or (mode . elpher-mode)
-                           (mode . eww-mode))))))
-    (:hook (defun ibuffer@filter-to-default ()
-             (ibuffer-auto-mode +1)
-             (ibuffer-switch-to-saved-filter-groups "default"))))
-
-  #+end_src
-
-  The default way Emacs makes buffer names unique is really ugly and,
-  dare I say it, stupid.  Instead, I want them to be uniquified by their
-  filesystem paths.
-
-#+begin_src emacs-lisp
-  (setup (:require uniquify)
-    (setq uniquify-after-kill-buffer-p t)
-    (setq uniquify-buffer-name-style 'forward)
-    (setq-default
-     uniquify-separator "/"
-     uniquify-ignore-buffers-re "^\\*"))
-
-#+end_src
-
 ** Emacs as an Editor
 :PROPERTIES:
 :header-args: :noweb-ref pkg-editor
@@ -1717,7 +1529,7 @@ use ws-butler
      sentence-end-double-space nil
      word-wrap t)
 
-    (setup (:pkg (ws-butler
+    (setup (:straight (ws-butler
                  :type git
                  :host github
                  :repo "hlissner/ws-butler"))
@@ -1761,19 +1573,19 @@ go to the first and last line in the buffer.
 #+begin_src emacs-lisp
   ;; Long lines
 
-  (setup (:pkg visual-fill-column)
+  (setup (:straight visual-fill-column)
     (:option visual-fill-column-center-text t)
 ;;             (append reading-modes) '(visual-fill-column-mode . +1))
     (:hook #'visual-line-mode)
     (:hook-into org-mode)
     (advice-add #'text-scale-adjust :after #'visual-fill-column-adjust))
 
-  (setup (:pkg adaptive-wrap)
+  (setup (:straight adaptive-wrap)
     (:with-mode adaptive-wrap-prefix-mode
       (:hook-into visual-column-mode)))
 
 
-  (setup (:pkg unfill)
+  (setup (:straight unfill)
     ;;:commands (unfill-toggle)
     (:global "M-q"  #'unfill-toggle))
 
@@ -1787,7 +1599,7 @@ go to the first and last line in the buffer.
 Undo is a key function of an editor - bind to Ctrl-Z - disabled
 #+begin_src emacs-lisp :tangle no
   ;;undo
-  (setup (:pkg undo-tree)
+  (setup (:straight undo-tree)
     (:hide-mode)
     (:global "C-z"   undo-tree-undo
            "C-S-z" undo-tree-redo)
@@ -1796,7 +1608,7 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
     #+end_src
 *** Move Text
 #+begin_src emacs-lisp
-  (setup (:pkg move-text)
+  (setup (:straight move-text)
    ;; :commands (move-text-up
    ;;            move-text-down)
     (:global [M-S-down]  #'move-text-down
@@ -1804,7 +1616,7 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 #+end_src
 *** Move where I Mean
 #+begin_src emacs-lisp
-(setup  (:pkg mwim)
+(setup  (:straight mwim)
   (:delay 1)
   (:global "C-a"  mwim-beginning))
 #+end_src
@@ -1812,7 +1624,7 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 *** Avy - Filter, Select, Act
 Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
-    (setup (:pkg avy)
+    (setup (:straight avy)
      (:disable)
       (:global  "M-j"  'avy-goto-char-timer
                 "C-M-s" 'isearch-forward-other-window
@@ -1923,7 +1735,7 @@ Setup avy in filter, select, act mode
 
       (setq avy-all-windows t))
 
-    ;; (setup (:pkg avy-zap)
+    ;; (setup (:straight avy-zap)
     ;;   ;; : my-laptop-p
     ;;   (setq avy-zap-forward-only t)
     ;;   ;; (setq avy-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
@@ -1932,8 +1744,6 @@ Setup avy in filter, select, act mode
     ;;    ("M-Z" . avy-zap-to-char-dwim)))
 
 #+end_src
-
-
 *** Spelling
 The configuration below enables Flyspell for all text modes and sets Hunspell as the default checking program. The M-F7 key checks the spelling for all words in the buffer and F7 checks the word that you cursor is standing on.
 
@@ -1980,7 +1790,7 @@ A more productive method is to use the C-; function. This function provides the 
 
 I use the dictionary package for Emacs, and I’m lazy about it:
 #+begin_src emacs-lisp
-  (setup (:pkg dictionary)
+  (setup (:straight dictionary)
     (:load-after avy
       (defun dictionary-search-dwim (&optional arg)
         "Search for definition of word at point. If region is active,
@@ -2037,21 +1847,21 @@ Setup encodings
 #+end_src
 Setup undo , whitespace, expand, indentation
 #+begin_src emacs-lisp
-  ;; (setup (:pkg aggressive-indent)
+  ;; (setup (:straight aggressive-indent)
   ;;   (:hook-into prog-mode)
   ;;   (:hide-mode))
 
-  ;; (setup (:pkg hungry-delete)
+  ;; (setup (:straight hungry-delete)
   ;;   (:load-after smartparens
   ;;     (setq hungry-delete-join-reluctantly t)
   ;;     (global-hungry-delete-mode 1)
   ;;     (:hook-into smartparens-enabled)
   ;;     (:hide-mode)))
 
-   (setup (:pkg expand-region)
+   (setup (:straight expand-region)
     (:require expand-region))
 
-  ;; (setup (:pkg undo-fu undo-fu-session)
+  ;; (setup (:straight undo-fu undo-fu-session)
   ;;   (:with-map (prog-mode-map text-mode-map)
   ;;     (:bind
   ;;      "u" undo-fu-only-undo
@@ -2161,11 +1971,11 @@ If a region is active, copy its contents to the scratch."
    (buffer-scratch
     (when arg
       (if-let* ((file (read-file-name
-                       "Open scratch file > "
+                       "Ouvrir le fichier de scratch > "
                        buffer-scratch-files-dir
                        "scratch")))
           file
-        (user-error "Aborting")))
+        (user-error "Abandon..")))
     (cond ((eq buffer-scratch-major-mode t)
            (unless (or buffer-read-only
                        (derived-mode-p 'special-mode)
@@ -2192,7 +2002,7 @@ ARG is passed to `buffer-pop-scratch'."
   (dolist (file (directory-files buffer-scratch-files-dir
                                  t "[^.]" t))
     (delete-file file)
-    (message "Deleted '%s'" (file-name-nondirectory file))))
+    (message "Supprimé '%s'" (file-name-nondirectory file))))
 
 
 
@@ -2203,11 +2013,319 @@ for a file to visit if current buffer is not visiting a file."
   (interactive "P")
   (if (or arg (not buffer-file-name))
       (find-file (concat "/sudo:root@localhost:"
-                         (read-file-name "Find file(as root): ")))
+                         (read-file-name "Rechercher le fichier (en tant que root): ")))
     (find-alternate-file
      (concat "/sudo:root@localhost:"
              buffer-file-name))))
 
+#+end_src
+
+#+begin_src emacs-lisp
+  (setup scratch
+   ;; (setq initial-major-mode #'emacs-lisp-mode)
+    (setq initial-scratch-message
+          ";; ABANDONNEZ TOUT ESPOIR VOUS QUI ENTREZ ICI\n\n" )
+  ;;   (defun +scratch-immortal ()
+  ;;     "Bury, don't kill \"*scratc*\" buffer.
+  ;;       For `kill-buffer-query-functions'."
+  ;;     (if (eq (current-buffer) (get-buffer "*scratch*"))
+  ;;         (progn (bury-buffer)
+  ;;                nil)
+  ;;       t))
+  ;;   (defun +scratch-buffer-setup ()
+  ;;     "Add comment to `scratch' buffer and name it accordingly."
+  ;;     (let* ((mode (format "%s" major-mode))
+  ;;            (string (concat "Scratch buffer for:" mode "\n\n")))
+  ;;       (when scratch-buffer
+  ;;         (save-excursion
+  ;;           (insert string)
+  ;;           (goto-char (point-min))
+  ;;           (comment-region (point-at-bol) (point-at-eol)))
+  ;;         (next-line 2))
+  ;;       (rename-buffer (concat "*scratch<" mode ">*") t)))
+  ;;   (add-hook 'kill-buffer-query-functions #'+scratch-immortal)
+     )
+
+   (setup minibuffer
+     (file-name-shadow-mode 1)
+     (minibuffer-depth-indicate-mode 1)
+    (minibuffer-electric-default-mode 1)
+    (fset #'yes-or-no-p #'y-or-n-p)
+    (setq enable-recursive-minibuffers t)
+    (setq file-name-shadow-properties '(invisible t intangible t))
+    (setq minibuffer-eldef-shorten-default t)
+    (setq minibuffer-prompt-properties
+          '(read-only t cursor-intangible t face minibuffer-prompt))
+    (setq read-answer-short t)
+    (setq read-extended-command-predicate #'command-completion-default-include-p)
+    (setq use-short-answers t)
+    ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
+    (defun +minibuffer-complete-history ()
+      "Complete minibuffer history."
+      (interactive)
+      (completion-in-region (minibuffer--completion-prompt-end) (point-max)
+                            (symbol-value minibuffer-history-variable)
+                            nil))
+    (:with-hook minibuffer-setup-hook
+      (:hook cursor-intangible-mode))
+    (:with-map minibuffer-local-map
+      (:bind "M-/" #'+minibuffer-complete-history))
+    (:with-map minibuffer-inactive-mode-map
+      (:bind "<mouse-1>" ignore)))
+
+  (setup ibuffer
+    (:also-load ibuf-ext)
+    (:option ibuffer-expert t
+             ibuffer-show-empty-filter-groups nil
+             ibuffer-saved-filter-groups
+             '(("default"
+                ("Org" (mode . org-mode))
+                ("emacs" (or (name . "^\\*scratch\\*$")
+                             (name . "^\\*Messages\\*$")
+                             (name . "^\\*Warnings\\*$")
+                             (name . "^\\*straight-process\\*$")
+                             (name . "^\\*Calendar\\*$")))
+                ("customize" (mode . Custom-mode))
+                ("emacs-config" (or (filename . ".emacs.d")
+                                    (mode . +init-mode)))
+                ("git" (or (name . "^\*magit")
+                           (name . "^\magit")))
+                ("help" (or (mode . help-mode)
+                            (mode . Info-mode)
+                            (mode . helpful-mode)))
+                ("irc" (or (mode . erc-mode)
+                           (mode . circe-server-mode)
+                           (mode . circe-channel-mode)))
+                ("shell" (or (mode . eshell-mode)
+                             (mode . shell-mode)
+                             (mode . vterm-mode)))
+                ("web" (or (mode . elpher-mode)
+                           (mode . eww-mode))))))
+    (:hook (defun ibuffer@filter-to-default ()
+             (ibuffer-auto-mode +1)
+             (ibuffer-switch-to-saved-filter-groups "default"))))
+
+  ;; (setup (:straight shackle)
+  ;;   (setq shackle-rules
+  ;;         `((compilation-mode
+  ;;            :select t :align right :size 0.33)
+  ;;           (magit-status-mode
+  ;;            :select t :align right :size 0.5)
+  ;;           ((help-mode helpful-mode)
+  ;;            :select t :align right :size 0.4)
+  ;;           ((sly-xref-mode "\\*\\(sly-mrepl\\|ielm\\)")
+  ;;            :regexp t :noselect t :align below :size 0.24)))
+  ;;   (shackle-mode 1))
+#+end_src
+
+** Sanity settings
+:PROPERTIES:
+:header-args: :noweb-ref sanity
+:END:
+Setup Scatch and minibuffer
+#+begin_src emacs-lisp
+
+  (setup files
+    (setq auto-mode-case-fold nil)
+    (setq auto-save-default nil)
+    (setq auto-save-list-file-prefix nil)
+    (setq backup-inhibited t)
+    (setq create-lockfiles nil)
+    (setq delete-by-moving-to-trash nil)
+    (setq find-file-suppress-same-file-warnings t)
+    (setq find-file-visit-truename t)
+    (setq load-prefer-newer t)
+    (setq make-backup-files nil)
+    (setq require-final-newline t)
+    (setq vc-follow-symlinks t))
+
+
+  (setup selection
+    (setq kill-do-not-save-duplicates t)
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)
+    (setq x-select-enable-clipboard-manager nil))
+
+
+  #+end_src
+
+  The default way Emacs makes buffer names unique is really ugly and,
+  dare I say it, stupid.  Instead, I want them to be uniquified by their
+  filesystem paths.
+
+#+begin_src emacs-lisp
+  (setup (:require uniquify)
+    (setq uniquify-after-kill-buffer-p t)
+    (setq uniquify-buffer-name-style 'forward)
+    (setq-default
+     uniquify-separator "/"
+     uniquify-ignore-buffers-re "^\\*"))
+
+#+end_src
+
+** Project Setup
+:PROPERTIES:
+:header-args: :noweb-ref projet
+:END:
+
+setup of emacs project
+#+begin_src emacs-lisp
+(setq project-list-file (expand-file-name "projects" emacs-etc/))
+
+(defalias 'project-switch #'project-switch-project)
+
+(defun project-p ()
+  "Return non-nil when located in a project."
+  (project-current))
+
+;; Emacs 27
+(unless (fboundp 'project-root)
+  (cl-defmethod project-root ((project (head transient)))
+    (cdr project)))
+
+(defun project-shell-command ()
+  "Invoke `shell-command' in the project's root."
+  (interactive)
+  (if-let* ((project (project-current))
+            (root (project-root project)))
+      (eval-with-default-dir root
+        (call-interactively #'shell-command))
+    (user-error "You are not in project")))
+
+(defun project-magit ()
+  "Start `magit-status' in the current project's root directory."
+  (interactive)
+  (magit-status-setup-buffer (project-root (project-current t))))
+
+(setq project-switch-commands
+      '((?f "Find file" project-find-file)
+        (?g "Find regexp" project-find-regexp)
+        (?d "Dired" project-dired)
+        (?v "Magit" project-magit)
+        (?e "Eshell" project-eshell)))
+
+(use-package rg
+  :defer t
+  :commands (rg-project)
+  :init
+  (defalias 'project-find-regexp #'rg-project))
+#+end_src
+** VCS
+:PROPERTIES:
+:header-args: :noweb-ref vcs
+:END:
+Setup of magit for cool git
+#+begin_src emacs-lisp
+    (setq-default vc-follow-symlinks t)
+
+    ;; (remove-hook 'find-file-hook #'vc-refrqesh-state)
+    ;; (hook-with-delay 'find-file-hook 1 #'vc-refresh-state)
+
+    (use-package magit
+      :defer t
+      :defines (magit-status-mode-map
+                magit-revision-show-gravatars
+                magit-display-buffer-function
+                magit-diff-refine-hunk)
+      :commands (magit-display-buffer-same-window-except-diff-v1
+                 magit-stage-file
+                 magit-unstage-file)
+      :init
+      (setq-default magit-git-executable (executable-find "git"))
+      :config
+      ;; properly kill leftover magit buffers on quit
+      (define-key magit-status-mode-map
+        [remap magit-mode-bury-buffer]
+        #'vcs-quit)
+
+      (setq magit-revision-show-gravatars
+            '("^Author:     " . "^Commit:     ")
+            magit-display-buffer-function
+            #'magit-display-buffer-same-window-except-diff-v1
+            ;; show word-granularity on selected hunk
+            magit-diff-refine-hunk t))
+
+    (use-package forge
+      :commands forge-create-pullreq forge-create-issue
+      :init
+      (setq-default forge-database-file
+                    (expand-file-name "forge/forge-database.sqlite"
+                                      emacs-etc/)))
+
+      (setup (:straight git-timemachine)
+          (:bind
+           "[" git-timemachine-show-previous-revision
+           "]" git-timemachine-show-next-revision
+           "b" git-timemachine-blame))
+
+  (use-package ediff-wind
+    :straight nil
+    :defer t
+    :init
+    (setq ediff-window-setup-function 'ediff-setup-windows-plain
+          ediff-split-window-function 'split-window-horizontally))
+
+  (use-package diff-hl
+    :defer t
+    :hook ((prog-mode . turn-on-diff-hl-mode)
+           (text-mode . turn-on-diff-hl-mode)
+           (vc-dir-mode . turn-on-diff-hl-mode)
+           (dired-mode . diff-hl-dired-mode)))
+
+  (defun vcs-quit (&optional _kill-buffer)
+    "Clean up magit buffers after quitting `magit-status'.
+  And don't forget to refresh version control in all buffers of
+  current workspace."
+    (interactive)
+    (quit-window)
+    (unless (cdr
+             (delq nil
+                   (mapcar (lambda (win)
+                             (with-selected-window win
+                               (eq major-mode 'magit-status-mode)))
+                           (window-list))))
+      (when (fboundp 'magit-mode-get-buffers)
+        (mapc #'vcs--kill-buffer (magit-mode-get-buffers)))))
+
+  (defun vcs--kill-buffer (buffer)
+    "Gracefully kill `magit' BUFFER.
+  If any alive process is related to this BUFFER, wait for 5
+  seconds before nuking BUFFER and the process. If it's dead -
+  don't wait at all."
+    (when (and (bufferp buffer) (buffer-live-p buffer))
+      (let ((process (get-buffer-process buffer)))
+        (if (not (processp process))
+            (kill-buffer buffer)
+          (with-current-buffer buffer
+            (if (process-live-p process)
+                (run-with-timer 5 nil #'vcs--kill-buffer buffer)
+              (kill-process process)
+              (kill-buffer buffer)))))))
+
+      ;; (setup (:straight magit)
+      ;;   (setq git-commit-summary-max-length 120)
+      ;;   (setq magit-commit-show-diff nil)
+      ;;   (setq magit-delete-by-moving-to-trash nil)
+      ;;   (setq magit-display-buffer-function
+      ;;         #'magit-display-buffer-same-window-except-diff-v1)
+      ;;   (setq magit-log-auto-more t)
+      ;;   (setq magit-log-margin-show-committer-date t)
+      ;;   (setq magit-revert-buffers 'silent)
+      ;;   (setq magit-save-repository-buffers 'dontask)
+      ;;   (setq magit-wip-after-apply-mode t)
+      ;;   (setq magit-wip-after-save-mode t)
+      ;;   (setq magit-wip-before-change-mode t)
+      ;;   (setq transient-values
+      ;;         '((magit-log:magit-log-mode "--graph" "--color" "--decorate"))))
+
+      (setup magit-wip
+        (:load-after magit
+          (magit-wip-mode 1)
+          (:hide-mode)))
+
+      (setup (:straight magit-todos)
+        (:load-after magit
+          (magit-todos-mode 1)))
 #+end_src
 ** Emacs *Help* functions
 
@@ -2215,7 +2333,7 @@ for a file to visit if current buffer is not visiting a file."
 
 #+begin_src emacs-lisp :noweb-ref pkg-ui
 
-  (setup (:pkg helpful)
+  (setup (:straight helpful)
     (:when-loaded
       (:global-bind
        "C-h f" helpful-callable
@@ -2246,7 +2364,7 @@ for a file to visit if current buffer is not visiting a file."
 setup Marginalia for navigation
 #+begin_src emacs-lisp
   ;; Enable richer annotations using the Marginalia package
-  (setup (:pkg marginalia)
+  (setup (:straight marginalia)
     (:load-after vertico
 		 (marginalia-mode 1))
     (:with-map minibuffer-local-map
@@ -2257,7 +2375,7 @@ setup Marginalia for navigation
 *** Completion
 Emacs completion parlava
 #+begin_src emacs-lisp :noweb-ref pkg-completion
-  (setup (:pkg corfu)
+  (setup (:straight corfu)
     (:with-map corfu-map
       (:bind
        "TAB"  corfu-next
@@ -2292,16 +2410,16 @@ Emacs completion parlava
       (corfu-quit)))
 
   ;; Dabbrev works with Corfu
-  (setup (:pkg dabbrev)
+  (setup (:straight dabbrev)
     ;; Swap M-/ and C-M-/
     (:global "M-/"    dabbrev-completion
              "C-M-/"  dabbrev-expand))
 
-  (setup (:pkg ripgrep)
+  (setup (:straight ripgrep)
     (:needs "rg")
     (setq ripgrep-arguments "--ignore-case"))
 
-  (setup (:pkg consult)
+  (setup (:straight consult)
     (:global ;; C-c bindings (mode-specific-map)
      "C-c h" consult-history
      ;; "C-c m"  consult-mode-command
@@ -2415,7 +2533,7 @@ Emacs completion parlava
      ;;                    args))))
      ;;)
 
-    (setup (:pkg embark)
+    (setup (:straight embark)
       (:load-after (which-key avy)
         (defun embark-which-key-indicator ()
           (lambda (&optional keymap targets prefix)
@@ -2456,17 +2574,17 @@ Emacs completion parlava
               (apply fn args))))
         (:global "C-," embark-act)))
 
-    (setup (:pkg embark-consult)
+    (setup (:straight embark-consult)
       (:load-after (embark consult)
         (:with-mode embark-collect-mode
           (:hook consult-preview-at-point-mode))))
 
-    (setup (:pkg orderless)
+    (setup (:straight orderless)
       (setq completion-category-defaults nil)
       (setq completion-category-overrides '((file (styles partial-completion))))
       (setq completion-styles '(orderless)))
 
-    (setup (:pkg (vertico :files (:defaults "extensions/*")))
+    (setup (:straight (vertico :files (:defaults "extensions/*")))
       (:also-load vertico-repeat)
       (:global "M-r" #'vertico-repeat)
       ;; Different scroll margin
@@ -2521,7 +2639,7 @@ Emacs completion parlava
       ;; recursive minibuffers
       (setq enable-recursive-minibuffers nil))
 
-    (setup (:pkg cape)
+    (setup (:straight cape)
       (defun enable-cape ()
         (add-hook 'completion-at-point-functions #'cape-dabbrev 90 t)
         (add-hook 'completion-at-point-functions #'cape-file 90 t))
@@ -2555,7 +2673,7 @@ The ever changing Org setup part
     (show-paren-mode 1)     ;; show parentheses
     )
 
-  (setup (:pkg org)
+  (setup (:straight org)
     (:also-load org-tempo)
     ;; (:hook gas/org-mode-setup)
     (:global "C-c a"  org-agenda)
@@ -2669,7 +2787,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
       (org-indent-mode 1)
       (:hide-mode)))
 
-  (setup (:pkg org-appear)
+  (setup (:straight org-appear)
     (:load-after org
     (:option org-appear-autoemphasis t
              org-appear-autoentities t
@@ -2680,7 +2798,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
     (:hook-into org-mode)))
 
   (unless IS-TERMUX
-    (setup (:pkg org-superstar)
+    (setup (:straight org-superstar)
       (:load-after org
         (:option org-superstar-remove-leading-stars t
                  org-superstar-special-todo-items t
@@ -2734,7 +2852,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
   ;; '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
   ;; '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
   ;; '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
-  (setup (:pkg toc-org)
+  (setup (:straight toc-org)
     (:load-after org
       (:hook-into org-mode)))
 #+end_src
@@ -2770,7 +2888,7 @@ working. It sucked.
 **** YASSnippet
 Setup Ysnippet
 #+begin_src emacs-lisp
-(setup (:pkg yasnippet)
+(setup (:straight yasnippet)
        (:option yas-snippet-dirs (list
                                   (expand-file-name "snippets" user-emacs-directory)
                                   (sync/ "emacs/snippets" t)))
@@ -2914,7 +3032,7 @@ Setup Ysnippet
         ("c" nil "cancel"))
       )
 
-    (setup (:pkg org-roam)
+    (setup (:straight org-roam)
       (setq org-roam-v2-ack t)
       (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
             dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
@@ -3141,7 +3259,7 @@ different formats
 setup olivetti to have a distraction free editing mode
 #+begin_src emacs-lisp
   ;; Distraction-free screen
-    (setup (:pkg olivetti)
+    (setup (:straight olivetti)
       (setq olivetti-body-width .67)
       (defun distraction-free ()
         "Distraction-free writing environment"
@@ -3185,22 +3303,22 @@ Set basic subword mode and eldoc setting for prog-mode
 #+end_src
   Setup smartparens and rainbow delimiters
 #+begin_src emacs-lisp :noweb-ref code-paren
-  ;; matching braces
-  (setup (:require paren)
-    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
-    (show-paren-mode 1))
+      ;; matching braces
+      (setup (:require paren)
+        (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+        (show-paren-mode 1))
 
-  (setup (:pkg paren-face)
-    (:hook-into emacs-lisp-mode
-                ielm-mode sly-repl-mode
-                lisp-mode
-                lisp-interaction-mode
-                clojure-mode))
+      (setup (:straight paren-face)
+        (:hook-into emacs-lisp-mode
+            ielm-mode sly-repl-mode
+            lisp-mode
+            lisp-interaction-mode
+            clojure-mode))
 
-  (setup hideshow
-    (defun +hs-cycle (&optional level)
-      (interactive "p")
-      (let (message-log-max
+      (setup hideshow
+        (defun +hs-cycle (&optional level)
+          (interactive "p")
+          (let (message-log-max
             (inhibit-message t))
         (if (= level 1)
             (pcase last-command
@@ -3218,163 +3336,177 @@ Set basic subword mode and eldoc setting for prog-mode
                (hs-hide-block))
               (_
                (if (not (hs-already-hidden-p))
-                   (hs-hide-block)
-                 (hs-hide-level 1)
-                 (setq this-command 'hs-cycle-children))))
+               (hs-hide-block)
+             (hs-hide-level 1)
+             (setq this-command 'hs-cycle-children))))
           (hs-hide-level level)
           (setq this-command 'hs-hide-level))))
 
-    (defun +hs-global-cycle ()
-      (interactive)
-      (pcase last-command
+        (defun +hs-global-cycle ()
+          (interactive)
+          (pcase last-command
         ('+hs-global-cycle
          (save-excursion (hs-show-all))
          (setq this-command 'hs-global-show))
         (_ (hs-hide-all))))
-    (:with-mode hs-minor-mode
-      (:hook-into prog-mode)
-      (:bind "C-<tab>"   #'+hs-cycle
+        (:with-mode hs-minor-mode
+          (:hook-into prog-mode)
+          (:bind "C-<tab>"   #'+hs-cycle
              "C-S-<tab>" #'+hs-global-cycle)))
-  ;; Setup a "Common" ALL Lisp modes MAP
+      ;; Setup a "Common" ALL Lisp modes MAP
 
-  (setup all-lisp-modes
-    (define-minor-mode all-lisp-modes-mode
-      "Mode for enabling all modes that are common for ALL lisps.
+      (setup all-lisp-modes
+        (define-minor-mode all-lisp-modes-mode
+          "Mode for enabling all modes that are common for ALL lisps.
 
           \\<all-lisp-modes-mode-map>"
-      :lighter " Almm"
-      :keymap (make-sparse-keymap))
-    (defun all-lisp-modes-indent-or-fill-sexp ()
-      "Indent s-expression or fill string/comment."
-      (interactive)
-      (let ((ppss (syntax-ppss)))
+          :lighter " Almm"
+          :keymap (make-sparse-keymap))
+        (defun all-lisp-modes-indent-or-fill-sexp ()
+          "Indent s-expression or fill string/comment."
+          (interactive)
+          (let ((ppss (syntax-ppss)))
         (if (or (nth 3 ppss)
-                (nth 4 ppss))
+            (nth 4 ppss))
             (fill-paragraph)
           (save-excursion
             (mark-sexp)
             (indent-region (point) (mark))))))
-    (provide 'all-lisp-modes)
-    (:with-map all-lisp-modes-mode-map
-      (:bind "M-q" all-lisp-modes-indent-or-fill-sexp)))
+        (provide 'all-lisp-modes)
+        (:with-map all-lisp-modes-mode-map
+          (:bind "M-q" all-lisp-modes-indent-or-fill-sexp)))
 
-  (setup (:pkg rainbow-delimiters)
-    (setq rainbow-delimiters-max-face-count 2)
-    (:hook-into emacs-lisp-mode-hook
-                eval-expression-minibuffer-setup-hook
-                ielm-mode-hook
-                lisp-interaction-mode-hook
-                lisp-mode-hook
-                sly-mrepl-mode-hook
-                clojure-mode
-                prog-mode)
-    ;;(:hide-mode)
-    )
+      (setup (:straight rainbow-mode)
+       (:hook-into prog-mode))
 
-  (setup (:pkg smartparens)
-    (:require smartparens-config)
-    (:with-map smartparens-mode-map
-      (:bind "C-M-q" sp-indent-defun))
-    ;;(:with-map all-lisp-modes-mode-map
-    ;;  (:bind ";" sp-comment))
-    ;; use paredit bindings
-    (sp-use-paredit-bindings)
-    ;; needs to be set manually, because :bind section runs before :config
-    (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
-    (setq sp-cancel-autoskip-on-backward-movement nil)
-    (setq sp-echo-match-when-visible nil)
-    ;; Overlays are too distracting and not terribly helpful. show-parens does
-    ;; this for us already (and is faster), so...
-    (setq sp-highlight-pair-overlay nil)
-    (setq sp-highlight-wrap-overlay nil)
-    (setq sp-highlight-wrap-tag-overlay nil)
-    ;; No pair has any business being longer than 4 characters; if they must, set
-    ;; it buffer-locally. It's less work for smartparens.
-    (setq sp-max-pair-length 2)
-    ;; The default is 100, because smartparen's scans are relatively expensive
-    ;; (especially with large pair lists for some modes), we reduce it, as a
-    ;; better compromise between performance and accuracy.
-    (setq sp-max-prefix-length 32)
-    (setq sp-message-width nil)
-    (setq sp-navigate-consider-sgml-tags nil)
-    (setq sp-navigate-skip-match nil)
-    (setq sp-show-pair-from-inside t)
-    (setq sp-show-pair-delay 0)
-    (sp-pair "'" nil :actions :rem)
-    (sp-pair "`" nil :actions :rem)
-    (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
-    (defun minibuffer-enable-sp ()
-      "Enable `smartparens-strict-mode' in the minibuffer, during `eval-expression'."
-      (setq-local comment-start ";")
-      (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
-      (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
-      (sp-update-local-pairs 'minibuffer-pairs)
-      (smartparens-strict-mode 1))
+      (setup (:straight rainbow-delimiters)
+        ;;(setq rainbow-delimiters-max-face-count 2)
+        (:hook-into emacs-lisp-mode-hook
+            eval-expression-minibuffer-setup-hook
+            ielm-mode-hook
+            lisp-interaction-mode-hook
+            lisp-mode-hook
+            sly-mrepl-mode-hook
+            clojure-mode)
+    ;;    (:hide-mode)
+        )
+
+      (setup (:straight smartparens)
+        (:require smartparens-config)
+         (:with-map smartparens-mode-map
+          (:bind "C-M-q" sp-indent-defun
+                  "A-M-s"
+            (defhydra smartparens-hydra ()
+              "Smartparens"
+              ("d" sp-down-sexp "Down")
+              ("e" sp-up-sexp "Up")
+              ("u" sp-backward-up-sexp "Up")
+              ("a" sp-backward-down-sexp "Down")
+              ("f" sp-forward-sexp "Forward")
+              ("b" sp-backward-sexp "Backward")
+              ("k" sp-kill-sexp "Kill" :color blue)
+              ("q" nil "Quit" :color blue))
+                 "A-/ s"  hydra-smartparens))
+        ;;(:with-map all-lisp-modes-mode-map
+        ;;  (:bind ";" sp-comment))
+        ;; use paredit bindings
+        (sp-use-paredit-bindings)
+        ;; needs to be set manually, because :bind section runs before :config
+        (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
+        (setq sp-cancel-autoskip-on-backward-movement nil)
+        (setq sp-echo-match-when-visible nil)
+        ;; Overlays are too distracting and not terribly helpful. show-parens does
+        ;; this for us already (and is faster), so...
+        (setq sp-highlight-pair-overlay nil)
+        (setq sp-highlight-wrap-overlay nil)
+        (setq sp-highlight-wrap-tag-overlay nil)
+        ;; No pair has any business being longer than 4 characters; if they must, set
+        ;; it buffer-locally. It's less work for smartparens.
+        (setq sp-max-pair-length 2)
+        ;; The default is 100, because smartparen's scans are relatively expensive
+        ;; (especially with large pair lists for some modes), we reduce it, as a
+        ;; better compromise between performance and accuracy.
+        (setq sp-max-prefix-length 32)
+        (setq sp-message-width nil)
+        (setq sp-navigate-consider-sgml-tags nil)
+        (setq sp-navigate-skip-match nil)
+        (setq sp-show-pair-from-inside t)
+        (setq sp-show-pair-delay 0)
+        (sp-pair "'" nil :actions :rem)
+        (sp-pair "`" nil :actions :rem)
+        (sp-pair "(" nil :unless '(:rem sp-point-before-word-p))
+        (defun minibuffer-enable-sp ()
+          "Enable `smartparens-strict-mode' in the minibuffer, during `eval-expression'."
+          (setq-local comment-start ";")
+          (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
+          (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
+          (sp-update-local-pairs 'minibuffer-pairs)
+          (smartparens-strict-mode 1))
 
 
-    ;; Define a hydra
-    ;; (defhydra hydra-smartparens (:idle 1 :hint nil)
-    ;;   "
-    ;;     Sexps (quit with _q_)
+        ;; Define a hydra
+         (defhydra hydra-smartparens (:hint nil)
+           "
+             Sexps (quit with _q_)
 
-    ;;     ^Nav^            ^Barf/Slurp^          ^Depth^
-    ;;     ^---^------------^----------^----------^-----^-----------------------
-    ;;     _f_: forward     _s_:  slurp forward   _R_:      splice
-    ;;     _b_: backward    _S_:  barf forward    _r_:      raise
-    ;;     _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
-    ;;     _e_: end         _D_:  barf backward   _<down>_: raise forward
-    ;;     _m_: mark
+             ^Nav^            ^Barf/Slurp^          ^Depth^
+             ^---^------------^----------^----------^-----^-----------------------
+             _f_: forward     _s_:  slurp forward   _R_:      splice
+             _b_: backward    _S_:  barf forward    _r_:      raise
+             _a_: begin       _d_:  slurp backward  _<up>_:   raise backward
+             _e_: end         _D_:  barf backward   _<down>_: raise forward
+             _m_: mark
 
-    ;;     ^Kill^           ^Misc^                       ^Wrap^
-    ;;     ^----^-----------^----^-----------------------^----^------------------
-    ;;     _w_: copy        _j_: join                    _(_: wrap with ( )
-    ;;     _k_: kill        _s_: split                   _{_: wrap with { }
-    ;;     ^^               _t_: transpose               _'_: wrap with ' '
-    ;;     ^^               _c_: convolute               _\"_: wrap with \" \"
-    ;;     ^^               _i_: indent defun"
-    ;;   ("q" nil)
-    ;;   ;; Wrapping
-    ;;   ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
-    ;;   ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
-    ;;   ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
-    ;;   ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
-    ;;   ;; Navigation
-    ;;   ("f" sp-beginning-of-next-sexp)
-    ;;   ("b" sp-beginning-of-previous-sexp)
-    ;;   ("a" sp-beginning-of-sexp)
-    ;;   ("e" sp-end-of-sexp)
-    ;;   ("m" sp-mark-sexp)
-    ;;   ;; Kill/copy
-    ;;   ("w" sp-copy-sexp :exit t)
-    ;;   ("k" sp-kill-sexp :exit t)
-    ;;   ;; Misc
-    ;;   ("t" sp-transpose-sexp)
-    ;;   ("j" sp-join-sexp)
-    ;;   ("c" sp-convolute-sexp)
-    ;;   ("i" sp-indent-defun)
-    ;;   ;; Depth changing
-    ;;   ("R" sp-splice-sexp)
-    ;;   ("r" sp-splice-sexp-killing-around)
-    ;;   ("<up>" sp-splice-sexp-killing-backward)
-    ;;   ("<down>" sp-splice-sexp-killing-forward)
-    ;;   ;; Barfing/slurping
-    ;;   ("s" sp-forward-slurp-sexp)
-    ;;   ("S" sp-forward-barf-sexp)
-    ;;   ("D" sp-backward-barf-sexp)
-    ;;   ("d" sp-backward-slurp-sexp))
-    (:with-hook (emacs-lisp-mode-hook
-                 expression-minibuffer-setup-hook
-                 ielm-mode-hook
-                 lisp-interaction-mode-hook
-                 lisp-mode-hook
-                 all-lisp-modes-mode-map
-                 sly-mrepl-mode-hook
-                 clojure-mode-hook
-                 clojurescript-mode-hook
-                 cider-repl-mode-hook)
-      (:hook smartparens-strict-mode))
-    ;; (:hide-mode)
-    )
+             ^Kill^           ^Misc^                       ^Wrap^
+             ^----^-----------^----^-----------------------^----^------------------
+             _w_: copy        _j_: join                    _(_: wrap with ( )
+             _k_: kill        _s_: split                   _{_: wrap with { }
+             ^^               _t_: transpose               _'_: wrap with ' '
+             ^^               _c_: convolute               _\"_: wrap with \" \"
+             ^^               _i_: indent defun"
+           ("q" nil)
+           ;; Wrapping
+           ("(" (lambda (a) (interactive "P") (sp-wrap-with-pair "(")))
+           ("{" (lambda (a) (interactive "P") (sp-wrap-with-pair "{")))
+           ("'" (lambda (a) (interactive "P") (sp-wrap-with-pair "'")))
+           ("\"" (lambda (a) (interactive "P") (sp-wrap-with-pair "\"")))
+           ;; Navigation
+           ("f" sp-beginning-of-next-sexp)
+           ("b" sp-beginning-of-previous-sexp)
+           ("a" sp-beginning-of-sexp)
+           ("e" sp-end-of-sexp)
+           ("m" sp-mark-sexp)
+           ;; Kill/copy
+           ("w" sp-copy-sexp :exit t)
+           ("k" sp-kill-sexp :exit t)
+           ;; Misc
+           ("t" sp-transpose-sexp)
+           ("j" sp-join-sexp)
+           ("c" sp-convolute-sexp)
+           ("i" sp-indent-defun)
+           ;; Depth changing
+           ("R" sp-splice-sexp)
+           ("r" sp-splice-sexp-killing-around)
+           ("<up>" sp-splice-sexp-killing-backward)
+           ("<down>" sp-splice-sexp-killing-forward)
+           ;; Barfing/slurping
+           ("s" sp-forward-slurp-sexp)
+           ("S" sp-forward-barf-sexp)
+           ("D" sp-backward-barf-sexp)
+           ("d" sp-backward-slurp-sexp))
+        (:with-hook (emacs-lisp-mode-hook
+             expression-minibuffer-setup-hook
+             ielm-mode-hook
+             lisp-interaction-mode-hook
+             lisp-mode-hook
+             all-lisp-modes-mode-map
+             sly-mrepl-mode-hook
+             clojure-mode-hook
+             clojurescript-mode-hook
+             cider-repl-mode-hook)
+          (:hook smartparens-strict-mode))
+        ;; (:hide-mode)
+        )
 #+end_src
 *** Emacs Lisp
 ielm setup
@@ -3451,19 +3583,19 @@ ielm setup
              "C-c C-z" #'ielm )
     (advice-add #'eval-region :around #'+eval-region@pulse)))
 
-  (setup (:pkg elisp-slime-nav)
+  (setup (:straight elisp-slime-nav)
     (:load-after ielm
       (:hook-into emacs-lisp-mode ielm-mode)
       (:hide-mode)))
 
-  (setup (:pkg ielm)
+  (setup (:straight ielm)
     (:load-after comint
       (:with-map ielm-map
         (:bind
          [up] comint-previous-input
          [down] comint-next-input))))
 
-  (setup (:pkg macrostep)
+  (setup (:straight macrostep)
     (:with-map macrostep-keymap
       (:bind
        [tab] macrostep-next-macro
@@ -3481,7 +3613,7 @@ SLY setup
     (let ((current-prefix-arg '-))
       (sly nil nil t)))
 
-  (setup (:pkg sly)
+  (setup (:straight sly)
     (:when-loaded
       (sly-setup '(sly-fancy)))
     (setq sly-command-switch-to-existing-lisp 'always)
@@ -3501,7 +3633,7 @@ Cider has a lot of options to customise, and here are the ones I think are most 
 Source comes from: [[https://stackoverflow.com/a/31080940]]
 #+begin_src elisp :noweb-ref code-clojure
 
-  (setup (:pkg clojure-mode)
+  (setup (:straight clojure-mode)
     (:with-hook (clojure-mode
 		 clojurec-mode
 		 clojurescript-mode)
@@ -3536,7 +3668,7 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 		      (executable-find "clojure"))
 		 (setq-local compile-command "clojure ")))))))
 
-  (setup (:pkg cider)
+  (setup (:straight cider)
     (:load-after clojure-mode
       (:option nrepl-log-messages nil
 	       nrepl-use-ssh-fallback-for-remote-hosts t
@@ -3572,15 +3704,15 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
   ;;(add-hook 'cider-mode-hook #'imenu-add-menubar-index)
 
 
-  (setup (:pkg async))
-  (setup (:pkg ob-async))
-  (setup (:pkg ob-clojurescript))
-  ;;(setup (:pkg ob-babel-eval-in-repl))
+  (setup (:straight async))
+  (setup (:straight ob-async))
+  (setup (:straight ob-clojurescript))
+  ;;(setup (:straight ob-babel-eval-in-repl))
 
-  (setup (:pkg flycheck-clj-kondo)
+  (setup (:straight flycheck-clj-kondo)
     :only-if (executable-find "clj-kondo"))
 
-  ;;(setup (:pkg eval-in-repl))
+  ;;(setup (:straight eval-in-repl))
 
 #+end_src
 
@@ -3641,9 +3773,9 @@ Setup of Fennel and Lua
 
 #+begin_src emacs-lisp
 
-(setup (:pkg lua-mode))
+(setup (:straight lua-mode))
 
-(setup (:pkg fennel-mode)
+(setup (:straight fennel-mode)
 (:bind "C-c C-k"  eval-each-sexp)
 (put 'global 'fennel-indent-function 1)
   (put 'local 'fennel-indent-function 1)
@@ -3676,7 +3808,7 @@ Setup of Fennel and Lua
         (switch-to-lisp t)))
   )
 
-  (setup (:pkg ssh-config-mode)
+  (setup (:straight ssh-config-mode)
   (:file-match (rx "/.ssh/config" eos)
                (rx "/ssh" (? "d") "_config" eos))
   (:with-mode ssh-known-hosts-mode
@@ -3704,7 +3836,7 @@ When at the beginning of the line, make Ctrl-K remove the whole line, instead of
 One of the few things I missed in Emacs from vi was the % key, which jumps to the parenthesis, bracket or brace which matches the one below the cursor. This function implements this functionality, bound to the same key. Inspired by NavigatingParentheses, but modified to use smartparens instead of the default commands, and to work on brackets and braces.
 #+begin_src emacs-lisp
   (setup
-      (:pkg smartparens)
+      (:straight smartparens)
     (defun zz/goto-match-paren (arg)
       "Go to the matching paren/bracket, otherwise (or if ARG is not
       nil) insert %.  vi style of % jumping to matching brace."
@@ -3817,11 +3949,8 @@ Setup emacs paths and directory constants
 ;; This module defines path constants used across other modules.
 ;;
 ;;; Code:
-;;(+with-message "Setup Emacs path"
 
 <<path-config>>
-
-;;) ;; end of +with-message
 
 (provide 'config-path)
 ;;; config-path.el ends here
@@ -3915,7 +4044,6 @@ File for my constants, macros and functions
 ;;; init-fn-macros.el ends here
 #+end_src
 
-
 ** ELPA package management
 :PROPERTIES:
 :header-args: :tangle lisp/init-elpa.el :noweb yes
@@ -3932,19 +4060,19 @@ File for my constants, macros and functions
    ;; repositories. Enable configuration via `setup'.
    ;;; Code:
 
-  ;; (+with-message "setup ELPA"
-     (require 'config-path)
+   (require 'config-path)
+   ;;(+with-message "setup ELPA"
 
      <<straight-setup>>
      ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
      ;; installing and loading packages.
      <<setup-pkgmgr>>
-   ;;;============================================================================ ;;; Custom setup.el local macros
+   ;;;============================================================================
+   ;;; Custom setup.el local macros
    ;;; ============================================================================
 
      <<setup-macros>>
-
-   ;;  ) ;; end of +with-message
+   ;;) ;; end of +with-message
 
    (provide 'init-elpa)
    ;;; init-elpa.el ends here
@@ -4021,7 +4149,7 @@ Setup Emacs builtins
 
 #+begin_src emacs-lisp
     ;;; enfer-pkg-builtin.el --- Builtins -*- lexical-binding: t -*-
-        <<disclaimer>>
+    <<disclaimer>>
     ;;; Code:
 
    (+with-message "Builtins"
@@ -4093,7 +4221,7 @@ Setup Emacs builtins
 
           (setup dired
           (:also-load dired-x)
-          (:pkg dired-collapse
+          (:straight dired-collapse
                 dired-git-info
                 dired-single
                 dired-subtree
@@ -4216,7 +4344,6 @@ Setup utility packages
 
 Setup Editor functions
 
-
 #+begin_src emacs-lisp
   ;;; init-editor.el --- Editor  -*- lexical-binding: t -*-
   <<disclaimer>>
@@ -4276,6 +4403,105 @@ Setup the Emacs buffer
   (provide 'init-buffer)
    ;;; init-buffer.el ends here
 #+end_src
+
+*** lib-buffer
+:PROPERTIES:
+:header-args: :tangle lisp/lib-buffer.el :noweb yes
+:END:
+
+Autoloads for buffers
+#+begin_src emacs-lisp
+    ;;; lib-buffer.el --- Utilities for working with Buffers -*- lexical-binding: t -*-
+  <<disclaimer>>
+    ;;; Code:
+
+  ;;;###autoload
+  (defun buffer-content (buffer-or-name)
+    "Return content of BUFFER-OR-NAME.
+  Resulting string is full of properties. Consider using
+  `substring-no-properties':
+    (substring-no-properties (buffer-content BUFFER-OR-NAME))"
+    (with-current-buffer buffer-or-name
+      (buffer-substring (point-min)
+                        (point-max))))
+
+  ;;;###autoload
+  (defun buffer-lines (buffer-or-name)
+    "Return lines of BUFFER-OR-NAME.
+  Each line is a string with properties. Trailing newline character
+  is not present."
+    (buffer-lines-map buffer-or-name #'identity))
+
+  ;;;###autoload
+  (defun buffer-lines-map (buffer-or-name fn)
+    "Call FN on each line of BUFFER-OR-NAME and return resulting list.
+  As opposed to `buffer-lines-each', this function accumulates
+  result.
+  Each line is a string with properties. Trailing newline character
+  is not present."
+    (declare (indent 1))
+    (with-current-buffer buffer-or-name
+      (goto-char (point-min))
+      (let ((result))
+        (while (not (eobp))
+          (setq
+           result
+           (cons
+            (funcall fn (buffer-substring
+                         (line-beginning-position)
+                         (line-end-position)))
+            result))
+          (forward-line))
+        (reverse result))))
+
+  ;;;###autoload
+  (defun buffer-lines-each (buffer-or-name fn)
+    "Call FN on each line of BUFFER-OR-NAME.
+  As opposed to `buffer-lines-map', this function does not
+  accumulate any result and should used for side-effects.
+  Each line is a string with properties. Trailing newline character
+  is not present."
+    (declare (indent 1))
+    (with-current-buffer buffer-or-name
+      (goto-char (point-min))
+      (while (not (eobp))
+        (funcall fn (buffer-substring
+                     (line-beginning-position)
+                     (line-end-position)))
+        (forward-line))))
+
+  ;;;###autoload
+  (defun buffer-lines-each-t (buffer-or-name fn)
+    "Call FN on each line of BUFFER-OR-NAME and replace it by result.
+  Each line is a string with properties. Trailing newline character
+  is not present."
+    (declare (indent 1))
+    (with-current-buffer buffer-or-name
+      (goto-char (point-min))
+      (let (l0 l1 s)
+        (while (not (eobp))
+          (setq l0 (line-beginning-position))
+          (setq l1 (line-end-position))
+          (setq s (buffer-substring l0 l1))
+          (replace-region-contents l0 l1 (lambda () (funcall fn s)))
+          (forward-line)))))
+
+  ;;;###autoload
+  (defun buffer-generate (name &optional unique inhibit-buffer-hooks)
+    "Create and return a buffer with a name based on NAME.
+  Unless UNIQUE, choose the buffer’s name using
+  ‘generate-new-buffer-name’. Otherwise if buffer with NAME already
+  exists, recreate it.
+  See ‘get-buffer-create’ for the meaning of INHIBIT-BUFFER-HOOKS."
+    (when unique
+      (when-let ((buffer (get-buffer name)))
+        (kill-buffer buffer)))
+    (generate-new-buffer name inhibit-buffer-hooks))
+
+  (provide 'lib-buffer)
+  ;;; lib-buffer.el ends here
+
+#+end_src
 ** Emacs Completion Frameworks
 :PROPERTIES:
 :header-args: :tangle lisp/enfer-pkg-completion.el :noweb yes
@@ -4298,42 +4524,72 @@ Setup embark, vertico and consult
 #+end_src
 ** Emacs Windows
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-pkg-window.el :noweb yes
+:header-args: :tangle lisp/init-window.el :noweb yes
 :END:
 
 windose
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-window.el --- Windose -*- lexical-binding: t -*-
+  ;;; init-window.el --- Windose -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
   (+with-message "Windose(w)"
-  <<pkg-window>>
+  <<windose>>
   )
-  (provide 'enfer-pkg-window)
-   ;;; enfer-pkg-window.el ends here
+  (provide 'init-window)
+   ;;; init-window.el ends here
 #+end_src
 ** Projects
 :PROPERTIES:
-:header-args: :tangle lisp/enfer-pkg-project.el :noweb yes
+:header-args: :tangle lisp/init-project.el :noweb yes
 :END:
 
 Setup projects
 
 
 #+begin_src emacs-lisp
-  ;;; enfer-pkg-project.el --- Projects -*- lexical-binding: t -*-
+  ;;; init-project.el --- Projects -*- lexical-binding: t -*-
   <<disclaimer>>
   ;;; Code:
 
+(require 'lib-eval)
+(require 'config-path)
+(require 'init-vcs)
+(require 'init-kbd)
+(require 'project)
   (+with-message "Projets"
-  <<pkg-project>>
 
-  )
+    <<projet>>
 
-  (provide 'enfer-pkg-project)
-   ;;; enfer-pkg-project.el ends here
+    )
+
+  (provide 'init-project)
+ ;;; init-project.el ends here
+#+end_src
+** VCS
+:PROPERTIES:
+:header-args: :tangle lisp/init-vcs.el :noweb yes
+:END:
+
+Setup Magit & Git
+
+#+begin_src emacs-lisp
+  ;;; init-vcs.el --- Magit  -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  ;;(require 'lib-hook)
+  (require 'config-path)
+  (require 'init-elpa)
+  (+with-message "Git.."
+
+    <<vcs>>
+
+    )
+
+  (provide 'init-vcs)
+;;; init-vcs.el ends here
 #+end_src
 ** Org mode workflow
 :PROPERTIES:
@@ -4362,7 +4618,7 @@ Setup Coding languages
 Setup the basic Coding IDE
 
 *** LISP setup
-:PROPERTIES:
+:Properties:
 :header-args: :tangle lisp/init-lisp.el :noweb yes
 :END:
 Smartparens setup here
@@ -4375,6 +4631,32 @@ Smartparens setup here
 
   (provide 'init-lisp)
    ;;; init-lisp.el ends here
+#+end_src
+
+**** Eval lib
+:PROPERTIES:
+:header-args: :tangle lisp/lib-eval.el :noweb yes
+:END:
+Smartparens setup here
+#+begin_src emacs-lisp
+  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+(defmacro eval-with-default-dir (dir &rest body)
+  "Invoke in DIR the BODY."
+  (declare (debug t) (indent 1))
+  `(let ((default-directory ,dir))
+     ,@body))
+
+(cl-flet ((always-yes (&rest _) t))
+  (defun eval-no-confirm (fun &rest args)
+    "Apply FUN to ARGS, skipping user confirmations."
+    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
+              ((symbol-function 'yes-or-no-p) #'always-yes))
+      (apply fun args))))
+
+  (provide 'lib-eval)
+   ;;; lib-eval.el ends here
 #+end_src
 *** Emacs-lisp setup
 :PROPERTIES:
@@ -4432,53 +4714,91 @@ Smartparens setup here
   (provide 'enfer-code-fennel)
   ;;; enfer-code-fennel.el ends here
 #+end_src
-** config.el
+** Communications
 :PROPERTIES:
-:header-args: :tangle no :noweb yes
+:header-args: :tangle lisp/init-telega.el :noweb yes
 :END:
 
-While =config.el= is written above, I use Noweb references to tangle
-them all together in the following block, which enables me to organise
-my config here /logically/, while keeping the generated file organised
-/programmatically/.
-
-*** Enable lexical binding
+*** Telega setup
 
 #+begin_src emacs-lisp
-  ;;; config.el --- personal configuration -*- lexical-binding: t -*-
+  ;;; init-telega.el --- personal configuration -*- lexical-binding: t -*-
+(require 'init-elpa)
+(require 'init-kbd)
+
+(use-package telega
+  :straight (telega
+             :type git
+             :host github
+             :repo "zevlg/telega.el"
+             :branch "releases"
+             :files (:defaults "contrib" "etc" "server" "Makefile"))
+  :defer t
+  :hook ((telega-chat-mode . ui-reset-line-spacing)
+         (telega-chat-mode . editor-disable-electric-pair))
+  :general
+  (leader-def
+    "t" '(:keymap telega-prefix-map))
+  :init
+  (when elpa-bootstrap-p
+    (require 'telega-server)
+    (require 'lib-nix)
+    (let ((exec-path (cons telega-directory exec-path))
+          (default-directory telega--lib-directory))
+      (unless (executable-find "telega-server")
+        (nix-shell-command
+         :message-intro "building telega-server..."
+         :message-error "Failed to build telega-server"
+         :deps '("pkg-config" "tdlib")
+         :command (concat
+                   (or (executable-find "gmake")
+                       "make")
+                   " "
+                   "LIBS_PREFIX="
+                   (expand-file-name telega-server-libs-prefix) " "
+                   "INSTALL_PREFIX="
+                   (expand-file-name telega-directory) " "
+                   "server-reinstall"))))))
 #+end_src
 
 
-*** The rest
+*** Compatability Utilities
+:PROPERTIES:
+:header-args: :tangle lisp/lib-compat.el :noweb yes
+:END:
+
 
 #+begin_src emacs-lisp
-  <<disclaimer>>
-  ;;; Code:
+  ;;; lib-compat.el --- Compatability utilities  -*- lexical-binding: t -*-
+    <<disclaimer>>
+    ;;; Code:
 
+  ;;;###autoload
+  (defun cl--plist-remove (plist member)
+    "Remove MEMBER from PLIST.
+  `telega' needs this function."
+    (cond
+     ((null plist) nil)
+     ((null member) plist)
+     ((eq plist member) (cddr plist))
+     (t `(,(car plist) ,(cadr plist)
+          ,@(cl--plist-remove (cddr plist) member)))))
 
+    ;;; SYSTEM-DEPENDENT SETTINGS
+    ;; at home
+    (eval-and-compile
+      (when (memq system-type '(gnu gnu/linux darwin))
+        <<linux-specific>>
+        ))
 
-  ;;; SYSTEM-DEPENDENT SETTINGS
-  ;; at home
-  (eval-and-compile
-    (when (memq system-type '(gnu gnu/linux darwin))
-      <<linux-specific>>
-      ))
+    ;; at work
+    (eval-and-compile
+      (when (memq system-type '(ms-dos windows-nt))
+        <<windows-specific>>
+        ))
 
-  ;; at work
-  (eval-and-compile
-    (when (memq system-type '(ms-dos windows-nt))
-      <<windows-specific>>
-      ))
-
-  ;;; MODES
-  <<modes>>
-
-  ;;; HOOKS
-  <<hooks>>
-
-  ;;; BINDINGS
-  <<bindings>>
-  ;;; config.el ends here
+  (provide 'lib-compat)
+  ;;; lib-compat.el ends here
 #+end_src
 *** Ease of editing
 :PROPERTIES:
@@ -4595,31 +4915,28 @@ The goal of this file is to require all init-xxx files. The structure is trivial
   (require 'init-editor)
   (require 'init-ui)
   (require 'init-buffer)
-  ;;  (require 'init-window)
+  (require 'init-window)
   ;;  (require 'enfer-emacs-sanity)
   (require 'enfer-emacs-startup)
-     ;;; utilities
+;;; utilities
   ;;  (require 'init-selection)
-  ;;  (require 'init-project)
-  ;;  (require 'init-vcs)
+  (require 'init-project)
+  (require 'init-vcs)
   ;;  (require 'init-ide)
   ;;  (require 'enfer-pkg-ui)
   ;; (require 'enfer-pkg-editor)
   (require 'enfer-pkg-completion)
-  (require 'enfer-pkg-window)
-  (require 'enfer-pkg-project)
+  ;;(require 'enfer-pkg-window)
   (require 'enfer-pkg-org)
   (require 'enfer-pkg-builtin)
 
-
-                     ;;; languages
+;;; languages
   (require 'init-lisp)
   (require 'enfer-code-elisp)
   (require 'enfer-code-common-lisp)
   (require 'init-clojure)
   (require 'enfer-code-fennel)
   (require 'enfer-pkg-util)
-  (require 'enfer-key-bindings)
 
   ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
   ;; variables into `custom-file'. And to be honest, I hate to allow
@@ -4847,7 +5164,7 @@ the package manager or the UI code.
   ;;; Code:
 
 
-  (provide 'lib-vcs)
+  (provide 'lib-notdone)
   ;;; lib-vcs.el ends here
 #+end_src
 *** VCS
