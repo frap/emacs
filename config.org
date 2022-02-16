@@ -630,8 +630,8 @@ Some constants that I use.
     (setq which-key-sort-order 'which-key-key-order-alpha)
     (setq which-key-sort-uppercase-first nil)
     (which-key-setup-minibuffer)
-    (:with-hook which-key-init-buffer-hook
-      (:hook (lambda (setq line-spacing 4))))
+  ;;  (:with-hook which-key-init-buffer-hook
+   ;;   (:hook (lambda (setq line-spacing 4))))
     (:hide-mode))
 #+end_src
 keychords with hydra
@@ -3816,6 +3816,19 @@ Setup of Fennel and Lua
   (:with-mode ssh-authorized-keys-mode
     (:file-match (rx "/authorized_keys" (? "2") eos))))
 #+end_src
+*** Statistics
+Emacs Speaks Statistics
+#+begin_src emacs-lisp :noweb-ref ess
+  (use-package ess
+      :commands stata SAS
+    :config
+    (setq ess-offset-continued 'straight
+          ess-use-flymake 1
+          ess-nuke-trailing-whitespace-p t
+          ess-style 'DEFAULT
+          ess-history-directory (expand-file-name "ess-history/" emacs-cache/)))
+#+end_src
+
 * Keybindings
 :PROPERTIES:
 :header-args: :noweb-ref keyboard
@@ -4621,7 +4634,7 @@ Setup the basic Coding IDE
 :Properties:
 :header-args: :tangle lisp/init-lisp.el :noweb yes
 :END:
-Smartparens setup here
+LISP Common setup here
 #+begin_src emacs-lisp
   ;;; init-lisp.el --- Code LISP -*- lexical-binding: t -*-
   <<disclaimer>>
@@ -4714,6 +4727,48 @@ Smartparens setup here
   (provide 'enfer-code-fennel)
   ;;; enfer-code-fennel.el ends here
 #+end_src
+*** ESS setup
+:Properties:
+:header-args: :tangle lisp/init-lisp.el :noweb yes
+:END:
+Emacs Speaks Statisitcs setup here
+#+begin_src emacs-lisp
+  ;;; init-ess.el --- Code ESS -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<ess>>
+
+  (provide 'init-ess)
+   ;;; init-ess.el ends here
+#+end_src
+
+**** Eval lib
+:PROPERTIES:
+:header-args: :tangle lisp/lib-eval.el :noweb yes
+:END:
+Smartparens setup here
+#+begin_src emacs-lisp
+  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+(defmacro eval-with-default-dir (dir &rest body)
+  "Invoke in DIR the BODY."
+  (declare (debug t) (indent 1))
+  `(let ((default-directory ,dir))
+     ,@body))
+
+(cl-flet ((always-yes (&rest _) t))
+  (defun eval-no-confirm (fun &rest args)
+    "Apply FUN to ARGS, skipping user confirmations."
+    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
+              ((symbol-function 'yes-or-no-p) #'always-yes))
+      (apply fun args))))
+
+  (provide 'lib-eval)
+   ;;; lib-eval.el ends here
+#+end_src
+
 ** Communications
 :PROPERTIES:
 :header-args: :tangle lisp/init-telega.el :noweb yes
@@ -4908,44 +4963,45 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 #+end_src
 
 #+begin_src emacs-lisp
-  ;;; core
-  (require 'init-env)
-  (require 'init-kbd)
-  (require 'init-fn-macros)
-  (require 'init-editor)
-  (require 'init-ui)
-  (require 'init-buffer)
-  (require 'init-window)
-  ;;  (require 'enfer-emacs-sanity)
-  (require 'enfer-emacs-startup)
-;;; utilities
-  ;;  (require 'init-selection)
-  (require 'init-project)
-  (require 'init-vcs)
-  ;;  (require 'init-ide)
-  ;;  (require 'enfer-pkg-ui)
-  ;; (require 'enfer-pkg-editor)
-  (require 'enfer-pkg-completion)
-  ;;(require 'enfer-pkg-window)
-  (require 'enfer-pkg-org)
-  (require 'enfer-pkg-builtin)
+    ;;; core
+    (require 'init-env)
+    (require 'init-kbd)
+    (require 'init-fn-macros)
+    (require 'init-editor)
+    (require 'init-ui)
+    (require 'init-buffer)
+    (require 'init-window)
+    ;;  (require 'enfer-emacs-sanity)
+    (require 'enfer-emacs-startup)
+  ;;; utilities
+    ;;  (require 'init-selection)
+    (require 'init-project)
+    (require 'init-vcs)
+    ;;  (require 'init-ide)
+    ;;  (require 'enfer-pkg-ui)
+    ;; (require 'enfer-pkg-editor)
+    (require 'enfer-pkg-completion)
+    ;;(require 'enfer-pkg-window)
+    (require 'enfer-pkg-org)
+    (require 'enfer-pkg-builtin)
 
-;;; languages
-  (require 'init-lisp)
-  (require 'enfer-code-elisp)
-  (require 'enfer-code-common-lisp)
-  (require 'init-clojure)
-  (require 'enfer-code-fennel)
-  (require 'enfer-pkg-util)
+  ;;; languages
+    (require 'init-lisp)
+    (require 'enfer-code-elisp)
+    (require 'enfer-code-common-lisp)
+    (require 'init-clojure)
+    (require 'enfer-code-fennel)
+    (require 'init-ess)
+    (require 'enfer-pkg-util)
 
-  ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
-  ;; variables into `custom-file'. And to be honest, I hate to allow
-  ;; them every time I restart Emacs.
-  (when (file-exists-p custom-file)
-    (load custom-file nil 'nomessage))
+    ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
+    ;; variables into `custom-file'. And to be honest, I hate to allow
+    ;; them every time I restart Emacs.
+    (when (file-exists-p custom-file)
+      (load custom-file nil 'nomessage))
 
-  (provide 'init)
-    ;;; init.el ends here
+    (provide 'init)
+      ;;; init.el ends here
 #+end_src
 *** Load the config -disabled
 
