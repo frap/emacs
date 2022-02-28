@@ -589,26 +589,26 @@ Some constants that I use.
 
 ** Keyboard
 #+begin_src emacs-lisp :noweb-ref keyboard
-  ;;   (defvar kbd-escape-hook nil
-  ;;   "A hook run after \\[keyboard-quit] is pressed.
-  ;; Triggers `kbd-escape'.
-  ;; If any hook returns non-nil, all hooks after it are ignored.")
+   (defvar kbd-escape-hook nil
+     "A hook run after \\[keyboard-quit] is pressed.
+   Triggers `kbd-escape'.
+   If any hook returns non-nil, all hooks after it are ignored.")
 
-  ;; (defun kbd-escape ()
-  ;;   "Run the `kbd-escape-hook'."
-  ;;   (interactive)
-  ;;   (cond ((minibuffer-window-active-p (minibuffer-window))
-  ;; 	 ;; quit the minibuffer if open.
-  ;; 	 (abort-recursive-edit))
-  ;; 	;; Run all escape hooks. If any returns non-nil, then stop
-  ;; 	;; there.
-  ;; 	((cl-find-if #'funcall kbd-escape-hook))
-  ;; 	;; don't abort macros
-  ;; 	((or defining-kbd-macro executing-kbd-macro) nil)
-  ;; 	;; Back to the default
-  ;; 	((keyboard-quit))))
+   (defun kbd-escape ()
+     "Run the `kbd-escape-hook'."
+     (interactive)
+     (cond ((minibuffer-window-active-p (minibuffer-window))
+   	 ;; quit the minibuffer if open.
+   	 (abort-recursive-edit))
+   	;; Run all escape hooks. If any returns non-nil, then stop
+   	;; there.
+   	((cl-find-if #'funcall kbd-escape-hook))
+   	;; don't abort macros
+   	((or defining-kbd-macro executing-kbd-macro) nil)
+   	;; Back to the default
+   	((keyboard-quit))))
 
-  ;; (global-set-key [remap keyboard-quit] #'kbd-escape)
+   (global-set-key [remap keyboard-quit] #'kbd-escape)
 
     (setup (:straight which-key)
      (which-key-mode 1)
@@ -618,26 +618,29 @@ Some constants that I use.
     (setq which-key-max-display-columns nil)
     (setq which-key-min-display-lines 6)
     (setq which-key-replacement-alist
-          '((("left") . ("🡸"))
-            (("right") . ("🡺"))
-            (("up") . ("🡹"))
-            (("down") . ("🡻"))
-            (("delete") . ("DEL"))
-            (("\\`DEL\\'") . ("BKSP"))
-            (("RET") . ("⏎"))
-            (("next") . ("PgDn"))
-            (("prior") . ("PgUp"))))
+	  '((("left") . ("🡸"))
+	    (("right") . ("🡺"))
+	    (("up") . ("🡹"))
+	    (("down") . ("🡻"))
+	    (("delete") . ("DEL"))
+	    (("\\`DEL\\'") . ("BKSP"))
+	    (("RET") . ("⏎"))
+	    (("next") . ("PgDn"))
+	    (("prior") . ("PgUp"))))
     (setq which-key-sort-order 'which-key-key-order-alpha)
     (setq which-key-sort-uppercase-first nil)
     (which-key-setup-minibuffer)
   ;;  (:with-hook which-key-init-buffer-hook
    ;;   (:hook (lambda (setq line-spacing 4))))
     (:hide-mode))
+
 #+end_src
 keychords with hydra
 #+begin_src emacs-lisp :noweb-ref keyboard
-  (setup (:straight hydra)
-    (require 'hydra))
+
+(setup (:straight hydra)
+  (require 'hydra))
+
 #+end_src
 * Emacs Packages
 ** Utility Functions & macros
@@ -2654,22 +2657,15 @@ Emacs completion parlava
 Setup d12frosted's vulpea
 
 #+begin_src emacs-lisp
-  (setup (:straight vulpea
-		    :type git
-		    :host github
-		    :repo "d12frosted/vulpea")
-    (:global   "C-c n f"   vulpea-find
-	       "C-c n F"   vulpea-find-backlink
-	       "C-c n d"   vulpea-dailies-date
-	       "C-c n d t" vulpea-dailies-today
-	       "C-c n d n" vulpea-dailies-next
-	       "C-c n d p" vulpea-dailies-prev
-	       "C-c n i"   vulpea-insert
-	       "C-c n t"   vulpea-tags-add
-	       "C-c n T"   vulpea-tags-delete
-	       "C-c n a"   vulpea-alias-add
-	       "C-c n A"   vulpea-alias-delete
-	       )
+  (use-package vulpea
+    :straight (vulpea
+	       :type git
+	       :host github
+	       :repo "d12frosted/vulpea")
+    :defer t
+    :hook ((before-save . vulpea-pre-save-hook)
+	   (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
+    :init
     (add-to-list 'window-buffer-change-functions
 		 #'vulpea-setup-buffer)
     (add-hook 'vulpea-insert-handle-functions
@@ -2680,319 +2676,326 @@ Setup d12frosted's vulpea
        (= (vulpea-note-level note) 0))
      vulpea-insert-default-filter
      (lambda (note)
-       (= (vulpea-note-level note) 0)))
+       (= (vulpea-note-level note) 0))))
 
-  (use-package vulpea
-    :defer t
-    :hook ((before-save . vulpea-pre-save-hook)
-	   (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
-    )
+    (setup vulpea
+      (:global   "C-c n f"   vulpea-find
+		 "C-c n F"   vulpea-find-backlink
+		 "C-c n d"   vulpea-dailies-date
+	;;;	 "C-c n d t" vulpea-dailies-today
+	;;;	 "C-c n d n" vulpea-dailies-next
+	;;;	 "C-c n d p" vulpea-dailies-prev
+		 "C-c n i"   vulpea-insert
+		 "C-c n t"   vulpea-tags-add
+		 "C-c n T"   vulpea-tags-delete
+		 "C-c n a"   vulpea-alias-add
+		 "C-c n A"   vulpea-alias-delete
+		 ))
 
-  (use-package org
-    :hook ((org-mode . visual-line-mode)
-	   (org-mode . adaptive-wrap-prefix-mode)
-	   ;; oh, how much I hate it in Org mode buffers
-	   (org-mode . editor-disable-electric-indent))
-    :commands (org-check-agenda-file
-	       org-link-set-parameters)
-    :init
-    ;; This is where my ~heart~ org files are.
-     (setq org-directory
-	(if IS-TERMUX
-	    "~/storage/shared/org"
-	  vulpea-directory))
+    (use-package org
+      :hook ((org-mode . visual-line-mode)
+	     (org-mode . adaptive-wrap-prefix-mode)
+	     ;; oh, how much I hate it in Org mode buffers
+	     (org-mode . editor-disable-electric-indent))
+      :commands (org-check-agenda-file
+		 org-link-set-parameters)
+      :init
+      ;; This is where my ~heart~ org files are.
+       (setq org-directory
+	  (if IS-TERMUX
+	      "~/storage/shared/org"
+	    vulpea-directory))
 
-    (defun /org-path (path)
-      (expand-file-name path org-directory))
+      (defun /org-path (path)
+	(expand-file-name path org-directory))
 
-     (setq org-default-notes-file (/org-path "inbox.org"))  
-    ;; Setup list of Org modules that should always be loaded together
-    ;; with Org.
-    (setq org-modules '(org-id org-attach))
+      (setq org-default-notes-file (/org-path "inbox.org"))  
+      ;; Setup list of Org modules that should always be loaded together
+      ;; with Org.
+      (setq org-modules '(org-id org-attach))
 
-    ;; pretty org files
-    (setq
-     org-adapt-indentation nil
-     org-hidden-keywords nil
-     org-hide-emphasis-markers nil
-     org-hide-leading-stars nil
-     org-image-actual-width '(512)
-     org-imenu-depth 1
-     org-pretty-entities nil
-     org-startup-folded t)
+      ;; pretty org files
+      (setq
+       org-adapt-indentation nil
+       org-hidden-keywords nil
+       org-hide-emphasis-markers nil
+       org-hide-leading-stars nil
+       org-image-actual-width '(512)
+       org-imenu-depth 1
+       org-pretty-entities nil
+       org-startup-folded t)
 
-    ;; do not allow invisible edits (...)
-    (setq org-catch-invisible-edits 'error)
+      ;; do not allow invisible edits (...)
+      (setq org-catch-invisible-edits 'error)
 
-    ;; formatting for properties
-    (setq org-property-format "%-24s %s")
+      ;; formatting for properties
+      (setq org-property-format "%-24s %s")
 
-    ;; setup todo keywords
-    (setq
-     org-todo-keywords
-     '((sequence "TODO(t)" "|" "DONE(d!)")
-       (sequence "WAITING(w@/!)"
-		 "HOLD(h@/!)"
-		 "|"
-		 "CANCELLED(c@/!)"
-		 "MEETING"))
+      ;; setup todo keywords
+      (setq
+       org-todo-keywords
+       '((sequence "TODO(t)" "|" "DONE(d!)")
+	 (sequence "WAITING(w@/!)"
+		   "HOLD(h@/!)"
+		   "|"
+		   "CANCELLED(c@/!)"
+		   "MEETING"))
 
-     ;; use fast todo selection
-     org-use-fast-todo-selection t
+       ;; use fast todo selection
+       org-use-fast-todo-selection t
 
-     ;; block parent until children are done
-     org-enforce-todo-dependencies t
+       ;; block parent until children are done
+       org-enforce-todo-dependencies t
 
-     ;; allo to fast fix todo state without triggering anything
-     org-treat-S-cursor-todo-selection-as-state-change nil
+       ;; allo to fast fix todo state without triggering anything
+       org-treat-S-cursor-todo-selection-as-state-change nil
 
-     ;; setup state triggers
-     org-todo-state-tags-triggers
-     '(("CANCELLED" ("CANCELLED" . t))
-       ("WAITING" ("WAITING" . t))
-       ("HOLD" ("WAITING") ("HOLD" . t))
-       (done ("WAITING") ("HOLD") ("FOCUS"))
-       ("TODO" ("WAITING") ("CANCELLED") ("HOLD"))
-       ("DONE" ("WAITING") ("CANCELLED") ("HOLD")))
+       ;; setup state triggers
+       org-todo-state-tags-triggers
+       '(("CANCELLED" ("CANCELLED" . t))
+	 ("WAITING" ("WAITING" . t))
+	 ("HOLD" ("WAITING") ("HOLD" . t))
+	 (done ("WAITING") ("HOLD") ("FOCUS"))
+	 ("TODO" ("WAITING") ("CANCELLED") ("HOLD"))
+	 ("DONE" ("WAITING") ("CANCELLED") ("HOLD")))
 
-     ;; use drawer for state changes
-     org-log-into-drawer t)
+       ;; use drawer for state changes
+       org-log-into-drawer t)
 
-    ;; tags
-    (setq
-     org-tag-persistent-alist '(("FOCUS" . ?f)
-				("PROJET" . ?p))
-     org-use-tag-inheritance t
-     org-tags-exclude-from-inheritance '("projet"
-					 "litnotes"
-					 "people"))
+      ;; tags
+      (setq
+       org-tag-persistent-alist '(("FOCUS" . ?f)
+				  ("PROJET" . ?p))
+       org-use-tag-inheritance t
+       org-tags-exclude-from-inheritance '("projet"
+					   "litnotes"
+					   "people"))
 
-    ;; avoid noisy `org-check-agenda-file'
-    (advice-add #'org-check-agenda-file
-		:around
-		#'vulpea-check-agenda-file)
-    :config
-    ;; open directory links in `dired'
-    (add-to-list 'org-file-apps '(directory . emacs))
+      ;; avoid noisy `org-check-agenda-file'
+      (advice-add #'org-check-agenda-file
+		  :around
+		  #'vulpea-check-agenda-file)
+      :config
+      ;; open directory links in `dired'
+      (add-to-list 'org-file-apps '(directory . emacs))
 
-    ;; open files in the same window
-    (add-to-list 'org-link-frame-setup '(file . find-file))
-    (setq org-indirect-buffer-display 'current-window))
+      ;; open files in the same window
+      (add-to-list 'org-link-frame-setup '(file . find-file))
+      (setq org-indirect-buffer-display 'current-window))
 
-  
+    
 
-  (use-package org-clock
-    :straight nil
-    :defer t
-    :commands (org-clock-save)
-    :init
-    (setq
-     org-clock-persist-file (expand-file-name "org-clock-save.el" emacs-etc/ )
-     ;; remove clocked tasks with 0:00 duration
-     org-clock-out-remove-zero-time-clocks t
-     org-clock-persist 'history
-     ;; Resume when clocking into task with open clock
-     org-clock-in-resume t)
-    :config
-    (add-hook 'kill-emacs-hook #'org-clock-save))
+    (use-package org-clock
+      :straight nil
+      :defer t
+      :commands (org-clock-save)
+      :init
+      (setq
+       org-clock-persist-file (expand-file-name "org-clock-save.el" emacs-etc/ )
+       ;; remove clocked tasks with 0:00 duration
+       org-clock-out-remove-zero-time-clocks t
+       org-clock-persist 'history
+       ;; Resume when clocking into task with open clock
+       org-clock-in-resume t)
+      :config
+      (add-hook 'kill-emacs-hook #'org-clock-save))
 
-  
+    
 
-  (use-package org-refile
-    :straight nil
-    :defer t
-    :init
-    (setq
-     org-outline-path-complete-in-steps nil
-     org-refile-targets '((nil :maxlevel . 4)
-			  (org-agenda-files :maxlevel . 4))
-     org-refile-use-outline-path t
-     org-refile-allow-creating-parent-nodes nil
-     org-refile-target-verify-function #'vulpea-refile-verify-target))
+    (use-package org-refile
+      :straight nil
+      :defer t
+      :init
+      (setq
+       org-outline-path-complete-in-steps nil
+       org-refile-targets '((nil :maxlevel . 4)
+			    (org-agenda-files :maxlevel . 4))
+       org-refile-use-outline-path t
+       org-refile-allow-creating-parent-nodes nil
+       org-refile-target-verify-function #'vulpea-refile-verify-target))
 
-  
+    
 
-  (use-package org-id
-    :straight nil
-    :defer t
-    :hook ((before-save . vulpea-id-auto-assign)
-	   (org-capture-prepare-finalize . org-id-get-create))
-    :init
-    (setq org-id-uuid-program
-	  "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
-    :config
-    (org-link-set-parameters
-     "id" :activate-func #'vulpea-activate-link)
-    (setq
-     org-id-track-globally t
-     org-id-extra-files
-     (list (expand-file-name ".archive/archive" org-directory)
-	   (expand-file-name ".archive/archive.org" org-directory))
-     org-id-link-to-org-use-id t
-     org-id-locations-file (expand-file-name "org-id-locations" emacs-cache/)))
+    (use-package org-id
+      :straight nil
+      :defer t
+      :hook ((before-save . vulpea-id-auto-assign)
+	     (org-capture-prepare-finalize . org-id-get-create))
+      :init
+      (setq org-id-uuid-program
+	    "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
+      :config
+      (org-link-set-parameters
+       "id" :activate-func #'vulpea-activate-link)
+      (setq
+       org-id-track-globally t
+       org-id-extra-files
+       (list (expand-file-name ".archive/archive" org-directory)
+	     (expand-file-name ".archive/archive.org" org-directory))
+       org-id-link-to-org-use-id t
+       org-id-locations-file (expand-file-name "org-id-locations" emacs-cache/)))
 
-  
+    
 
-  (use-package org-capture
-    :straight nil
-    :defer t
-    :init
-    (setq-default org-capture-bookmark nil)
-    :config
-    (vulpea-capture-setup))
+    (use-package org-capture
+      :straight nil
+      :defer t
+      :init
+      (setq-default org-capture-bookmark nil)
+      :config
+      (vulpea-capture-setup))
 
-  (setup org-capture
-    (:global  "C-c n c" org-capture
-	    ;;  "C-c n c X" (org-capture :which-key "dispatch")
-	      "C-c n a" vulpea-capture-article
-	      "C-c n j" vulpea-capture-journal
-	      "C-c n l" org-store-link
-	      "C-c n m" vulpea-capture-meeting
-	      "C-c n x" vulpea-capture-task
-	      ))
-  
+    (setup org-capture
+      (:global  "C-c n c" org-capture
+	      ;;  "C-c n c X" (org-capture :which-key "dispatch")
+		"C-c n a" vulpea-capture-article
+		"C-c n j" vulpea-capture-journal
+		"C-c n l" org-store-link
+		"C-c n m" vulpea-capture-meeting
+		"C-c n x" vulpea-capture-task
+		))
+    
 
-  (use-package org-attach
-    :straight nil
-    :defer t
-    :config
-    (setq-default
-     org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
-     org-attach-auto-tag nil
-     org-attach-file-list-property nil
-     org-attach-store-link-p 'attached))
+    (use-package org-attach
+      :straight nil
+      :defer t
+      :config
+      (setq-default
+       org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
+       org-attach-auto-tag nil
+       org-attach-file-list-property nil
+       org-attach-store-link-p 'attached))
 
-  
+    
 
-  (use-package org-archive
-    :straight nil
-    :defer t
-    :init
-    (setq-default
-     org-archive-location
-     (concat org-directory ".archive/%s_archive" "::" "datetree/*")
-     org-archive-save-context-info
-     '(time file ltags itags todo category olpath)))
+    (use-package org-archive
+      :straight nil
+      :defer t
+      :init
+      (setq-default
+       org-archive-location
+       (concat org-directory ".archive/%s_archive" "::" "datetree/*")
+       org-archive-save-context-info
+       '(time file ltags itags todo category olpath)))
 
-  
+    
 
-  (setup org-agenda
-    (:global "C-c A" org-agenda
-	     "C-c a" vulpea-agenda-main
-	    ;; "C-c a p" vulpea-agenda-person
-	     )
-    )
+    (setup org-agenda
+      (:global "C-c A" org-agenda
+	       "C-c a" vulpea-agenda-main
+	      ;;;; "C-c a p" vulpea-agenda-person
+	       ))
 
-  (use-package org-agenda
-    :straight nil
-    :defer t
-    :config
-    (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
-    (setq
-     org-agenda-dim-blocked-tasks nil
-     ;; setting it to t speeds up agenda, but... initial visibility is
-     ;; not honored, which for me is a bigger issue
-     org-agenda-inhibit-startup nil
+    (use-package org-agenda
+      :straight nil
+      :defer t
+      :config
+      (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
+      (setq
+       org-agenda-dim-blocked-tasks nil
+       ;; setting it to t speeds up agenda, but... initial visibility is
+       ;; not honored, which for me is a bigger issue
+       org-agenda-inhibit-startup nil
 
-     ;; also show state change in log mode
-     org-agenda-log-mode-items '(closed clock state)
+       ;; also show state change in log mode
+       org-agenda-log-mode-items '(closed clock state)
 
-     ;; tags
-     org-agenda-show-inherited-tags nil
+       ;; tags
+       org-agenda-show-inherited-tags nil
 
-     ;; more structured view
-     org-agenda-prefix-format
-     '((agenda . " %(vulpea-agenda-category 24) %?-12t %12s")
-       (todo . " %(vulpea-agenda-category 24) ")
-       (tags . " %(vulpea-agenda-category 24) ")
-       (search . " %(vulpea-agenda-category 24) "))
-     org-agenda-todo-keyword-format "%-1s"
-     org-agenda-tags-column 0
+       ;; more structured view
+       org-agenda-prefix-format
+       '((agenda . " %(vulpea-agenda-category 24) %?-12t %12s")
+	 (todo . " %(vulpea-agenda-category 24) ")
+	 (tags . " %(vulpea-agenda-category 24) ")
+	 (search . " %(vulpea-agenda-category 24) "))
+       org-agenda-todo-keyword-format "%-1s"
+       org-agenda-tags-column 0
 
-     ;; show agenda in current window
-     org-agenda-window-setup 'current-window
+       ;; show agenda in current window
+       org-agenda-window-setup 'current-window
 
-     org-agenda-custom-commands
-     `((" " "Agenda"
-	(,vulpea-agenda-cmd-refile
-	 ,vulpea-agenda-cmd-today
-	 ,vulpea-agenda-cmd-focus
-	 ,vulpea-agenda-cmd-waiting)
-	((org-agenda-buffer-name vulpea-agenda-main-buffer-name))))))
+       org-agenda-custom-commands
+       `((" " "Agenda"
+	  (,vulpea-agenda-cmd-refile
+	   ,vulpea-agenda-cmd-today
+	   ,vulpea-agenda-cmd-focus
+	   ,vulpea-agenda-cmd-waiting)
+	  ((org-agenda-buffer-name vulpea-agenda-main-buffer-name))))))
 
-  
+    
 
-  (use-package org-roam
-    :defer t
-    :commands (org-roam-db-autosync-enable
-	       org-roam-db-sync)
-    :init
-    (setq
-     org-roam-v2-ack t
-     org-roam-directory vulpea-directory
-     org-roam-dailies-directory (expand-file-name
-				 "journal/" org-roam-directory)
-     org-roam-db-location (expand-file-name "org-roam.db" emacs-cache/)
-     org-roam-completion-everywhere t)
-    :config
-    ;; For some reason org-roam is loaded on init and twice! Suspect it
-    ;; is related to the fact that I am loading it from different
-    ;; branch.
-    ;;
-    ;; So since I need a quick remedy, I noop `org-roam-db-sync' during
-    ;; setup, because I sync data base time to time from terminal via
-    ;; eru.
-    (advice-add #'org-roam-db-sync :around #'fun-noop)
-    (ignore-errors
-      (org-roam-db-autosync-enable))
-    (advice-remove #'org-roam-db-sync #'fun-noop))
+    (use-package org-roam
+      :defer t
+      :commands (org-roam-db-autosync-enable
+		 org-roam-db-sync)
+      :init
+      (setq
+       org-roam-v2-ack t
+       org-roam-directory vulpea-directory
+       org-roam-dailies-directory (expand-file-name
+				   "journal/" org-roam-directory)
+       org-roam-db-location (expand-file-name "org-roam.db" emacs-cache/)
+       org-roam-completion-everywhere t)
+      :config
+      ;; For some reason org-roam is loaded on init and twice! Suspect it
+      ;; is related to the fact that I am loading it from different
+      ;; branch.
+      ;;
+      ;; So since I need a quick remedy, I noop `org-roam-db-sync' during
+      ;; setup, because I sync data base time to time from terminal via
+      ;; eru.
+      (advice-add #'org-roam-db-sync :around #'fun-noop)
+      (ignore-errors
+	(org-roam-db-autosync-enable))
+      (advice-remove #'org-roam-db-sync #'fun-noop))
 
-  (use-package ox-latex
-    :straight nil
-    :defer t
-    :config
-    (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
-    (add-to-list 'org-latex-packages-alist '("" "color"))
-    (setq org-preview-latex-image-directory
-	  (expand-file-name "ltximg/" emacs-cache/))
-    (setq org-format-latex-options
-	  (list :foreground 'auto
-		:background 'auto
-		:scale 1.5
-		:html-foreground "Black"
-		:html-background "Transparent"
-		:html-scale 1.0
-		:matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
-    (setq org-latex-listings 'minted)
-    (setq org-latex-pdf-process
-	  (seq-map
-	   (lambda (_)
-	     (string-join '("pdflatex"
-			    "-shell-escape"
-			    "-interaction nonstopmode"
-			    "-output-directory %o %f")
-			  " "))
-	   '(1 2 3))))
+    (use-package ox-latex
+      :straight nil
+      :defer t
+      :config
+      (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
+      (add-to-list 'org-latex-packages-alist '("" "color"))
+      (setq org-preview-latex-image-directory
+	    (expand-file-name "ltximg/" emacs-cache/))
+      (setq org-format-latex-options
+	    (list :foreground 'auto
+		  :background 'auto
+		  :scale 1.5
+		  :html-foreground "Black"
+		  :html-background "Transparent"
+		  :html-scale 1.0
+		  :matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
+      (setq org-latex-listings 'minted)
+      (setq org-latex-pdf-process
+	    (seq-map
+	     (lambda (_)
+	       (string-join '("pdflatex"
+			      "-shell-escape"
+			      "-interaction nonstopmode"
+			      "-output-directory %o %f")
+			    " "))
+	     '(1 2 3))))
 
-  (use-package ox-beamer
-    :straight nil
-    :defer t
-    :config
-    (add-to-list
-     'org-beamer-environments-extra
-     '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
+    (use-package ox-beamer
+      :straight nil
+      :defer t
+      :config
+      (add-to-list
+       'org-beamer-environments-extra
+       '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
 
-  
+    
 
-  (use-package ob-plantuml
-    :straight nil
-    :defer t
-    :defines (org-plantuml-jar-path))
+    (use-package ob-plantuml
+      :straight nil
+      :defer t
+      :defines (org-plantuml-jar-path))
 
-  
+    
 
-  (use-package toc-org
-    :hook (org-mode . toc-org-mode))
+  ;;  (use-package toc-org
+  ;;    :hook (org-mode . toc-org-mode))
 
 #+end_src
 *** Org Workflow
@@ -3624,13 +3627,14 @@ Set basic subword mode and eldoc setting for prog-mode
     (:with-mode prog-mode
       (:hook turn-on-eldoc-mode))
     (:hook-into clojure-mode
-                cider-repl-mode
-                elisp-mode
-                lisp-interactive-mode)
+		cider-repl-mode
+		elisp-mode
+		lisp-interactive-mode)
     (:hide-mode))
 
   (setup (:require elec-pair)
     (electric-pair-mode 1))
+
 #+end_src
   Setup smartparens and rainbow delimiters
 #+begin_src emacs-lisp :noweb-ref code-paren
@@ -4153,38 +4157,38 @@ Setup of Fennel and Lua
 *** Statistics
 Emacs Speaks Statistics
 #+begin_src emacs-lisp :noweb-ref ess
-    (setup (:straight ess)
-      (:require ess-r-mode)
-      (setq ess-ask-for-ess-directory nil)
-      (setq ess-local-process-name "R")
-      (setq-default inferior-R-program-name "/usr/local/bin/R")
-      (setq ess-eval-visibly 'nowait)
-      (setq comint-input-ring-size 1000)
-  (setq ess-indent-level 4)
-  (setq ess-arg-function-offset 4)
-  (setq ess-else-offset 4)
+  (setup (:straight ess)
+    ;;(:require ess-r-mode)
+    (setq ess-ask-for-ess-directory nil)
+    (setq ess-local-process-name "R")
+    (setq-default inferior-R-program-name "/usr/local/bin/R")
+    (setq ess-eval-visibly 'nowait)
+    (setq comint-input-ring-size 1000)
+    (setq ess-indent-level 4)
+    (setq ess-arg-function-offset 4)
+    (setq ess-else-offset 4)
 
-      ;; Autocomplete
-      (:require auto-complete-config)
-      (ac-config-default)
-      (setq ess-use-auto-complete t)
+    ;; Autocomplete
+    (:require auto-complete-config)
+    (ac-config-default)
+    (setq ess-use-auto-complete t)
 
-      ;; Read pdfs outside emacs
-      (:require openwith)
-      (openwith-mode t)
-      (setq openwith-associations '(("\\.pdf\\'" "open" (file))))
-      ;;;; create a new frame for each help instance
-      (setq ess-help-own-frame t)
-      (setq ess-offset-continued 'straight
-            ess-use-flymake 1
-            ess-nuke-trailing-whitespace-p t
-            ess-style 'DEFAULT
-            ess-history-directory (expand-file-name "ess-history/" emacs-cache/))
-      ;; Make the arrow keys refer to previous commands
-      (defun my-ess-mode-hook ()
-        (local-set-key '[up] 'comint-previous-input)
-        (local-set-key '[down] 'comint-next-input)
-        (local-set-key '[C-x \t] 'comint-dynamic-complete-filename)
+    ;; Read pdfs outside emacs
+    (:require openwith)
+    (openwith-mode t)
+    (setq openwith-associations '(("\\.pdf\\'" "open" (file))))
+	;;;; create a new frame for each help instance
+    (setq ess-help-own-frame t)
+    (setq ess-offset-continued 'straight
+	  ess-use-flymake 1
+	  ess-nuke-trailing-whitespace-p t
+	  ess-style 'DEFAULT
+	  ess-history-directory (expand-file-name "ess-history/" emacs-cache/))
+    ;; Make the arrow keys refer to previous commands
+    (defun my-ess-mode-hook ()
+      (local-set-key '[up] 'comint-previous-input)
+      (local-set-key '[down] 'comint-next-input)
+      (local-set-key '[C-x \t] 'comint-dynamic-complete-filename))
 
       (add-hook 'inferior-ess-mode-hook 'my-ess-mode-hook))
 #+end_src
@@ -4759,6 +4763,7 @@ Setup UI
     ;;; Code:
 
     (+with-message  "the UI!"
+
     <<pkg-ui>>
 
     )
@@ -4902,7 +4907,7 @@ Setup embark, vertico and consult
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message "Completion or Seelction"
+  (+with-message "Completion or Selection"
 
   <<pkg-completion>>
 
@@ -5000,11 +5005,11 @@ Setup org-mode
   (require 'init-selection)
   (require  'config-orgmode)
 
-  (+with-message "Notes Workflow"
+ ;; (+with-message "Notes/Roam Workflow"
 
   <<pkg-org>>
 
-  )
+ ;; )
   (provide 'init-notes)
    ;;; init-notes.el ends here
 #+end_src
@@ -6563,8 +6568,8 @@ Smartparens setup here
 #+end_src
 *** ESS setup
 :Properties:
-:header-args: :tangle lisp/init-lisp.el :noweb yes
-:ID:       1eb96e6e-dcd9-4ba8-bc8e-0a6eee8b4f21
+:header-args: :tangle lisp/init-ess.el :noweb yes
+:ID:       a04b95ad-e2ca-4aa3-8f4a-301f6986cda8
 :END:
 Emacs Speaks Statisitcs setup here
 #+begin_src emacs-lisp
@@ -6572,8 +6577,11 @@ Emacs Speaks Statisitcs setup here
   <<disclaimer>>
   ;;; Code:
 
+  (+with-message  "stats R baby!"
+
   <<ess>>
 
+  )
   (provide 'init-ess)
    ;;; init-ess.el ends here
 #+end_src
@@ -6820,7 +6828,6 @@ The goal of this file is to require all init-xxx files. The structure is trivial
     (require 'init-project)
     (require 'init-vcs)
     ;;  (require 'init-ide)
-    (require 'init-notes)
     ;;(require 'enfer-pkg-builtin)
 
   ;;; languages
@@ -6831,7 +6838,7 @@ The goal of this file is to require all init-xxx files. The structure is trivial
     (require 'enfer-code-fennel)
     (require 'init-ess)
     ;;(require 'enfer-pkg-util)
-
+    (require 'init-notes)
     ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
     ;; variables into `custom-file'. And to be honest, I hate to allow
     ;; them every time I restart Emacs.
