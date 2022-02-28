@@ -1192,42 +1192,42 @@ On Linux, I have a custom build of Iosevka that I like.
 *** Frame titles, sizes and mouse setup
 
 #+begin_src emacs-lisp
-   ;; (setq-default frame-title-format
-   ;;               (concat invocation-name "@" (system-name)
-   ;;                       ": %b %+%+ %f"))
+  ;; (setq-default frame-title-format
+  ;;               (concat invocation-name "@" (system-name)
+  ;;                       ": %b %+%+ %f"))
   (unless IS-TERMUX
-   (setup mouse
-     (setq focus-follows-mouse t)
-     (setq make-pointer-invisible t)
-     (setq mouse-1-click-follows-link t)
-     (setq mouse-autoselect-window t)
-     (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-     (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-     ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-     (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-     (setq mouse-wheel-scroll-amount-horizontal 2)
-     (setq mouse-yank-at-point t)
-     (setq scroll-step 1) ;; keyboard scroll one line at a time
-     (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
+    (setup mouse
+      (setq focus-follows-mouse t)
+      (setq make-pointer-invisible t)
+      (setq mouse-1-click-follows-link t)
+      (setq mouse-autoselect-window t)
+      (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+      (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+      ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+      (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+      (setq mouse-wheel-scroll-amount-horizontal 2)
+      (setq mouse-yank-at-point t)
+      (setq scroll-step 1) ;; keyboard scroll one line at a time
+      (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
 
-   (unless IS-TERMUX
-     (setup scrolling
-     (setq auto-hscroll-mode 'current-line)
-     (setq auto-window-vscroll nil)
-     (setq fast-but-imprecise-scrolling t)
-     (setq hscroll-margin 16)
-     (setq hscroll-step 1)
-     (setq scroll-conservatively 101)
-     (setq scroll-margin 8)
-     (setq scroll-preserve-screen-position t)
-     (setq scroll-step 1)))
+  (unless IS-TERMUX
+    (setup scrolling
+      (setq auto-hscroll-mode 'current-line)
+      (setq auto-window-vscroll nil)
+      (setq fast-but-imprecise-scrolling t)
+      (setq hscroll-margin 16)
+      (setq hscroll-step 1)
+      (setq scroll-conservatively 101)
+      (setq scroll-margin 8)
+      (setq scroll-preserve-screen-position t)
+      (setq scroll-step 1)))
 
-   (unless IS-TERMUX
-     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-     (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+  (unless IS-TERMUX
+    (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
+    (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
+    (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+    (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 #+end_src
 
 *** Themes & Modeline
@@ -1883,143 +1883,177 @@ Setup undo , whitespace, expand, indentation
 :END:
 Setup the buffers to my liking
 #+begin_src emacs-lisp
-(defvar buffer-fallback-name "*scratch*"
-  "The name of the buffer to fall back to.
-Used when no other buffers exist.")
+  (defvar buffer-fallback-name "*scratch*"
+    "The name of the buffer to fall back to.
+    Used when no other buffers exist.")
 
-(defun buffer-fallback ()
-  "Return the fallback buffer, creating it if necessary.
-By default this is the scratch buffer. See
-`buffer-fallback-name' to change this."
-  (get-buffer-create buffer-fallback-name))
+  (defun buffer-fallback ()
+    "Return the fallback buffer, creating it if necessary.
+    By default this is the scratch buffer. See
+    `buffer-fallback-name' to change this."
+    (get-buffer-create buffer-fallback-name))
 
-
+  
 
-(defun buffer-display-and-switch (buffer-or-name)
-  "Display BUFFER-OR-NAME in some window and switch to it."
-  (select-window (display-buffer buffer-or-name)))
+  (defun buffer-display-and-switch (buffer-or-name)
+    "Display BUFFER-OR-NAME in some window and switch to it."
+    (select-window (display-buffer buffer-or-name)))
 
-
+  
 
-(defvar buffer-messages-display-fn #'buffer-display-and-switch
-  "The function to use to display messages buffer.
-Must accept one argument: the buffer to display.")
+  (defvar buffer-messages-display-fn #'buffer-display-and-switch
+    "The function to use to display messages buffer.
+    Must accept one argument: the buffer to display.")
 
-(defvar buffer-messages-name "*Messages*"
-  "The name of the messages buffer.")
+  (defvar buffer-messages-name "*Messages*"
+    "The name of the messages buffer.")
 
-(defun buffer-pop-messages ()
-  "Open `buffer-messages-name' buffer."
-  (interactive)
-  (funcall buffer-messages-display-fn
-           (get-buffer-create buffer-messages-name)))
+  (defun buffer-pop-messages ()
+    "Open `buffer-messages-name' buffer."
+    (interactive)
+    (funcall buffer-messages-display-fn
+             (get-buffer-create buffer-messages-name)))
 
-(defun buffer-switch-to-messages ()
-  "Open `buffer-messages-name' buffer."
-  (interactive)
-  (let ((buffer-messages-display-fn #'switch-to-buffer))
-    (buffer-pop-messages)))
+  (defun buffer-switch-to-messages ()
+    "Open `buffer-messages-name' buffer."
+    (interactive)
+    (let ((buffer-messages-display-fn #'switch-to-buffer))
+      (buffer-pop-messages)))
 
-
+  
 
-(defvar buffer-scratch-files-dir (concat emacs-etc/ "scratch/")
-  "Where to store project scratch files.
-Files are created by `buffer-open-project-scratch'.")
+  (defvar buffer-scratch-files-dir (concat emacs-etc/ "scratch/")
+    "Where to store project scratch files.
+    Files are created by `buffer-open-project-scratch'.")
 
-(defvar buffer-scratch-display-fn #'buffer-display-and-switch
-  "The function to use to display the scratch buffer.
-Must accept one argument: the buffer to display.")
+  (defvar buffer-scratch-display-fn #'buffer-display-and-switch
+    "The function to use to display the scratch buffer.
+    Must accept one argument: the buffer to display.")
 
-(defvar buffer-scratch-major-mode nil
-  "What major mode to use in scratch buffers.
-This can be one of the following:
-  t          Inherits the major mode of the last buffer you had
-             selected.
-  nil        Uses `fundamental-mode'
-  MAJOR-MODE  Any major mode symbol")
+  (defvar buffer-scratch-major-mode nil
+    "What major mode to use in scratch buffers.
+    This can be one of the following:
+      t          Inherits the major mode of the last buffer you had
+                 selected.
+      nil        Uses `fundamental-mode'
+      MAJOR-MODE  Any major mode symbol")
 
-(defvar buffer-scratch-hook ()
-  "The hooks to run after a scratch buffer is made.")
+  (defvar buffer-scratch-hook ()
+    "The hooks to run after a scratch buffer is made.")
 
-(defun buffer-scratch (&optional file mode text)
-  "Return a scratch buffer in major MODE with TEXT in it.
-If FILE is a valid path, open it as if it were a persistent
-scratch."
-  (if file (setq file (file-truename file)))
-  (let ((buffer
-         (if file
-             (with-current-buffer (find-file-noselect file)
-               (rename-buffer (format "*scratch (%s)*"
-                                      (file-name-nondirectory file)))
-               (current-buffer))
-           (get-buffer-create "*scratch*"))))
-    (with-current-buffer buffer
-      (when (and (functionp mode)
-                 (not (eq major-mode mode)))
-        (funcall mode))
-      (when text
-        (insert text))
-      (run-hooks 'buffer-scratch-hook)
-      (current-buffer))))
+  (defun buffer-scratch (&optional file mode text)
+    "Return a scratch buffer in major MODE with TEXT in it.
+    If FILE is a valid path, open it as if it were a persistent
+    scratch."
+    (if file (setq file (file-truename file)))
+    (let ((buffer
+           (if file
+               (with-current-buffer (find-file-noselect file)
+                 (rename-buffer (format "*scratch (%s)*"
+                                        (file-name-nondirectory file)))
+                 (current-buffer))
+             (get-buffer-create "*scratch*"))))
+      (with-current-buffer buffer
+        (when (and (functionp mode)
+                   (not (eq major-mode mode)))
+          (funcall mode))
+        (when text
+          (insert text))
+        (run-hooks 'buffer-scratch-hook)
+        (current-buffer))))
 
-(defun buffer-pop-scratch (&optional arg)
-  "Opens a scratch pad window in the same `major-mode'.
-If ARG (universal argument), then open a persistent scratch
-buffer. You'll be prompted for its name, or to open a previously
-created. These are stored in `buffer-scratch-files-dir'.
-If a region is active, copy its contents to the scratch."
-  (interactive "P")
-  (funcall
-   buffer-scratch-display-fn
-   (buffer-scratch
-    (when arg
-      (if-let* ((file (read-file-name
-                       "Ouvrir le fichier de scratch > "
-                       buffer-scratch-files-dir
-                       "scratch")))
-          file
-        (user-error "Abandon..")))
-    (cond ((eq buffer-scratch-major-mode t)
-           (unless (or buffer-read-only
-                       (derived-mode-p 'special-mode)
-                       (string-match-p "^ ?\\*" (buffer-name)))
-             major-mode))
-          ((null buffer-scratch-major-mode) nil)
-          ((symbolp buffer-scratch-major-mode)
-           buffer-scratch-major-mode))
-    (and (region-active-p)
-         (buffer-substring-no-properties
-          (region-beginning) (region-end))))))
+  (defun buffer-pop-scratch (&optional arg)
+    "Opens a scratch pad window in the same `major-mode'.
+    If ARG (universal argument), then open a persistent scratch
+    buffer. You'll be prompted for its name, or to open a previously
+    created. These are stored in `buffer-scratch-files-dir'.
+    If a region is active, copy its contents to the scratch."
+    (interactive "P")
+    (funcall
+     buffer-scratch-display-fn
+     (buffer-scratch
+      (when arg
+        (if-let* ((file (read-file-name
+                         "Ouvrir le fichier de scratch > "
+                         buffer-scratch-files-dir
+                         "scratch")))
+            file
+          (user-error "Abandon..")))
+      (cond ((eq buffer-scratch-major-mode t)
+             (unless (or buffer-read-only
+                         (derived-mode-p 'special-mode)
+                         (string-match-p "^ ?\\*" (buffer-name)))
+               major-mode))
+            ((null buffer-scratch-major-mode) nil)
+            ((symbolp buffer-scratch-major-mode)
+             buffer-scratch-major-mode))
+      (and (region-active-p)
+           (buffer-substring-no-properties
+            (region-beginning) (region-end))))))
 
-(defun buffer-switch-to-scratch (&optional arg)
-  "Switch to a scratch buffer in the current window.
-Otherwise, does exactly what `buffer-pop-scratch' does.
-ARG is passed to `buffer-pop-scratch'."
-  (interactive "P")
-  (let ((buffer-scratch-display-fn #'switch-to-buffer))
-    (buffer-pop-scratch arg)))
+  (defun buffer-switch-to-scratch (&optional arg)
+    "Switch to a scratch buffer in the current window.
+    Otherwise, does exactly what `buffer-pop-scratch' does.
+    ARG is passed to `buffer-pop-scratch'."
+    (interactive "P")
+    (let ((buffer-scratch-display-fn #'switch-to-buffer))
+      (buffer-pop-scratch arg)))
 
-(defun buffer-delete-scratch-files ()
-  "Deletes all scratch buffers in `buffer-scratch-files-dir'."
-  (interactive)
-  (dolist (file (directory-files buffer-scratch-files-dir
-                                 t "[^.]" t))
-    (delete-file file)
-    (message "Supprimé '%s'" (file-name-nondirectory file))))
+  (defun buffer-delete-scratch-files ()
+    "Deletes all scratch buffers in `buffer-scratch-files-dir'."
+    (interactive)
+    (dolist (file (directory-files buffer-scratch-files-dir
+                                   t "[^.]" t))
+      (delete-file file)
+      (message "Supprimé '%s'" (file-name-nondirectory file))))
 
-
+  
 
-(defun buffer-sudo-edit (&optional arg)
-  "Edit currently visited file as root.
-With a prefix ARG prompt for a file to visit. Will also prompt
-for a file to visit if current buffer is not visiting a file."
-  (interactive "P")
-  (if (or arg (not buffer-file-name))
-      (find-file (concat "/sudo:root@localhost:"
-                         (read-file-name "Rechercher le fichier (en tant que root): ")))
-    (find-alternate-file
-     (concat "/sudo:root@localhost:"
-             buffer-file-name))))
+  (defun buffer-sudo-edit (&optional arg)
+    "Edit currently visited file as root.
+    With a prefix ARG prompt for a file to visit. Will also prompt
+    for a file to visit if current buffer is not visiting a file."
+    (interactive "P")
+    (if (or arg (not buffer-file-name))
+        (find-file (concat "/sudo:root@localhost:"
+                           (read-file-name "Rechercher le fichier (en tant que root): ")))
+      (find-alternate-file
+       (concat "/sudo:root@localhost:"
+               buffer-file-name))))
+
+  
+
+  (defhydra hydra-buffer-menu (:color pink
+                                      :hint nil)
+    "
+  ^Mark^             ^Unmark^           ^Actions^          ^Search
+  ^^^^^^^^-----------------------------------------------------------------
+  _m_: mark          _u_: unmark        _x_: execute       _R_: re-isearch
+  _s_: save          _U_: unmark up     _b_: bury          _I_: isearch
+  _d_: delete        ^ ^                _g_: refresh       _O_: multi-occur
+  _D_: delete up     ^ ^                _T_: files only: % -28`Buffer-menu-files-only
+  _~_: modified
+  "
+    ("m" Buffer-menu-mark)
+    ("u" Buffer-menu-unmark)
+    ("U" Buffer-menu-backup-unmark)
+    ("d" Buffer-menu-delete)
+    ("D" Buffer-menu-delete-backwards)
+    ("s" Buffer-menu-save)
+    ("~" Buffer-menu-not-modified)
+    ("x" Buffer-menu-execute)
+    ("b" Buffer-menu-bury)
+    ("g" revert-buffer)
+    ("T" Buffer-menu-toggle-files-only)
+    ("O" Buffer-menu-multi-occur :color blue)
+    ("I" Buffer-menu-isearch-buffers :color blue)
+    ("R" Buffer-menu-isearch-buffers-regexp :color blue)
+    ("c" nil "cancel")
+    ("v" Buffer-menu-select "select" :color blue)
+    ("o" Buffer-menu-other-window "other-window" :color blue)
+    ("q" quit-window "quit" :color blue))
+
+  (define-key Buffer-menu-mode-map "." 'hydra-buffer-menu/body)
 
 #+end_src
 
@@ -2709,7 +2743,7 @@ Setup d12frosted's vulpea
       (defun /org-path (path)
 	(expand-file-name path org-directory))
 
-      (setq org-default-notes-file (/org-path "inbox.org"))  
+      (setq org-default-notes-file (/org-path "inbox.org"))
       ;; Setup list of Org modules that should always be loaded together
       ;; with Org.
       (setq org-modules '(org-id org-attach))
@@ -4191,6 +4225,29 @@ Emacs Speaks Statistics
       (local-set-key '[C-x \t] 'comint-dynamic-complete-filename))
 
       (add-hook 'inferior-ess-mode-hook 'my-ess-mode-hook))
+
+ (defhydra hydra-polymode ()
+  "Polymode Hydra"
+  ("j" polymode-next-chunk-same-type "Next chunk, same type" :column "Movement")
+  ("k" polymode-previous-chunk-same-type "Previous chunk, same type" :column "Movement")
+  ("i" polymode-insert-new-chunk "Insert new chunk" :column "Insert")
+  ("I" jth/insert-image "Insert image from file" :column "Insert")
+  ("c" polymode-mark-or-extend-chunk "Mark chunk" :column "Chunk")
+  ("u" polymode-insert-new-chunk-code-only "Insert chunk (code only)" :column "Insert")
+  ("U" polymode-insert-new-chunk-output-only "Insert chunk (output only)" :column "Insert")
+  ("p" polymode-insert-new-plot "Insert plot" :column "Insert")
+  ("o" polymode-insert-yaml "Insert YAML" :column "Insert")
+  ("d" polymode-kill-chunk "Kill chunk" :column "Chunk")
+  ("m" my/add-pipe "Add pipe" :column "Insert")
+  ("e" polymode-export "Export" :column "Export")
+  ("E" polymode-set-exporter "Set exporter" :column "Export")
+  ("w" polymode-weave "Weave" :column "Export")
+  ("W" polymode-set-weaver "Set weaver" :column "Export")
+  ("$" polymode-show-process-buffer "Show process buffer" :column "Evaluation")
+  ("," polymode-eval-region-or-chunk "Eval chunk" :column "Evaluation")
+  ("N" polymode-eval-buffer "Eval buffer" :column "Evaluation")
+  ("1" polymode-eval-buffer-from-beg-to-point "Eval to here" :column "Evaluation")
+  ("0" polymode-eval-buffer-from-point-to-end "Eval to end" :column "Evaluation"))
 #+end_src
 
 * Keybindings
