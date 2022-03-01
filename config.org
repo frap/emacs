@@ -577,6 +577,7 @@ Some constants that I use.
   (defconst IS-LINUX   (eq system-type 'gnu/linux))
   (defconst IS-TERMUX
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
+  (defconst env-sys-name (system-name))
 
   (defmacro fn (&rest body)
     `(lambda () ,@body))
@@ -1026,10 +1027,7 @@ ripgrep and gist
 *** Default Appearance setting
 Some Defaults for my preferred appearance
 #+begin_src emacs-lisp
-
-    (+with-message "Gas UI"
-
-    ;; be quiet at startup; don't load or display anything unnecessary
+  ;; be quiet at startup; don't load or display anything unnecessary
   (setq-default
    inhibit-startup-message t
    inhibit-startup-screen t
@@ -1081,31 +1079,31 @@ Some Defaults for my preferred appearance
    ;; hide cursors in other windoes
    cursor-in-non-selected-windows nil)
 
-      ;; (setup appearance
-      ;;   ;;(setq blink-matching-paren nil)
-      ;;   (setq display-time-default-load-average nil)
-      ;;   (setq echo-keystrokes 0.1)
-      ;;   (setq highlight-nonselected-windows nil)
-      ;;   (setq idle-update-delay 1.0)
-      ;;   (setq inhibit-startup-echo-area-message t)
-      ;;   (setq inhibit-startup-screen t)
-      ;;   (setq use-dialog-box nil)
-      ;;   (setq use-file-dialog nil)
-      ;;   (setq visible-bell nil)
-      ;;   (setq x-gtk-use-system-tooltips nil)
-      ;;   (setq x-stretch-cursor nil)
-      ;;   (setq-default bidi-display-reordering 'left-to-right)
-      ;;   (setq-default bidi-paragraph-direction 'left-to-right)
-      ;;   (setq-default cursor-in-non-selected-windows nil)
-      ;;   (setq-default cursor-type 'hbar)
-      ;;   (setq-default display-line-numbers-widen t)
-      ;;   (setq-default display-line-numbers-width 3)
-      ;;   (setq-default indicate-buffer-boundaries nil)
-      ;;   (setq-default truncate-lines t)
-      ;;   (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
-      ;;     (:hook display-line-numbers-mode))
-      ;;   (:with-hook text-mode-hook
-      ;;     (:hook visual-line-mode)))
+  ;; (setup appearance
+  ;;   ;;(setq blink-matching-paren nil)
+  ;;   (setq display-time-default-load-average nil)
+  ;;   (setq echo-keystrokes 0.1)
+  ;;   (setq highlight-nonselected-windows nil)
+  ;;   (setq idle-update-delay 1.0)
+  ;;   (setq inhibit-startup-echo-area-message t)
+  ;;   (setq inhibit-startup-screen t)
+  ;;   (setq use-dialog-box nil)
+  ;;   (setq use-file-dialog nil)
+  ;;   (setq visible-bell nil)
+  ;;   (setq x-gtk-use-system-tooltips nil)
+  ;;   (setq x-stretch-cursor nil)
+  ;;   (setq-default bidi-display-reordering 'left-to-right)
+  ;;   (setq-default bidi-paragraph-direction 'left-to-right)
+  ;;   (setq-default cursor-in-non-selected-windows nil)
+  ;;   (setq-default cursor-type 'hbar)
+  ;;   (setq-default display-line-numbers-widen t)
+  ;;   (setq-default display-line-numbers-width 3)
+  ;;   (setq-default indicate-buffer-boundaries nil)
+  ;;   (setq-default truncate-lines t)
+  ;;   (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
+  ;;     (:hook display-line-numbers-mode))
+  ;;   (:with-hook text-mode-hook
+  ;;     (:hook visual-line-mode)))
 #+end_src
 *** Menu and Tool bars
 #+begin_src elisp
@@ -1289,6 +1287,14 @@ On Linux, I have a custom build of Iosevka that I like.
                doom-modeline-major-mode-icon nil)
       (custom-set-faces '(mode-line ((t (:height 0.85))))
                         '(mode-line-inactive ((t (:height 0.85))))))
+;; what does this TODO?
+(use-package lister
+  :straight (lister
+             :type git
+             :host github
+             :repo "publicimageltd/lister"
+             :branch "archive-version-0.7.2")
+  :defer t)
 
 
 #+end_src
@@ -1298,8 +1304,6 @@ Wait until my *fancy* modeline is loaded -- from [[https://github.com/KaratasFur
 
 #+begin_src emacs-lisp
     (setq-default mode-line-format nil)
-
-  ) ;; end of +with_message pkg-ui
 
 #+end_src
 *** highlights and diff
@@ -2691,6 +2695,8 @@ Emacs completion parlava
 Setup d12frosted's vulpea
 
 #+begin_src emacs-lisp
+  (setup (:straight org-cliplink))
+
   (use-package vulpea
     :straight (vulpea
 	       :type git
@@ -3028,8 +3034,8 @@ Setup d12frosted's vulpea
 
     
 
-  ;;  (use-package toc-org
-  ;;    :hook (org-mode . toc-org-mode))
+    (use-package toc-org
+      :hook (org-mode . toc-org-mode))
 
 #+end_src
 *** Org Workflow
@@ -4819,7 +4825,7 @@ Setup UI
     <<disclaimer>>
     ;;; Code:
 
-    (+with-message  "the UI!"
+    (+with-message  "frap UI!"
 
     <<pkg-ui>>
 
@@ -5062,11 +5068,11 @@ Setup org-mode
   (require 'init-selection)
   (require  'config-orgmode)
 
- ;; (+with-message "Notes/Roam Workflow"
+  (+with-message "Notes/Roam Workflow"
 
   <<pkg-org>>
 
- ;; )
+  )
   (provide 'init-notes)
    ;;; init-notes.el ends here
 #+end_src
@@ -5433,8 +5439,7 @@ If REC is non-nil then do recursive search."
 #+end_src
 *** Literature Notes
 :PROPERTIES:
-:header-args: :tangle lisp/lib-libnotes.el :noweb yes
-:ID:       331ee651-40ef-4d13-801e-c46acc279188
+:header-args: :tangle lisp/lib-litnotes.el :noweb yes
 :END:
 #+begin_src emacs-lisp
 ;;; lib-litnotes.el --- Utilities for working with litnotes -*- lexical-binding: t; -*-
@@ -5994,7 +5999,7 @@ EXTRA is unknown thing."
 ;;; Code:
 
 (require 'init-env)
-(require 'config-vulpea)
+(require 'config-orgmode)
 (require 'lib-fun)
 
 ;; external dependencies
@@ -6005,7 +6010,7 @@ EXTRA is unknown thing."
 (require 'org-cliplink)
 
 (defvar vulpea-capture-inbox-file
-  (format "inbox-%s.org" env-sys-name)
+  inbox.org   ;; (format "inbox-%s.org" env-sys-name)
   "The path to the inbox file.
 It is relative to `vulpea-directory', unless it is absolute.")
 
@@ -6061,7 +6066,7 @@ It is relative to `vulpea-directory', unless it is absolute.")
     ;; `org-capture-set-target-location'
     (if (vulpea-note-id person)
         (let ((path (vulpea-note-path person))
-              (headline "Meetings"))
+              (headline "Reuniones"))
           (set-buffer (org-capture-target-buffer path))
           ;; Org expects the target file to be in Org mode, otherwise
           ;; it throws an error. However, the default notes files
