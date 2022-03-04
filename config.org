@@ -1,3 +1,6 @@
+:PROPERTIES:
+:ID:                     8c17836b-8be8-4254-b03b-0f3b5aa2303c
+:END:
 #+title: Literate Roam Clojure Emacs Config
 #+author: gas
 #+startup: overview
@@ -5,6 +8,9 @@
 #+auto_tangle: yes
 
 * About me
+:PROPERTIES:
+:ID:                     969aec14-acc9-46c8-9534-8c0857305593
+:END:
 
 Some scripts to setup whether I am on work computer or not
 #+begin_src emacs-lisp :noweb-ref user-config
@@ -24,6 +30,9 @@ Some scripts to setup whether I am on work computer or not
 #+end_src
 
 ** Where am I?
+:PROPERTIES:
+:ID:                     0e4cd289-1e57-40ab-bdb8-518669112965
+:END:
 
 #+begin_src emacs-lisp :noweb-ref user-config
   (setq calendar-location-name "Wellington, NZ"
@@ -33,6 +42,9 @@ Some scripts to setup whether I am on work computer or not
 #+end_src
 
 ** Auth-sources
+:PROPERTIES:
+:ID:                     edbde090-6fd1-4cd3-9c03-4ad6a0af2919
+:END:
 
 Here feels like as good a place as any to setup =auth-sources=.
 
@@ -42,10 +54,14 @@ Here feels like as good a place as any to setup =auth-sources=.
 
 #+end_src
 * Startup Performance
+:PROPERTIES:
+:ID:                     bb63575d-8ceb-4c7d-8753-3c3b0ae33630
+:END:
 
 ** Garbage Collection & File handlers
 :PROPERTIES:
 :header-args: :noweb-ref garbage-filehandler
+:ID:                     56c4a633-3570-4c8d-a72d-b7dab745aac1
 :END:
 Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
 
@@ -85,6 +101,7 @@ Make startup faster by reducing the frequency of garbage collection and then use
 ** Initial frame setup
 :PROPERTIES:
 :header-args: :noweb-ref early-init-frame
+:ID:                     0ae373ff-ee6b-484d-9d03-99ce56f59dc8
 :END:
 
 I tangle this section to =early-init.el=, since that's evaluated
@@ -92,9 +109,12 @@ before GUI set-up.  Which, in turn, means Emacs will skip the "flash
 of unstyled content" thing. Turned off for Termux.
 
 *** Tool bar
+:PROPERTIES:
+:ID:                     07c28d7c-c8e5-4999-8282-9b25f3ca859f
+:END:
 
 #+begin_src emacs-lisp
-  (unless IS-TERMUX
+  (unless ENV-IS-TERMUX?
     (add-to-list 'default-frame-alist
                 '(tool-bar-lines . 0))
 
@@ -103,6 +123,9 @@ of unstyled content" thing. Turned off for Termux.
 #+end_src
 
 *** Menu bar
+:PROPERTIES:
+:ID:                     76c92e6b-c4ff-457d-8853-37d8a095f9e4
+:END:
 
 #+begin_src emacs-lisp
    (add-to-list 'default-frame-alist
@@ -113,6 +136,9 @@ of unstyled content" thing. Turned off for Termux.
 #+end_src
 
 *** Scroll bars
+:PROPERTIES:
+:ID:                     4c17d471-2aac-4fe0-a242-46d389ed05c1
+:END:
 
 #+begin_src emacs-lisp
   (add-to-list 'default-frame-alist
@@ -125,6 +151,9 @@ of unstyled content" thing. Turned off for Termux.
 #+end_src
 
 *** Resizing
+:PROPERTIES:
+:ID:                     d054c73f-121a-4155-964e-c4c3d7f1d2ce
+:END:
 
 I don't want the frame to resize when I change fonts and stuff, and I
 want it to resize by pixels -- we /are/ using a GUI, after all.
@@ -137,6 +166,9 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
 #+end_src
 
 *** Miscellaneous
+:PROPERTIES:
+:ID:                     70398db1-dd55-46da-8ac6-9389debcb75e
+:END:
 setting some default settings on early-init
 #+begin_src emacs-lisp
   (add-to-list 'default-frame-alist '(font . "Iosevka Slab 12"))
@@ -152,6 +184,7 @@ setting some default settings on early-init
 ** Path & Directories
 :PROPERTIES:
 :header-args: :noweb-ref path-config
+:ID:                     81265071-dc7f-4b25-bfb4-8442780963e4
 :END:
 Need to setup some constants and try to keep state in a "clean" directory structure
 #+begin_src emacs-lisp
@@ -225,6 +258,7 @@ In a nutshell, it's just a value of $HOME.")
 ** Emacs Package Management
 :PROPERTIES:
 :header-args: :noweb-ref straight-setup
+:ID:                     f265e03f-9f75-41ca-924b-dee7d391cb4c
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
@@ -315,6 +349,7 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 ** Emacs Package Manager Setup
 :PROPERTIES:
 :header-args: :noweb-ref setup-pkgmgr
+:ID:                     5ff57b26-2da9-4f1a-91db-de7ea0f0c001
 :END:
 Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage packages as alternative to use-package
 #+begin_src emacs-lisp
@@ -356,6 +391,7 @@ Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage pa
 *** Setup local macros
   :PROPERTIES:
 :header-args: :noweb-ref setup-macros
+  :ID:                     41dbce54-3e02-42f3-aaba-21dc7801c19e
 :END:
  local-macros for setup.el
  #+begin_src emacs-lisp
@@ -475,6 +511,7 @@ Setup some popular packages
 ** Environment
 :PROPERTIES:
 :header-args: :noweb-ref environment
+:ID:                     08d9a2dc-6b27-4316-9fde-f62d5d52a92a
 :END:
 Setup the Emacs environment from the local env
 #+begin_src emacs-lisp
@@ -509,6 +546,7 @@ Setup the Emacs environment from the local env
 ** Emacs Startup Setup
 :PROPERTIES:
 :header-args: :noweb-ref emacs-startup
+:ID:                     41de579e-bfb1-43e0-8799-2216e33e497e
 :END:
 Show startup time
 #+begin_src emacs-lisp
@@ -519,6 +557,9 @@ Show startup time
 
 #+end_src
 *** Garbage collection automatic
+:PROPERTIES:
+:ID:                     f282c662-4830-44e2-927b-48bf198e8381
+:END:
 Configure grabage collection
 #+begin_src emacs-lisp
   (setup (:straight gcmh)
@@ -531,6 +572,9 @@ Configure grabage collection
 #+end_src
 
 *** Auto compile and Benchmarking
+:PROPERTIES:
+:ID:                     f1aecd27-d27e-4b5e-9291-4ef3a014edf7
+:END:
 #+begin_src emacs-lisp
 
   (setup (:straight benchmark-init)
@@ -556,6 +600,9 @@ Configure grabage collection
 
 #+end_src
 *** Keep Emacs Directory clean
+:PROPERTIES:
+:ID:                     6a5d7242-ad99-4056-81cd-344f0a3d3b97
+:END:
 Use no-littering to automatically set common paths to the new user-emacs-directory
 #+begin_src emacs-lisp
 (setup (:straight no-littering)
@@ -564,7 +611,13 @@ Use no-littering to automatically set common paths to the new user-emacs-directo
 #+end_src
 
 * Emacs Sane defaults
+:PROPERTIES:
+:ID:                     0b7a23eb-354b-4f88-bdb6-fbf54081e1f3
+:END:
 ** Constants
+:PROPERTIES:
+:ID:                     8e5d71f2-1d6b-4a25-843d-980894a67fac
+:END:
 Set Up Good Defaults. Taken from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-settings.el][mifano's emacs setup]]
 
 Some constants that I use.
@@ -572,10 +625,11 @@ Some constants that I use.
 
   (require 'subr-x)
     ;;; Initialise Constants
-  (defconst NATIVECOMP (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
-  (defconst IS-MAC     (eq system-type 'darwin))
-  (defconst IS-LINUX   (eq system-type 'gnu/linux))
-  (defconst IS-TERMUX
+  (defconst ENV-IS-NATIVECOMP? (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
+  (defconst ENV-IS-GRAPHIC? (display-graphic-p))
+  (defconst ENV-IS-MAC?     (eq system-type 'darwin))
+  (defconst ENV-IS-LINUX?   (eq system-type 'gnu/linux))
+  (defconst ENV-IS-TERMUX?
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
   (defconst env-sys-name (system-name))
 
@@ -589,51 +643,78 @@ Some constants that I use.
 #+end_src
 
 ** Keyboard
+:PROPERTIES:
+:ID:                     a218fd94-1b2d-405d-a572-53bf5a382654
+:END:
 #+begin_src emacs-lisp :noweb-ref keyboard
-   (defvar kbd-escape-hook nil
-     "A hook run after \\[keyboard-quit] is pressed.
-   Triggers `kbd-escape'.
-   If any hook returns non-nil, all hooks after it are ignored.")
+  (use-package general
+    :commands (general-define-key))
 
-   (defun kbd-escape ()
-     "Run the `kbd-escape-hook'."
-     (interactive)
-     (cond ((minibuffer-window-active-p (minibuffer-window))
-   	 ;; quit the minibuffer if open.
-   	 (abort-recursive-edit))
-   	;; Run all escape hooks. If any returns non-nil, then stop
-   	;; there.
-   	((cl-find-if #'funcall kbd-escape-hook))
-   	;; don't abort macros
-   	((or defining-kbd-macro executing-kbd-macro) nil)
-   	;; Back to the default
-   	((keyboard-quit))))
+  (general-create-definer leader-def
+    :states nil
+    :keymaps 'override
+    :prefix "M-m"
+    :prefix-command 'prefix-command
+    :prefix-map 'prefix-map)
 
-   (global-set-key [remap keyboard-quit] #'kbd-escape)
+  (leader-def
+    "/" '(nil :which-key "search...")
+    "[" '(nil :which-key "previous...")
+    "a" '(nil :which-key "align...")
+    "g" '(nil :which-key "git...")
+    "i" '(nil :which-key "insert...")
+    "j" '(nil :which-key "jump...")
+    "o" '(nil :which-key "open..."))
 
-    (setup (:straight which-key)
-     (which-key-mode 1)
-    (setq which-key-add-column-padding 2)
-    (setq which-key-idle-delay 0.5)
-    (setq which-key-idle-secondary-delay 0.1)
-    (setq which-key-max-display-columns nil)
-    (setq which-key-min-display-lines 6)
-    (setq which-key-replacement-alist
-	  '((("left") . ("🡸"))
-	    (("right") . ("🡺"))
-	    (("up") . ("🡹"))
-	    (("down") . ("🡻"))
-	    (("delete") . ("DEL"))
-	    (("\\`DEL\\'") . ("BKSP"))
-	    (("RET") . ("⏎"))
-	    (("next") . ("PgDn"))
-	    (("prior") . ("PgUp"))))
-    (setq which-key-sort-order 'which-key-key-order-alpha)
-    (setq which-key-sort-uppercase-first nil)
-    (which-key-setup-minibuffer)
-  ;;  (:with-hook which-key-init-buffer-hook
-   ;;   (:hook (lambda (setq line-spacing 4))))
-    (:hide-mode))
+  (use-package bind-key)
+
+     (defvar kbd-escape-hook nil
+       "A hook run after \\[keyboard-quit] is pressed.
+     Triggers `kbd-escape'.
+     If any hook returns non-nil, all hooks after it are ignored.")
+
+     (defun kbd-escape ()
+       "Run the `kbd-escape-hook'."
+       (interactive)
+       (cond ((minibuffer-window-active-p (minibuffer-window))
+       ;; quit the minibuffer if open.
+       (abort-recursive-edit))
+      ;; Run all escape hooks. If any returns non-nil, then stop
+      ;; there.
+      ((cl-find-if #'funcall kbd-escape-hook))
+      ;; don't abort macros
+      ((or defining-kbd-macro executing-kbd-macro) nil)
+      ;; Back to the default
+      ((keyboard-quit))))
+
+     (global-set-key [remap keyboard-quit] #'kbd-escape)
+
+       (setup (:straight which-key)
+    ;;    (which-key-mode 1)
+    ;;   (setq which-key-add-column-padding 2)
+    ;;   (setq which-key-idle-delay 0.5)
+    ;;   (setq which-key-idle-secondary-delay 0.1)
+    ;;   (setq which-key-max-display-columns nil)
+    ;;   (setq which-key-min-display-lines 6)
+    ;;   (setq which-key-replacement-alist
+    ;;     '((("left") . ("🡸"))
+    ;;       (("right") . ("🡺"))
+    ;;       (("up") . ("🡹"))
+    ;;       (("down") . ("🡻"))
+    ;;       (("delete") . ("DEL"))
+    ;;       (("\\`DEL\\'") . ("BKSP"))
+    ;;       (("RET") . ("⏎"))
+    ;;       (("next") . ("PgDn"))
+    ;;       (("prior") . ("PgUp"))))
+    ;;   (setq which-key-sort-order 'which-key-key-order-alpha)
+    ;;   (setq which-key-sort-uppercase-first nil)
+    ;;   (which-key-setup-minibuffer)
+    ;; ;;  (:with-hook which-key-init-buffer-hook
+    ;;  ;;   (:hook (lambda (setq line-spacing 4))))
+       (:hide-mode))
+
+  (use-package which-key
+    :hook (after-init . which-key-mode))
 
 #+end_src
 keychords with hydra
@@ -644,13 +725,20 @@ keychords with hydra
 
 #+end_src
 * Emacs Packages
+:PROPERTIES:
+:ID:                     7946938d-411b-45f0-9f86-ac04b3cccbdc
+:END:
 ** Utility Functions & macros
+:PROPERTIES:
+:ID:                     7ac6b421-f461-44d6-9b26-8b26fc00bbb1
+:END:
 
 These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-util.el][mifano]] and doom
 
 *** Macros
 :PROPERTIES:
 :header-args: :noweb-ref macros
+:ID:                     c9538dff-30bc-4c0e-b196-4020bf042dcd
 :END:
 #+begin_src emacs-lisp
   (require 'cl-lib)
@@ -855,6 +943,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 *** Variables
 :PROPERTIES:
 :header-args: :noweb-ref variables
+:ID:                     96932d92-d4cc-4d1f-ace0-60da51f8e009
 :END:
 #+begin_src emacs-lisp
 (defvar enfer/ignored-directories
@@ -868,6 +957,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 *** Functions
 :PROPERTIES:
 :header-args: :noweb-ref functions
+:ID:                     f00d3971-f116-4a18-9aad-a005ea5eb4ea
 :END:
 #+begin_src emacs-lisp
   (defun enfer/show-startup-time ()
@@ -989,6 +1079,9 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 
 #+end_src
 ** Setup if exists Executable
+:PROPERTIES:
+:ID:                     8646057b-7936-46f3-a18e-b4b69372eb25
+:END:
 ripgrep and gist
 #+begin_src emacs-lisp :noweb-ref pkg-utils
   (+with-message "pkg-util"
@@ -1007,11 +1100,14 @@ ripgrep and gist
     ) ;; end of pkg-utils +with-message
 #+end_src
 *** MAC PATH specific
+:PROPERTIES:
+:ID:                     59f904d5-a915-4e9b-9102-197d3c1bcf73
+:END:
 #+begin_src emacs-lisp :noweb-ref pkg-editor
   ;;(cua-mode 1)
   ;; load doom-path
 
-  ;;    (setup (:straight-when exec-path-from-shell IS-MAC)
+  ;;    (setup (:straight-when exec-path-from-shell ENV-IS-MAC?)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
   ;;      (exec-path-from-shell-initialize)
@@ -1023,8 +1119,12 @@ ripgrep and gist
 ** Emacs UI Appearance
 :PROPERTIES:
 :header-args: :noweb-ref pkg-ui
+:ID:                     3b410e52-29cb-42e3-aade-decf4bc46fd1
 :END:
 *** Default Appearance setting
+:PROPERTIES:
+:ID:                     328a3836-2d52-443e-a443-1a39ba555d3e
+:END:
 Some Defaults for my preferred appearance
 #+begin_src emacs-lisp
   ;; be quiet at startup; don't load or display anything unnecessary
@@ -1106,9 +1206,12 @@ Some Defaults for my preferred appearance
   ;;     (:hook visual-line-mode)))
 #+end_src
 *** Menu and Tool bars
+:PROPERTIES:
+:ID:                     29668972-915f-4b30-b610-8eb235bee74c
+:END:
 #+begin_src elisp
 (menu-bar-mode -1)            ; Disable the menu bar
-(unless IS-TERMUX
+(unless ENV-IS-TERMUX?
   (scroll-bar-mode -1)        ; Disable visible scrollbar
   (tool-bar-mode -1)          ; Disable the toolbar
   (tooltip-mode -1)           ; Disable tooltips
@@ -1117,6 +1220,9 @@ Some Defaults for my preferred appearance
 
 #+end_src
 *** Fonts & Emojis
+:PROPERTIES:
+:ID:                     e70dbb98-1d6f-4837-8b45-ffc730e45e99
+:END:
 
 On Linux, I have a custom build of Iosevka that I like.
 
@@ -1188,12 +1294,15 @@ On Linux, I have a custom build of Iosevka that I like.
 #+end_src
 
 *** Frame titles, sizes and mouse setup
+:PROPERTIES:
+:ID:                     8d16458c-e38a-4060-91e8-40a3a034e639
+:END:
 
 #+begin_src emacs-lisp
   ;; (setq-default frame-title-format
   ;;               (concat invocation-name "@" (system-name)
   ;;                       ": %b %+%+ %f"))
-  (unless IS-TERMUX
+  (unless ENV-IS-TERMUX?
     (setup mouse
       (setq focus-follows-mouse t)
       (setq make-pointer-invisible t)
@@ -1209,7 +1318,7 @@ On Linux, I have a custom build of Iosevka that I like.
       (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
 
-  (unless IS-TERMUX
+  (unless ENV-IS-TERMUX?
     (setup scrolling
       (setq auto-hscroll-mode 'current-line)
       (setq auto-window-vscroll nil)
@@ -1221,7 +1330,7 @@ On Linux, I have a custom build of Iosevka that I like.
       (setq scroll-preserve-screen-position t)
       (setq scroll-step 1)))
 
-  (unless IS-TERMUX
+  (unless ENV-IS-TERMUX?
     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
@@ -1229,28 +1338,31 @@ On Linux, I have a custom build of Iosevka that I like.
 #+end_src
 
 *** Themes & Modeline
+:PROPERTIES:
+:ID:                     86d008a2-d188-496b-a6c8-564b6a68a88a
+:END:
 
 #+begin_src emacs-lisp
     (setup (:straight spacegray-theme))
 
-  ;; (use-package modus-themes
-  ;;   :if IS-MAC
-  ;;   :init
-  ;;   (setq-default
-  ;;    modus-themes-diffs 'desaturated
-  ;;    modus-themes-headings '((t . section))
-  ;;    modus-themes-bold-constructs t
-  ;;    modus-themes-syntax 'faint
-  ;;    modus-themes-prompts 'subtle
-  ;;    modus-themes-completions 'opionated)
-  ;;   (load-theme 'modus-operandi t))
+   (use-package modus-themes
+     :if ENV-IS-GRAPHIC?
+     :init
+     (setq-default
+      modus-themes-diffs 'desaturated
+      ;;modus-themes-headings '((t . section))
+      modus-themes-bold-constructs t
+      modus-themes-syntax 'faint
+      modus-themes-prompts 'subtle
+      modus-themes-completions 'opionated))
 
     (setup (:straight doom-themes)
       (setq doom-themes-enable-bold t)
       (setq doom-themes-enable-italic t)
       (doom-themes-org-config))
 
-    (unless IS-TERMUX
+    (unless ENV-IS-TERMUX?
+         (load-theme 'modus-operandi t)
      ;; (load-theme 'doom-palenight t)
       (doom-themes-visual-bell-config))
 
@@ -1287,6 +1399,10 @@ On Linux, I have a custom build of Iosevka that I like.
                doom-modeline-major-mode-icon nil)
       (custom-set-faces '(mode-line ((t (:height 0.85))))
                         '(mode-line-inactive ((t (:height 0.85))))))
+
+(use-package bui
+  :defer t)
+
 ;; what does this TODO?
 (use-package lister
   :straight (lister
@@ -1299,6 +1415,9 @@ On Linux, I have a custom build of Iosevka that I like.
 
 #+end_src
 *** Don't show default modeline
+:PROPERTIES:
+:ID:                     f761fe6b-6855-4252-848d-de3be17b045a
+:END:
 
 Wait until my *fancy* modeline is loaded -- from [[https://github.com/KaratasFurkan/.emacs.d#remove-redundant-ui][Furkan Karataş]].
 
@@ -1307,6 +1426,9 @@ Wait until my *fancy* modeline is loaded -- from [[https://github.com/KaratasFur
 
 #+end_src
 *** highlights and diff
+:PROPERTIES:
+:ID:                     6d744ef7-add5-408d-8f5f-e7112027ce62
+:END:
 setup diff and highlights
 #+begin_src emacs-lisp
     (setup (:straight highlight-numbers)
@@ -1337,6 +1459,7 @@ setup diff and highlights
 ** Window Setup
 :PROPERTIES:
 :header-args: :noweb-ref windose
+:ID:                     1c36aad2-dfb6-4189-9aea-45732dba3d5d
 :END:
 
 1st some defaults
@@ -1373,6 +1496,9 @@ setup diff and highlights
 #+end_src
 
 *** Splitting windows sensibly
+:PROPERTIES:
+:ID:                     43136dd2-3231-485b-89d9-88c8fe9fd6aa
+:END:
 
 This is extremely fiddly and I'd love another option.
 - [[https://www.emacswiki.org/emacs/ToggleWindowSplit][ToggleWindowSplit, EmacsWiki]]
@@ -1415,32 +1541,50 @@ This is extremely fiddly and I'd love another option.
   ;;                  split-height-threshold 50)
 #+end_src
 *** Fringes
+:PROPERTIES:
+:ID:                     2d868201-f74e-4308-9326-55ffecb072a3
+:END:
 
 I have grown to love Emacs's little fringes on the side of the
 windows.  In fact, I love them so much that I really went overboard
 and have made a custom fringe bitmap.
 
 **** Indicate empty lines after the end of the buffer
+:PROPERTIES:
+:ID:                     ed5dbc40-17dc-4dc1-afe9-438667404b90
+:END:
 
 #+begin_src emacs-lisp
   (setq-default indicate-empty-lines t)
 #+end_src
 
 **** Indicate the boundaries of the buffer
+:PROPERTIES:
+:ID:                     18a0a877-886e-4258-9cec-b4c7ade6acb8
+:END:
 
 #+begin_src emacs-lisp
   (setq-default indicate-buffer-boundaries 'right)
 #+end_src
 
 **** Indicate continuation lines, but only on the left fringe
+:PROPERTIES:
+:ID:                     a9d9c920-70a0-44f8-9a35-e8dbab82ee02
+:END:
 
 #+begin_src emacs-lisp
   (setq-default visual-line-fringe-indicators '(left-curly-arrow nil))
 #+end_src
 
 **** Customise fringe bitmaps
+:PROPERTIES:
+:ID:                     809ba958-cf27-4d36-91a1-cee523bb164c
+:END:
 
 ***** Curly arrows (continuation lines)
+:PROPERTIES:
+:ID:                     a6b18024-eff2-4daa-bff3-37a9b190c6a8
+:END:
 
 #+begin_src emacs-lisp
   (define-fringe-bitmap 'left-curly-arrow
@@ -1457,6 +1601,9 @@ and have made a custom fringe bitmap.
 #+end_src
 
 ***** Arrows (truncation lines)
+:PROPERTIES:
+:ID:                     34b749d5-dc05-4f04-ad4a-6477dd225bc6
+:END:
 
 #+begin_src emacs-lisp
   (define-fringe-bitmap 'left-arrow
@@ -1474,8 +1621,12 @@ and have made a custom fringe bitmap.
 ** Emacs as an Editor
 :PROPERTIES:
 :header-args: :noweb-ref pkg-editor
+:ID:                     2251b28a-96ec-4776-8039-c7455e886527
 :END:
 *** Reading mode
+:PROPERTIES:
+:ID:                     414d00c3-1cd2-4fa0-8f78-79596396d7be
+:END:
 What does it do?
 #+begin_src emacs-lisp
 (setup (:require reading)
@@ -1483,6 +1634,9 @@ What does it do?
   )
 #+end_src
 *** Indentation
+:PROPERTIES:
+:ID:                     499df3a6-0e15-4f23-b915-ead73842e866
+:END:
 use electric-indent but have a way of turning it off
 #+begin_src emacs-lisp
 ;; easier to search
@@ -1508,6 +1662,9 @@ replace-char-fold t)
 #+end_src
 
 *** Whitespaces
+:PROPERTIES:
+:ID:                     172e5cef-83e4-499b-a753-34beef9ad275
+:END:
 #+begin_src emacs-lisp
 ;; Whitespaces
 
@@ -1527,6 +1684,9 @@ replace-char-fold t)
 #+end_src
 
 *** Formatting
+:PROPERTIES:
+:ID:                     4b0da00e-0866-48e4-8cd7-0b34847c9d14
+:END:
 use ws-butler
 #+begin_src emacs-lisp
     ;; Formatting
@@ -1571,6 +1731,9 @@ use ws-butler
 
 #+end_src
 *** Long lines
+:PROPERTIES:
+:ID:                     07be8af1-fc88-4a04-b390-f40c054f1bd1
+:END:
 The visual-line-mode function enables line-wrapping. You can run the function separately for each buffer, but ideally, you hook it to all text modes.
 
 When you select (mark) a section of text and start typing, Emacs will not replace the selected text. To enable Emacs deleting selected text, you set the delete-selection-mode variable, as below.
@@ -1614,6 +1777,9 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
     (global-undo-tree-mode 1))
     #+end_src
 *** Move Text
+:PROPERTIES:
+:ID:                     e876dc83-2902-46e7-8c1c-69e371a03b56
+:END:
 #+begin_src emacs-lisp
   (setup (:straight move-text)
    ;; :commands (move-text-up
@@ -1622,6 +1788,9 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
              [M-S-up]    #'move-text-up))
 #+end_src
 *** Move where I Mean
+:PROPERTIES:
+:ID:                     0afacc7c-7b32-4047-842c-ade5637483c4
+:END:
 #+begin_src emacs-lisp
 (setup  (:straight mwim)
   (:delay 1)
@@ -1629,6 +1798,9 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 #+end_src
 
 *** Avy - Filter, Select, Act
+:PROPERTIES:
+:ID:                     e2c2803d-7159-4431-9bff-1ada59aaece5
+:END:
 Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
     (setup (:straight avy)
@@ -1752,6 +1924,9 @@ Setup avy in filter, select, act mode
 
 #+end_src
 *** Spelling
+:PROPERTIES:
+:ID:                     646035cd-ccc8-4a21-b116-f5d2269dbad9
+:END:
 The configuration below enables Flyspell for all text modes and sets Hunspell as the default checking program. The M-F7 key checks the spelling for all words in the buffer and F7 checks the word that you cursor is standing on.
 
 A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
@@ -1832,6 +2007,9 @@ I use the dictionary package for Emacs, and I’m lazy about it:
 #+end_src
 
 *** Encodings & expand region
+:PROPERTIES:
+:ID:                     7c67910a-5992-4b18-a845-c454b93186c3
+:END:
 Setup encodings
 #+begin_src emacs-lisp :noweb-ref sanity
 
@@ -1884,6 +2062,7 @@ Setup undo , whitespace, expand, indentation
 ** Buffers in Emacs
 :PROPERTIES:
 :header-args: :noweb-ref buffers
+:ID:                     e82ac276-b2db-434f-83aa-da6df0f3b90e
 :END:
 Setup the buffers to my liking
 #+begin_src emacs-lisp
@@ -2162,6 +2341,7 @@ Setup the buffers to my liking
 ** Sanity settings
 :PROPERTIES:
 :header-args: :noweb-ref sanity
+:ID:                     aa34e0d9-5c92-4a74-b187-ac2be9dcb824
 :END:
 Setup Scatch and minibuffer
 #+begin_src emacs-lisp
@@ -2207,6 +2387,7 @@ Setup Scatch and minibuffer
 ** Project Setup
 :PROPERTIES:
 :header-args: :noweb-ref projet
+:ID:                     2a1cf21e-d71d-4d0b-a538-74b7989c18b0
 :END:
 
 setup of emacs project
@@ -2254,6 +2435,7 @@ setup of emacs project
 ** VCS
 :PROPERTIES:
 :header-args: :noweb-ref vcs
+:ID:                     6862765e-98fc-4855-b14b-1c9300cc9885
 :END:
 Setup of magit for cool git
 #+begin_src emacs-lisp
@@ -2369,6 +2551,9 @@ Setup of magit for cool git
           (magit-todos-mode 1)))
 #+end_src
 ** Emacs *Help* functions
+:PROPERTIES:
+:ID:                     c0c72f61-3244-412e-9deb-8d9abee533b4
+:END:
 
  Help and which functions
 
@@ -2402,6 +2587,9 @@ Setup of magit for cool git
 #+end_src
 
 ** Navigation
+:PROPERTIES:
+:ID:                     73011391-29f2-4810-b02e-b4b9775c1554
+:END:
 setup Marginalia for navigation
 #+begin_src emacs-lisp
   ;; Enable richer annotations using the Marginalia package
@@ -2414,6 +2602,9 @@ setup Marginalia for navigation
 #+end_src
 
 *** Completion
+:PROPERTIES:
+:ID:                     4cac10bb-2e1d-4ca3-8a9b-11ef8ca3611f
+:END:
 Emacs completion parlava
 #+begin_src emacs-lisp :noweb-ref pkg-completion
   (setup (:straight corfu)
@@ -2690,8 +2881,12 @@ Emacs completion parlava
 ** Note Taking
 :PROPERTIES:
 :header-args: :noweb-ref pkg-org
+:ID:                     b4494a7b-c67e-401c-b130-7592fb7d7a7c
 :END:
 *** Vulpea
+:PROPERTIES:
+:ID:                     b8538a46-829b-43a2-af58-3123de1cf852
+:END:
 Setup d12frosted's vulpea
 
 #+begin_src emacs-lisp
@@ -2699,17 +2894,33 @@ Setup d12frosted's vulpea
 
   (use-package vulpea
     :straight (vulpea
-	       :type git
-	       :host github
-	       :repo "d12frosted/vulpea")
+               :type git
+               :host github
+               :repo "d12frosted/vulpea")
     :defer t
+    :general
+    (leader-def
+      "n" '(nil :which-key "vulpea...")
+      "nd" '(nil :which-key "by date...")
+      "ndd" '(vulpea-dailies-date :which-key "arbitrary date")
+      "ndt" '(vulpea-dailies-today :which-key "today")
+      "ndn" '(vulpea-dailies-next :which-key "next")
+      "ndp" '(vulpea-dailies-prev :which-key "previous")
+      "nf" '(vulpea-find :which-key "find")
+      "nF" '(vulpea-find-backlink :which-key "find backlink")
+      "ni" '(vulpea-insert :which-key "insert")
+      "nt" '(vulpea-tags-add :which-key "tag")
+      "nT" '(vulpea-tags-delete :which-key "untag")
+      "na" '(vulpea-alias-add :which-key "alias")
+      "nA" '(vulpea-alias-delete :which-key "unalias")
+      "ol" '(litnotes :which-key "litnotes"))
     :hook ((before-save . vulpea-pre-save-hook)
-	   (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
+           (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
     :init
     (add-to-list 'window-buffer-change-functions
-		 #'vulpea-setup-buffer)
+                 #'vulpea-setup-buffer)
     (add-hook 'vulpea-insert-handle-functions
-	      #'vulpea-insert-handle)
+              #'vulpea-insert-handle)
     (setq-default
      vulpea-find-default-filter
      (lambda (note)
@@ -2718,329 +2929,348 @@ Setup d12frosted's vulpea
      (lambda (note)
        (= (vulpea-note-level note) 0))))
 
-    (setup vulpea
-      (:global   "C-c n f"   vulpea-find
-		 "C-c n F"   vulpea-find-backlink
-		 "C-c n d"   vulpea-dailies-date
-	;;;	 "C-c n d t" vulpea-dailies-today
-	;;;	 "C-c n d n" vulpea-dailies-next
-	;;;	 "C-c n d p" vulpea-dailies-prev
-		 "C-c n i"   vulpea-insert
-		 "C-c n t"   vulpea-tags-add
-		 "C-c n T"   vulpea-tags-delete
-		 "C-c n a"   vulpea-alias-add
-		 "C-c n A"   vulpea-alias-delete
-		 ))
+  (use-package org
+    :hook ((org-mode . visual-line-mode)
+           (org-mode . adaptive-wrap-prefix-mode)
+           ;; oh, how much I hate it in Org mode buffers
+           (org-mode . editor-disable-electric-indent))
+    :commands (org-check-agenda-file
+               org-link-set-parameters)
+    :init
+    ;; This is where my ~heart~ org files are.
+    (setq org-directory
+          (if ENV-IS-TERMUX?
+              "~/storage/shared/org"
+            vulpea-directory))
 
-    (use-package org
-      :hook ((org-mode . visual-line-mode)
-	     (org-mode . adaptive-wrap-prefix-mode)
-	     ;; oh, how much I hate it in Org mode buffers
-	     (org-mode . editor-disable-electric-indent))
-      :commands (org-check-agenda-file
-		 org-link-set-parameters)
-      :init
-      ;; This is where my ~heart~ org files are.
-       (setq org-directory
-	  (if IS-TERMUX
-	      "~/storage/shared/org"
-	    vulpea-directory))
+    (defun /org-path (path)
+      (expand-file-name path org-directory))
 
-      (defun /org-path (path)
-	(expand-file-name path org-directory))
+    ;;(setq org-default-notes-file (/org-path "inbox.org"))
+    ;; Setup list of Org modules that should always be loaded together
+    ;; with Org.
+    (setq org-modules '(org-id org-attach))
 
-      (setq org-default-notes-file (/org-path "inbox.org"))
-      ;; Setup list of Org modules that should always be loaded together
-      ;; with Org.
-      (setq org-modules '(org-id org-attach))
+    ;; pretty org files
+    (setq
+     org-adapt-indentation nil
+     org-hidden-keywords nil
+     org-hide-emphasis-markers nil
+     org-hide-leading-stars nil
+     org-image-actual-width '(512)
+     org-imenu-depth 1
+     org-pretty-entities nil
+     org-startup-folded t)
 
-      ;; pretty org files
-      (setq
-       org-adapt-indentation nil
-       org-hidden-keywords nil
-       org-hide-emphasis-markers nil
-       org-hide-leading-stars nil
-       org-image-actual-width '(512)
-       org-imenu-depth 1
-       org-pretty-entities nil
-       org-startup-folded t)
+    ;; do not allow invisible edits (...)
+    (setq org-catch-invisible-edits 'error)
 
-      ;; do not allow invisible edits (...)
-      (setq org-catch-invisible-edits 'error)
+    ;; formatting for properties
+    (setq org-property-format "%-24s %s")
 
-      ;; formatting for properties
-      (setq org-property-format "%-24s %s")
+    ;; setup todo keywords
+    (setq
+     org-todo-keywords
+     '((sequence "TODO(t)" "|" "FINI(d!)")
+       (sequence "ATTENDRE(w@/!)"
+                 "ENATTENTE(h@/!)"
+                 "|"
+                 "ANNULÉ(c@/!)"
+                 "RÉUNION"))
 
-      ;; setup todo keywords
-      (setq
-       org-todo-keywords
-       '((sequence "TODO(t)" "|" "DONE(d!)")
-	 (sequence "WAITING(w@/!)"
-		   "HOLD(h@/!)"
-		   "|"
-		   "CANCELLED(c@/!)"
-		   "MEETING"))
+     ;; use fast todo selection
+     org-use-fast-todo-selection t
 
-       ;; use fast todo selection
-       org-use-fast-todo-selection t
+     ;; block parent until children are done
+     org-enforce-todo-dependencies t
 
-       ;; block parent until children are done
-       org-enforce-todo-dependencies t
+     ;; allo to fast fix todo state without triggering anything
+     org-treat-S-cursor-todo-selection-as-state-change nil
 
-       ;; allo to fast fix todo state without triggering anything
-       org-treat-S-cursor-todo-selection-as-state-change nil
+     ;; setup state triggers
+     org-todo-state-tags-triggers
+     '(("ANNULÉ" ("ANNULÉ" . t))
+       ("ATTENDRE" ("ATTENDRE" . t))
+       ("ENATTENTE" ("ATTENDRE") ("ENATTENTE" . t))
+       (done ("ATTENDRE") ("ENATTENTE") ("FOCUS"))
+       ("TODO" ("ATTENDRE") ("ANNULÉ") ("ENATTENTE"))
+       ("FINI" ("ATTENDRE") ("ANNULÉ") ("ENATTENTE")))
 
-       ;; setup state triggers
-       org-todo-state-tags-triggers
-       '(("CANCELLED" ("CANCELLED" . t))
-	 ("WAITING" ("WAITING" . t))
-	 ("HOLD" ("WAITING") ("HOLD" . t))
-	 (done ("WAITING") ("HOLD") ("FOCUS"))
-	 ("TODO" ("WAITING") ("CANCELLED") ("HOLD"))
-	 ("DONE" ("WAITING") ("CANCELLED") ("HOLD")))
+     ;; use drawer for state changes
+     org-log-into-drawer t)
 
-       ;; use drawer for state changes
-       org-log-into-drawer t)
+    ;; tags
+    (setq
+     org-tag-persistent-alist '(("FOCUS" . ?f)
+                                ("PROJET" . ?p))
+     org-use-tag-inheritance t
+     org-tags-exclude-from-inheritance '("projet"
+                                         "litnotes"
+                                         "people"))
 
-      ;; tags
-      (setq
-       org-tag-persistent-alist '(("FOCUS" . ?f)
-				  ("PROJET" . ?p))
-       org-use-tag-inheritance t
-       org-tags-exclude-from-inheritance '("projet"
-					   "litnotes"
-					   "people"))
+    ;; avoid noisy `org-check-agenda-file'
+    (advice-add #'org-check-agenda-file
+                :around
+                #'vulpea-check-agenda-file)
+    :config
+    ;; open directory links in `dired'
+    (add-to-list 'org-file-apps '(directory . emacs))
 
-      ;; avoid noisy `org-check-agenda-file'
-      (advice-add #'org-check-agenda-file
-		  :around
-		  #'vulpea-check-agenda-file)
-      :config
-      ;; open directory links in `dired'
-      (add-to-list 'org-file-apps '(directory . emacs))
+    ;; open files in the same window
+    (add-to-list 'org-link-frame-setup '(file . find-file))
+    (setq org-indirect-buffer-display 'current-window))
 
-      ;; open files in the same window
-      (add-to-list 'org-link-frame-setup '(file . find-file))
-      (setq org-indirect-buffer-display 'current-window))
+  
 
-    
+  (use-package org-clock
+    :straight nil
+    :defer t
+    :commands (org-clock-save)
+    :init
+    (setq
+     org-clock-persist-file (expand-file-name "org-clock-save.el" emacs-etc/ )
+     ;; remove clocked tasks with 0:00 duration
+     org-clock-out-remove-zero-time-clocks t
+     org-clock-persist 'history
+     ;; Resume when clocking into task with open clock
+     org-clock-in-resume t)
+    :config
+    (add-hook 'kill-emacs-hook #'org-clock-save))
 
-    (use-package org-clock
-      :straight nil
-      :defer t
-      :commands (org-clock-save)
-      :init
-      (setq
-       org-clock-persist-file (expand-file-name "org-clock-save.el" emacs-etc/ )
-       ;; remove clocked tasks with 0:00 duration
-       org-clock-out-remove-zero-time-clocks t
-       org-clock-persist 'history
-       ;; Resume when clocking into task with open clock
-       org-clock-in-resume t)
-      :config
-      (add-hook 'kill-emacs-hook #'org-clock-save))
+  
 
-    
+  (use-package org-refile
+    :straight nil
+    :defer t
+    :init
+    (setq
+     org-outline-path-complete-in-steps nil
+     org-refile-targets '((nil :maxlevel . 4)
+                          (org-agenda-files :maxlevel . 4))
+     org-refile-use-outline-path t
+     org-refile-allow-creating-parent-nodes nil
+     org-refile-target-verify-function #'vulpea-refile-verify-target))
 
-    (use-package org-refile
-      :straight nil
-      :defer t
-      :init
-      (setq
-       org-outline-path-complete-in-steps nil
-       org-refile-targets '((nil :maxlevel . 4)
-			    (org-agenda-files :maxlevel . 4))
-       org-refile-use-outline-path t
-       org-refile-allow-creating-parent-nodes nil
-       org-refile-target-verify-function #'vulpea-refile-verify-target))
+  
 
-    
+  (use-package org-id
+    :straight nil
+    :defer t
+    :hook ((before-save . vulpea-id-auto-assign)
+           (org-capture-prepare-finalize . org-id-get-create))
+    :init
+    (setq org-id-uuid-program
+          "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
+    :config
+    (org-link-set-parameters
+     "id" :activate-func #'vulpea-activate-link)
+    (setq
+     org-id-track-globally t
+     org-id-extra-files
+     (list (expand-file-name ".archive/archive" org-directory)
+           (expand-file-name ".archive/archive.org" org-directory))
+     org-id-link-to-org-use-id t
+     org-id-locations-file (expand-file-name "org-id-locations" emacs-cache/)))
 
-    (use-package org-id
-      :straight nil
-      :defer t
-      :hook ((before-save . vulpea-id-auto-assign)
-	     (org-capture-prepare-finalize . org-id-get-create))
-      :init
-      (setq org-id-uuid-program
-	    "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
-      :config
-      (org-link-set-parameters
-       "id" :activate-func #'vulpea-activate-link)
-      (setq
-       org-id-track-globally t
-       org-id-extra-files
-       (list (expand-file-name ".archive/archive" org-directory)
-	     (expand-file-name ".archive/archive.org" org-directory))
-       org-id-link-to-org-use-id t
-       org-id-locations-file (expand-file-name "org-id-locations" emacs-cache/)))
+  
 
-    
+  (use-package org-capture
+    :straight nil
+    :defer t
+    :general
+    (leader-def
+      "c" '(nil :which-key "capture...")
+      "cX" '(org-capture :which-key "dispatch")
+      "ca" '(vulpea-capture-article :which-key "article")
+      "cj" '(vulpea-capture-journal :which-key "journal")
+      "cl" '(org-store-link :which-key "link")
+      "cm" '(vulpea-capture-meeting :which-key "meeting")
+      "cx" '(vulpea-capture-task :which-key "task"))
+    :init
+    (setq-default org-capture-bookmark nil)
+    :config
+    (vulpea-capture-setup))
 
-    (use-package org-capture
-      :straight nil
-      :defer t
-      :init
-      (setq-default org-capture-bookmark nil)
-      :config
-      (vulpea-capture-setup))
+  
 
-    (setup org-capture
-      (:global  "C-c n c" org-capture
-	      ;;  "C-c n c X" (org-capture :which-key "dispatch")
-		"C-c n a" vulpea-capture-article
-		"C-c n j" vulpea-capture-journal
-		"C-c n l" org-store-link
-		"C-c n m" vulpea-capture-meeting
-		"C-c n x" vulpea-capture-task
-		))
-    
+  (use-package org-attach
+    :straight nil
+    :defer t
+    :config
+    (setq-default
+     org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
+     org-attach-auto-tag nil
+     org-attach-file-list-property nil
+     org-attach-store-link-p 'attached))
 
-    (use-package org-attach
-      :straight nil
-      :defer t
-      :config
+  
+
+  (use-package org-archive
+    :straight nil
+    :defer t
+    :init
+    (setq-default
+     org-archive-location
+     (concat org-directory ".archive/%s_archive" "::" "datetree/*")
+     org-archive-save-context-info
+     '(time file ltags itags todo category olpath)))
+
+  
+
+  (use-package org-agenda
+    :straight nil
+    :defer t
+    :general
+    (leader-def
+      "oA" '(org-agenda :which-key "agenda dispatch")
+      "oa" '(vulpea-agenda-main :which-key "agenda")
+      "op" '(vulpea-agenda-person :which-key "person"))
+    :config
+    (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
+    (setq
+     org-agenda-dim-blocked-tasks nil
+     ;; setting it to t speeds up agenda, but... initial visibility is
+     ;; not honored, which for me is a bigger issue
+     org-agenda-inhibit-startup nil
+
+     ;; also show state change in log mode
+     org-agenda-log-mode-items '(closed clock state)
+
+     ;; tags
+     org-agenda-show-inherited-tags nil
+
+     ;; priorities
+      org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕")
+
+      org-priority-faces
+            `((?A . ,(face-foreground 'error))
+              (?B . ,(face-foreground 'warning))
+              (?C . ,(face-foreground 'success)))
+
+     ;; more structured view
+     org-agenda-prefix-format
+     '((agenda . " %(vulpea-agenda-category 24) %?-12t %12s")
+       (todo . " %(vulpea-agenda-category 24) ")
+       (tags . " %(vulpea-agenda-category 24) ")
+       (search . " %(vulpea-agenda-category 24) "))
+     org-agenda-todo-keyword-format "%-1s"
+     org-agenda-tags-column 0
+
+     ;; show agenda in current window
+     org-agenda-window-setup 'current-window
+
+     org-agenda-custom-commands
+     `((" " "Agenda"
+        (,vulpea-agenda-cmd-refile
+         ,vulpea-agenda-cmd-today
+         ,vulpea-agenda-cmd-focus
+         ,vulpea-agenda-cmd-projects
+         ,vulpea-agenda-cmd-waiting)
+        ((org-agenda-buffer-name vulpea-agenda-main-buffer-name)))
+        ("e" "Calendrier Eisenhower:"
+        ( ;;,vulpea-agenda-cmd-eisen
+         ,vulpea-agenda-eisen-imp-y-urg
+         ,vulpea-agenda-eisen-imp
+         ,vulpea-agenda-eisen-urg
+         ,vulpea-agenda-eisen-alltodos)
+        ((org-agenda-buffer-name vulpea-agenda-main-buffer-name)))))
+      ;;tag-alist
       (setq-default
-       org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
-       org-attach-auto-tag nil
-       org-attach-file-list-property nil
-       org-attach-store-link-p 'attached))
+         org-tag-alist
+         (quote (("@errand"     . ?e)
+                 ("@bureau"    . ?o)
+                 ("@maison"    . ?h)
+                 ("important"  . ?i)
+                 ("urgent"     . ?u)
 
-    
+                 (:newline)
+                 ("ATTENDRE"  . ?w)
+                 ("SUSPENDUÉ" . ?h)
+                 ("ANNULÉ"    . ?c)
+                 ("RÉUNION"   . ?m)
+                 ("TÉLÉPHONE" . ?p)
+                 ("french"    . ?f)
+                 ("spanish"   . ?s)))))
 
-    (use-package org-archive
-      :straight nil
-      :defer t
-      :init
-      (setq-default
-       org-archive-location
-       (concat org-directory ".archive/%s_archive" "::" "datetree/*")
-       org-archive-save-context-info
-       '(time file ltags itags todo category olpath)))
+  
 
-    
+  (use-package org-roam
+    :defer t
+    :commands (org-roam-db-autosync-enable
+               org-roam-db-sync)
+    :init
+    (setq
+     org-roam-v2-ack t
+     org-roam-directory vulpea-directory
+     org-roam-dailies-directory (expand-file-name
+                                 "journal/" org-roam-directory)
+     org-roam-db-location (expand-file-name "org-roam.db" emacs-cache/)
+     org-roam-completion-everywhere t)
+    :config
+    ;; For some reason org-roam is loaded on init and twice! Suspect it
+    ;; is related to the fact that I am loading it from different
+    ;; branch.
+    ;;
+    ;; So since I need a quick remedy, I noop `org-roam-db-sync' during
+    ;; setup, because I sync data base time to time from terminal via
+    ;; eru.
+    (advice-add #'org-roam-db-sync :around #'fun-noop)
+    (ignore-errors
+      (org-roam-db-autosync-enable))
+    (advice-remove #'org-roam-db-sync #'fun-noop))
 
-    (setup org-agenda
-      (:global "C-c A" org-agenda
-	       "C-c a" vulpea-agenda-main
-	      ;;;; "C-c a p" vulpea-agenda-person
-	       ))
+  (use-package ox-latex
+    :straight nil
+    :defer t
+    :config
+    (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
+    (add-to-list 'org-latex-packages-alist '("" "color"))
+    (setq org-preview-latex-image-directory
+          (expand-file-name "ltximg/" emacs-cache/))
+    (setq org-format-latex-options
+          (list :foreground 'auto
+                :background 'auto
+                :scale 1.5
+                :html-foreground "Black"
+                :html-background "Transparent"
+                :html-scale 1.0
+                :matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
+    (setq org-latex-listings 'minted)
+    (setq org-latex-pdf-process
+          (seq-map
+           (lambda (_)
+             (string-join '("pdflatex"
+                            "-shell-escape"
+                            "-interaction nonstopmode"
+                            "-output-directory %o %f")
+                          " "))
+           '(1 2 3))))
 
-    (use-package org-agenda
-      :straight nil
-      :defer t
-      :config
-      (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
-      (setq
-       org-agenda-dim-blocked-tasks nil
-       ;; setting it to t speeds up agenda, but... initial visibility is
-       ;; not honored, which for me is a bigger issue
-       org-agenda-inhibit-startup nil
+  (use-package ox-beamer
+    :straight nil
+    :defer t
+    :config
+    (add-to-list
+     'org-beamer-environments-extra
+     '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
 
-       ;; also show state change in log mode
-       org-agenda-log-mode-items '(closed clock state)
+  
 
-       ;; tags
-       org-agenda-show-inherited-tags nil
+  (use-package ob-plantuml
+    :straight nil
+    :defer t
+    :defines (org-plantuml-jar-path))
 
-       ;; more structured view
-       org-agenda-prefix-format
-       '((agenda . " %(vulpea-agenda-category 24) %?-12t %12s")
-	 (todo . " %(vulpea-agenda-category 24) ")
-	 (tags . " %(vulpea-agenda-category 24) ")
-	 (search . " %(vulpea-agenda-category 24) "))
-       org-agenda-todo-keyword-format "%-1s"
-       org-agenda-tags-column 0
+  
 
-       ;; show agenda in current window
-       org-agenda-window-setup 'current-window
-
-       org-agenda-custom-commands
-       `((" " "Agenda"
-	  (,vulpea-agenda-cmd-refile
-	   ,vulpea-agenda-cmd-today
-	   ,vulpea-agenda-cmd-focus
-	   ,vulpea-agenda-cmd-waiting)
-	  ((org-agenda-buffer-name vulpea-agenda-main-buffer-name))))))
-
-    
-
-    (use-package org-roam
-      :defer t
-      :commands (org-roam-db-autosync-enable
-		 org-roam-db-sync)
-      :init
-      (setq
-       org-roam-v2-ack t
-       org-roam-directory vulpea-directory
-       org-roam-dailies-directory (expand-file-name
-				   "journal/" org-roam-directory)
-       org-roam-db-location (expand-file-name "org-roam.db" emacs-cache/)
-       org-roam-completion-everywhere t)
-      :config
-      ;; For some reason org-roam is loaded on init and twice! Suspect it
-      ;; is related to the fact that I am loading it from different
-      ;; branch.
-      ;;
-      ;; So since I need a quick remedy, I noop `org-roam-db-sync' during
-      ;; setup, because I sync data base time to time from terminal via
-      ;; eru.
-      (advice-add #'org-roam-db-sync :around #'fun-noop)
-      (ignore-errors
-	(org-roam-db-autosync-enable))
-      (advice-remove #'org-roam-db-sync #'fun-noop))
-
-    (use-package ox-latex
-      :straight nil
-      :defer t
-      :config
-      (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
-      (add-to-list 'org-latex-packages-alist '("" "color"))
-      (setq org-preview-latex-image-directory
-	    (expand-file-name "ltximg/" emacs-cache/))
-      (setq org-format-latex-options
-	    (list :foreground 'auto
-		  :background 'auto
-		  :scale 1.5
-		  :html-foreground "Black"
-		  :html-background "Transparent"
-		  :html-scale 1.0
-		  :matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
-      (setq org-latex-listings 'minted)
-      (setq org-latex-pdf-process
-	    (seq-map
-	     (lambda (_)
-	       (string-join '("pdflatex"
-			      "-shell-escape"
-			      "-interaction nonstopmode"
-			      "-output-directory %o %f")
-			    " "))
-	     '(1 2 3))))
-
-    (use-package ox-beamer
-      :straight nil
-      :defer t
-      :config
-      (add-to-list
-       'org-beamer-environments-extra
-       '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
-
-    
-
-    (use-package ob-plantuml
-      :straight nil
-      :defer t
-      :defines (org-plantuml-jar-path))
-
-    
-
-    (use-package toc-org
-      :hook (org-mode . toc-org-mode))
+  (use-package toc-org
+    :hook (org-mode . toc-org-mode))
 
 #+end_src
 *** Org Workflow
    :PROPERTIES:
    :header-args:    :tangle no
+   :ID:                     7dbbb031-83de-45c1-a743-69bd6cd700cb
    :END:
 The ever changing Org setup part
 #+begin_src elisp :tangle no
@@ -3160,6 +3390,7 @@ The ever changing Org setup part
 *** Fonts, Bullets & Links
    :PROPERTIES:
    :header-args:    :tangle no
+   :ID:                     df41daa7-1a79-4a38-9700-4a2a60676302
    :END:
 Use bullet characters instead of asterisks, plus set the header font sizes to something more palatable.  A fair amount of inspiration has been taken from [[https://zzamboni.org/post/beautifying-org-mode-in-emacs/][this blog post]].
 
@@ -3179,7 +3410,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
              org-appear-delay 0)
     (:hook-into org-mode)))
 
-  (unless IS-TERMUX
+  (unless ENV-IS-TERMUX?
     (setup (:straight org-superstar)
       (:load-after org
         (:option org-superstar-remove-leading-stars t
@@ -3242,6 +3473,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 *** Org Roam
     :PROPERTIES:
    :header-args:    :tangle no
+    :ID:                     7856eb18-fd30-4e21-8364-2b3990baa874
    :END:
 #+begin_src emacs-lisp :tangle no
   (with-eval-after-load 'org
@@ -3316,7 +3548,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 
       ;; (add-to-list 'org-after-todo-state-change-hook
       ;;              (lambda ()
-      ;;                (when (equal org-state "DONE")
+      ;;                (when (equal org-state "FINI")
       ;;                  (my/org-roam-copy-todo-to-today))))
 
       (defun org-roam-node-insert-immediate (arg &rest args)
@@ -3458,6 +3690,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 *** Org Agenda
     :PROPERTIES:
    :header-args:    :tangle no
+    :ID:                     0b03668d-0ae9-4b3f-b55c-652f1896a833
    :END:
 org-capture provides a generic and extensible interface to capturing things into org-mode in
 different formats
@@ -3498,28 +3731,7 @@ different formats
                 ("FINI" .  org-todo-keyword-done)
                 ("[X]"  .  org-todo-keyword-done)
                 ))
-        (setq org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕"))
-        (setq-default
-         org-tag-alist
-         (quote (("@errand"     . ?e)
-                 ("@bureau"    . ?o)
-                 ("@maison"    . ?h)
-                 ("important"  . ?i)
-                 ("urgent"     . ?u)
 
-                 (:newline)
-                 ("ATTENDRE"  . ?w)
-                 ("SUSPENDUÉ" . ?h)
-                 ("ANNULÉ"    . ?c)
-                 ("RÉUNION"   . ?m)
-                 ("TÉLÉPHONE" . ?p)
-                 ("french"    . ?f)
-                 ("spanish"   . ?s))))
-
-        (setq org-priority-faces
-              `((?A . ,(face-foreground 'error))
-                (?B . ,(face-foreground 'warning))
-                (?C . ,(face-foreground 'success))))
         (setq org-agenda-custom-commands
               (quote
                (("n" "Prochaines Tâches"
@@ -3548,9 +3760,10 @@ different formats
                    ;;            (org-agenda-ndays 5)
                    ;;            (org-agenda-start-day "-2d")
                    (org-deadline-warning-days 30)))
-                 (tags-todo  "+important+urgent/!FINI"
-                             ((org-agenda-overriding-header "Tâches importantes et urgentes")
-                              (org-tags-match-list-sublevels nil)))
+                 (tags-todo
+   "+important+urgent/!FINI"
+      ((org-agenda-overriding-header "Tâches importantes et urgentes")
+       (org-tags-match-list-sublevels nil)))
                  (tags-todo  "+important-urgent"
                              ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
                               (org-tags-match-list-sublevels nil)))
@@ -3598,6 +3811,7 @@ different formats
 *** Templates
     :PROPERTIES:
    :header-args:    :tangle no
+    :ID:                     0cc1b333-09d8-46ed-9494-40ff0044d9fd
    :END:
 These templates enable you to type things like =<el= and then hit =Tab= to expand
 the template.  More documentation can be found at the Org Mode [[https://orgmode.org/manual/Easy-templates.html][Easy Templates]]
@@ -3629,6 +3843,7 @@ working. It sucked.
 *** Distraction Free
    :PROPERTIES:
    :header-args:    :tangle no
+   :ID:                     ad5dade4-6cb2-4fc0-b942-d3986a172fe5
    :END:
 setup olivetti to have a distraction free editing mode
 #+begin_src emacs-lisp :tangle no
@@ -3652,8 +3867,14 @@ setup olivetti to have a distraction free editing mode
 #+end_src
 
 ** Coding Settings
+:PROPERTIES:
+:ID:                     7b76837f-f324-4bfa-a3b6-eaf47bb06ad3
+:END:
 I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP setup
 *** Code IDE Setup
+:PROPERTIES:
+:ID:                     b33e2c0c-2928-4951-982d-f58ebac42a71
+:END:
 
 Set basic subword mode and eldoc setting for prog-mode
 #+begin_src emacs-lisp :noweb-ref code-paren
@@ -3887,6 +4108,9 @@ Set basic subword mode and eldoc setting for prog-mode
       )
 #+end_src
 *** Emacs Lisp
+:PROPERTIES:
+:ID:                     177c09d9-4bc3-4fd8-8fa1-de4580519c38
+:END:
 ielm setup
 #+begin_src emacs-lisp :noweb-ref code-elisp
   (setup (:require pulse)
@@ -3984,6 +4208,9 @@ ielm setup
     (:hide-mode))
 #+end_src
 *** Common LISP
+:PROPERTIES:
+:ID:                     91288bc3-f9f3-4b78-bd8d-5077decdeef0
+:END:
 SLY setup
 #+begin_src emacs-lisp :noweb-ref code-common-lisp
   (defun mf/sly-ask ()
@@ -4006,6 +4233,9 @@ SLY setup
 
 #+end_src
 *** Clojure
+:PROPERTIES:
+:ID:                     0c4cf23b-280e-4fbc-ae81-e091f8f8bc8d
+:END:
 Editing Clojure / Clojurescript code is best done using a REPL, which is provided with the cider package.
 Cider has a lot of options to customise, and here are the ones I think are most critical.
 Source comes from: [[https://stackoverflow.com/a/31080940]]
@@ -4096,9 +4326,15 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 
 
 **** clj templates
+:PROPERTIES:
+:ID:                     330e9ad1-9bd0-4386-ac8d-0a678ebb1626
+:END:
 Insertion templates can be used to speed up project setups. This is code of my own creation, so use at your own risk. The template files are in ~.emacs.d/templates/lib.org~.
 
 ***** slurp
+:PROPERTIES:
+:ID:                     0828d7f4-cd5d-4c67-96ca-3d258df3de6c
+:END:
 #+begin_src elisp
 (defun slurp (file)
   (with-temp-buffer
@@ -4110,6 +4346,9 @@ Insertion templates can be used to speed up project setups. This is code of my o
 #+end_src
 
 ***** template-reader
+:PROPERTIES:
+:ID:                     b3a54fa3-459b-4042-98e0-cdb2a87ed925
+:END:
 #+begin_src elisp
 (defun template-reader (file replace)
   (let ((lines (split-string (slurp file) "\n")))
@@ -4122,6 +4361,9 @@ Insertion templates can be used to speed up project setups. This is code of my o
 #+end_src
 
 ***** clj-org-templates
+:PROPERTIES:
+:ID:                     7d6c4f18-4510-4ebc-951d-94c4233407a5
+:END:
 I use org mode and literate programming ideas to build my clj/cljs projects. So, it is helpful to have skeletons that take .org template files that tangle into a nice clojure project setup. Currently I only have one template, but the idea is to be able to have a few which you just bind to different keys as needed. The idea is demonstrated with 'Project' and 'Library'.
 
 #+begin_src elisp :tangle no
@@ -4146,6 +4388,7 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 *** Fennel
 :properties:
 :header-args: :noweb-ref code-fennel
+:ID:                     a8e738f4-2a6a-4fe4-8efe-9cedd4aaedd3
 :end:
 Setup of Fennel and Lua
 
@@ -4195,6 +4438,9 @@ Setup of Fennel and Lua
     (:file-match (rx "/authorized_keys" (? "2") eos))))
 #+end_src
 *** Statistics
+:PROPERTIES:
+:ID:                     8384410a-5ec8-43e5-a0bc-fdecdfe79daa
+:END:
 Emacs Speaks Statistics
 #+begin_src emacs-lisp :noweb-ref ess
   (setup (:straight ess)
@@ -4259,10 +4505,11 @@ Emacs Speaks Statistics
 * Keybindings
 :PROPERTIES:
 :header-args: :noweb-ref keyboard
+:ID:                     fd9b171e-7f6a-4140-86e6-57a4b3d726e9
 :END:
 Change the Mac modifiers to my liking. I also disable passing Control characters to the system, to avoid that C-M-space launches the Character viewer instead of running mark-sexp.
 #+begin_src emacs-lisp
-(cond (IS-MAC
+(cond (ENV-IS-MAC?
        (setq mac-command-modifier      'meta
               mac-option-modifier         'alt
               mac-right-option-modifier   'alt
@@ -4273,6 +4520,9 @@ When at the beginning of the line, make Ctrl-K remove the whole line, instead of
 (setq kill-whole-line t)
 #+end_src
 *** Emulating Vi's % key
+:PROPERTIES:
+:ID:                     80396951-51ce-4299-8b88-7fc72c7fd079
+:END:
 One of the few things I missed in Emacs from vi was the % key, which jumps to the parenthesis, bracket or brace which matches the one below the cursor. This function implements this functionality, bound to the same key. Inspired by NavigatingParentheses, but modified to use smartparens instead of the default commands, and to work on brackets and braces.
 #+begin_src emacs-lisp
   (setup
@@ -4327,6 +4577,9 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 #+end_src
 
 * Maybe to applied - not tangled at present
+:PROPERTIES:
+:ID:                     be23b9fc-341c-484f-a0d6-57402277cd14
+:END:
 #+begin_src elisp :tangle no
 
     ;; enable line-numbers
@@ -4348,9 +4601,13 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 
 
 * Tangling config noweb
+:PROPERTIES:
+:ID:                     65bbc8e3-5a87-434f-b70b-f920af75b954
+:END:
 ** Header & disclaimer
 :PROPERTIES:
 :header-args: :noweb-ref disclaimer
+:ID:                     f9031214-0bc2-4e91-a037-06fc4375292d
 :END:
 
 #+begin_src emacs-lisp
@@ -4630,7 +4887,7 @@ Setup Emacs builtins
           (setq comint-buffer-maximum-size 4096)
           (setq comint-prompt-read-only t))
 
-        (unless IS-TERMUX
+        (unless ENV-IS-TERMUX?
           (setup compile
           (add-hook 'compilation-filter #'ansi-color-compilation-filter)
           (:option compilation-always-kill t
@@ -5197,8 +5454,8 @@ tasks. The only exception is headings tagged as REFILE."
 
     ;; process projects
     (if (vulpea-project-p)
-        (setq tags (cons "project" tags))
-      (setq tags (remove "project" tags)))
+        (setq tags (cons "projet" tags))
+      (setq tags (remove "projet" tags)))
 
     (setq tags (seq-uniq tags))
 
@@ -5255,7 +5512,7 @@ Make all the links to this alias point to newly created note."
                    (replace-match link-new))))
              (org-roam-db-update-file (org-roam-node-file node)))
            backlinks)))
-    (user-error "No aliases to extract")))
+    (user-error "Pas d'alias à extraire")))
 
 
 
@@ -5309,7 +5566,6 @@ Make all the links to this alias point to newly created note."
   "Update notes database."
   (when (file-directory-p vulpea-directory)
     (org-roam-db-sync)
-    (vino-db-sync)
     (org-roam-update-org-id-locations)))
 
 
@@ -5440,6 +5696,7 @@ If REC is non-nil then do recursive search."
 *** Literature Notes
 :PROPERTIES:
 :header-args: :tangle lisp/lib-litnotes.el :noweb yes
+:ID:                     7b61e449-59c1-4bf8-a3b4-464f9d9b4306
 :END:
 #+begin_src emacs-lisp
 ;;; lib-litnotes.el --- Utilities for working with litnotes -*- lexical-binding: t; -*-
@@ -5757,13 +6014,13 @@ items. POS can be an integer or the symbol `:point'."
           (pcase pos
             ((and (pred integerp) pos) pos)
             (:point (with-current-buffer buffer (point)))
-            (_ (error "Invalid value for POS: %s" pos))))
+            (_ (error "Valeur invalide pour POS: %s" pos))))
          (item (lister-get-data buffer position))
          (sublist (cdr (assoc item litnotes-buffer-data))))
     (if sublist
-        (with-temp-message "Inserting expansion results..."
+        (with-temp-message "Insertion des résultats d'expansion..."
           (lister-insert-sublist-below buffer position sublist))
-      (user-error "No expansion found"))))
+      (user-error "Aucune extension trouvée"))))
 
 (defun litnotes-buffer-visit (buffer pos)
   "Visit a litnote at POS from BUFFER."
@@ -6010,7 +6267,7 @@ EXTRA is unknown thing."
 (require 'org-cliplink)
 
 (defvar vulpea-capture-inbox-file
-  inbox.org   ;; (format "inbox-%s.org" env-sys-name)
+  "inbox.org"   ;; (format "inbox-%s.org" env-sys-name)
   "The path to the inbox file.
 It is relative to `vulpea-directory', unless it is absolute.")
 
@@ -6102,10 +6359,10 @@ It is relative to `vulpea-directory', unless it is absolute.")
                  (vulpea-db-query-by-tags-every '("people")))))
     (org-capture-put :meeting-person person)
     (if (vulpea-note-id person)
-        "* MEETING [%<%Y-%m-%d %a>] :REFILE:MEETING:\n%U\n\n%?"
-      (concat "* MEETING with "
+        "* RÉUNION [%<%Y-%m-%d %a>] :REFILE:RÉUNION:\n%U\n\n%?"
+      (concat "* RÉUNION avec "
               (vulpea-note-title person)
-              " on [%<%Y-%m-%d %a>] :MEETING:\n%U\n\n%?"))))
+              " on [%<%Y-%m-%d %a>] :RÉUNION:\n%U\n\n%?"))))
 
 ;;;###autoload
 (defun vulpea-capture-article ()
@@ -6113,6 +6370,7 @@ It is relative to `vulpea-directory', unless it is absolute.")
 User is asked to provide an URL, title and authors of the article
 being captured.
 Title is inferred from URL, but user may edit it.
+Stored under roam-directory/litnotes
 Authors can be created on the fly. See
 `vulpea-capture-person-template' for more information."
   (interactive)
@@ -6133,7 +6391,7 @@ Authors can be created on the fly. See
                        "people/%<%Y%m%d%H%M%S>-${slug}.org"
                        :immediate-finish t))))
                 nil))
-       (note (vulpea-create
+       (note (vulpea-crea
               title
               "litnotes/%<%Y%m%d%H%M%S>-${slug}.org"
               :tags '("litnotes" "content/article")
@@ -6164,313 +6422,357 @@ By default it uses current date to find a daily. With
 :ID:       53e78065-65e3-435a-a63c-222e5470e9a2
 :END:
 #+begin_src emacs-lisp
-;;; lib-vulpea-agenda.el --- Utilities for building agenda -*- lexical-binding: t; -*-
-;;; Commentary:
-;;
-;; This module provides various utilities for building agenda buffer.
-;;
-;;; Code:
+   ;;; lib-vulpea-agenda.el --- Utilities for building agenda -*- lexical-binding: t; -*-
+   ;;; Commentary:
+   ;;
+   ;; This module provides various utilities for building agenda buffer.
+   ;;
+   ;;; Code:
 
-(require 'init-elpa)
-(require 'lib-vulpea)
-(require 'lib-compat)
+   (require 'init-elpa)
+   (require 'lib-vulpea)
+   (require 'lib-compat)
 
-(require 'org)
-(require 'org-habit)
-(require 'vulpea)
+   (require 'org)
+   (require 'org-habit)
+   (require 'vulpea)
 
-
+   
 
-(defvar vulpea-agenda-hide-scheduled-and-waiting-next-tasks t
-  "Non-nil means to hide scheduled and waiting tasks.
-Affects the following commands:
-- `vulpea-agenda-cmd-focus'
-- `vulpea-agenda-cmd-waiting'")
+   (defvar vulpea-agenda-hide-scheduled-and-waiting-next-tasks t
+     "Non-nil means to hide scheduled and waiting tasks.
+   Affects the following commands:
+   - `vulpea-agenda-cmd-focus'
+   - `vulpea-agenda-cmd-waiting'")
 
-(defvar vulpea-agenda-main-buffer-name "*agenda:main*"
-  "Name of the main agenda buffer.")
+   (defvar vulpea-agenda-main-buffer-name "*agenda:main*"
+     "Name of the main agenda buffer.")
 
-
+   
 
-;;;###autoload
-(defun vulpea-agenda-main ()
-  "Show main `org-agenda' view."
-  (interactive)
-  (org-agenda nil " "))
+   ;;;###autoload
+   (defun vulpea-agenda-main ()
+     "Show main `org-agenda' view."
+     (interactive)
+     (org-agenda nil " "))
 
-;;;###autoload
-(defun vulpea-agenda-person ()
-  "Show main `org-agenda' view."
-  (interactive)
-  (let* ((person (vulpea-select-from
-                  "Person"
-                  (vulpea-db-query-by-tags-some '("people"))))
-         (node (org-roam-node-from-id (vulpea-note-id person)))
-         (names (cons (org-roam-node-title node)
-                      (org-roam-node-aliases node)))
-         (tags (seq-map #'vulpea--title-to-tag names))
-         (query (string-join tags "|")))
-    (dlet ((org-agenda-overriding-arguments (list t query)))
-      (org-agenda nil "M"))))
+   ;;;###autoload
+   (defun vulpea-agenda-person ()
+     "Show main `org-agenda' view."
+     (interactive)
+     (let* ((person (vulpea-select-from
+                     "Person"
+                     (vulpea-db-query-by-tags-some '("people"))))
+            (node (org-roam-node-from-id (vulpea-note-id person)))
+            (names (cons (org-roam-node-title node)
+                         (org-roam-node-aliases node)))
+            (tags (seq-map #'vulpea--title-to-tag names))
+            (query (string-join tags "|")))
+       (let ((org-agenda-overriding-arguments (list t query)))
+         (org-agenda nil "M"))))
 
-
+   
 
-;;;###autoload
-(defun vulpea-agenda-files-update (&rest _)
-  "Update the value of `org-agenda-files'."
-  (setq org-agenda-files (vulpea-project-files)))
+   ;;;###autoload
+   (defun vulpea-agenda-files-update (&rest _)
+     "Update the value of `org-agenda-files'."
+     (setq org-agenda-files (vulpea-project-files)))
 
-
-;; Commands
+   
+   ;; Commands
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-refile
-  '(tags
-    "REFILE"
-    ((org-agenda-overriding-header "To refile")
-     (org-tags-match-list-sublevels nil))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-refile
+     '(tags
+       "REFILE"
+       ((org-agenda-overriding-header "Tâches à la Representer")
+        (org-tags-match-list-sublevels nil))))
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-today
-  '(agenda
-    ""
-    ((org-agenda-span 'day)
-     (org-agenda-skip-deadline-prewarning-if-scheduled t)
-     (org-agenda-sorting-strategy '(habit-down
-                                    time-up
-                                    category-keep
-                                    todo-state-down
-                                    priority-down)))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-today
+     '(agenda
+       ""
+       ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
+        (org-agenda-span 'day)
+        (org-agenda-log-mode-items '(clock state))
+        (org-agenda-skip-deadline-prewarning-if-scheduled t)
+        (org-agenda-sorting-strategy '(habit-down
+                                       time-up
+                                       category-keep
+                                       todo-state-down
+                                       priority-down)))))
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-focus
-  '(tags-todo
-    "FOCUS"
-    ((org-agenda-overriding-header
-      (concat "To focus on"
-              (if vulpea-agenda-hide-scheduled-and-waiting-next-tasks
-                  ""
-                " (including WAITING and SCHEDULED tasks)")))
-     (org-agenda-skip-function 'vulpea-agenda-skip-habits)
-     (org-tags-match-list-sublevels t)
-     (org-agenda-todo-ignore-scheduled
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-deadlines
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-with-date
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-tags-todo-honor-ignore-options t)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-eisen
+     '(agenda
+       "e" "Matrice d'Eisenhower"
+        ((org-agenda-overriding-header "Calendrier Eisenhower:")
+                      (org-agenda-show-log t)
+                      (org-agenda-log-mode-items '(clock state))
+                      (org-agenda-span 5)
+                      (org-agenda-start-on-weekday t)
+                      ;;            (org-agenda-ndays 5)
+                      (org-agenda-start-day "-1d")
+                      (org-deadline-warning-days 30))))
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-stuck-projects
-  '(tags-todo
-    "PROJECT-CANCELLED-HOLD/!"
-    ((org-agenda-overriding-header "Projets Bloqués")
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-stuck-projects)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-focus
+     '(tags-todo
+       "FOCUS"
+       ((org-agenda-overriding-header
+         (concat "Pour se concentrer sur"
+                 (if vulpea-agenda-hide-scheduled-and-waiting-next-tasks
+                     ""
+                   " (y compris les tâches ATTENDRE et PROGRAMMÉES)")))
+        (org-agenda-skip-function 'vulpea-agenda-skip-habits)
+        (org-tags-match-list-sublevels t)
+        (org-agenda-todo-ignore-scheduled
+         vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
+        (org-agenda-todo-ignore-deadlines
+         vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
+        (org-agenda-todo-ignore-with-date
+         vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
+        (org-agenda-tags-todo-honor-ignore-options t)
+        (org-agenda-sorting-strategy
+         '(todo-state-down priority-down effort-up category-keep)))))
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-projects
-  '(tags-todo
-    "PROJECT-HOLD"
-    ((org-agenda-overriding-header (concat "Projets"))
-     (org-tags-match-list-sublevels t)
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-projects)
-     (org-agenda-tags-todo-honor-ignore-options t)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-stuck-projects
+     '(tags-todo
+       "PROJET-ANNULÉ-ENATTENTE/!"
+       ((org-agenda-overriding-header "Projets Bloqués")
+        (org-agenda-skip-function 'vulpea-agenda-skip-non-stuck-projects)
+        (org-agenda-sorting-strategy
+         '(todo-state-down priority-down effort-up category-keep)))))
 
-;;;###autoload
-(defconst vulpea-agenda-cmd-waiting
-  '(tags-todo
-    "-CANCELLED+WAITING-READING-FOCUS|+HOLD/!"
-    ((org-agenda-overriding-header
-      (concat "Waiting and Postponed Tasks"
-              (if vulpea-agenda-hide-scheduled-and-waiting-next-tasks
-                  ""
-                " (including WAITING and SCHEDULED tasks)")))
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-tasks)
-     (org-tags-match-list-sublevels nil)
-     (org-agenda-todo-ignore-scheduled
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-deadlines
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks))))
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-projects
+     '(tags-todo
+       "PROJET-ENATTENTE"
+       ((org-agenda-overriding-header (concat "Projets"))
+        (org-tags-match-list-sublevels t)
+        (org-agenda-skip-function 'vulpea-agenda-skip-non-projects)
+        (org-agenda-tags-todo-honor-ignore-options t)
+        (org-agenda-sorting-strategy
+         '(todo-state-down priority-down effort-up category-keep)))))
 
-
-;; Utilities to build agenda commands -- skip
+   ;;;###autoload
+   (defconst vulpea-agenda-cmd-waiting
+     '(tags-todo
+       "-ANNULÉ+ATTENDRE-READING-FOCUS|+ENATTENTE/!"
+       ((org-agenda-overriding-header
+         (concat "Tâches en attente et reportées"
+                 (if
+                  vulpea-agenda-hide-scheduled-and-waiting-next-tasks ""
+" (y compris les tâches ATTENDRE et PROGRAMMÉES)")))
+        (org-agenda-skip-function 'vulpea-agenda-skip-non-tasks)
+        (org-tags-match-list-sublevels nil)
+        ;;(org-agenda-todo-ignore-scheduled vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
+        (org-agenda-todo-ignore-deadlines
+         vulpea-agenda-hide-scheduled-and-waiting-next-tasks))))
 
-;;;###autoload
-(defun vulpea-agenda-skip-habits ()
-  "Skip tasks that are habits."
-  (save-restriction
-    (widen)
-    (let ((subtree-end (save-excursion (org-end-of-subtree t))))
-      (cond
-       ((org-is-habit-p)
-        subtree-end)
-       (t
-        nil)))))
+   ;;;###autoload
+   (defconst vulpea-agenda-eisen-imp-y-urg
+    '(tags-todo
+      "+important+urgent/!"
+         ((org-agenda-overriding-header "Tâches importantes et urgentes")
+          (org-tags-match-list-sublevels nil))))
 
-;;;###autoload
-(defun vulpea-agenda-skip-non-projects ()
-  "Skip trees that are not projects."
-  (if (save-excursion (vulpea-agenda-skip-non-stuck-projects))
-      (save-restriction
-        (widen)
-        (let ((subtree-end (save-excursion (org-end-of-subtree t))))
-          (cond
-           ((vulpea-agenda-project-p)
-            nil)
-           ((and (vulpea-agenda-project-subtree-p)
-                 (not (vulpea-agenda-task-p)))
-            nil)
-           (t
-            subtree-end))))
-    (save-excursion (org-end-of-subtree t))))
+   ;;;###autoload
+   (defconst vulpea-agenda-eisen-imp
+    '(tags-todo
+      "+important-urgent"
+      ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
+       (org-tags-match-list-sublevels nil))))
 
-;;;###autoload
-(defun vulpea-agenda-skip-non-tasks ()
-  "Show non-project tasks.
-Skip project and sub-project tasks, habits, and project related
-tasks."
-  (save-restriction
-    (widen)
-    (let ((next-headline (save-excursion
-                           (or (outline-next-heading)
-                               (point-max)))))
-      (cond
-       ((vulpea-agenda-task-p)
-        nil)
-       (t
-        next-headline)))))
 
-;;;###autoload
-(defun vulpea-agenda-skip-non-stuck-projects ()
-  "Skip trees that are not stuck projects."
-  (save-restriction
-    (widen)
-    (let ((next-headline (save-excursion
-                           (or (outline-next-heading)
-                               (point-max)))))
-      (if (vulpea-agenda-project-p)
-          (let* ((subtree-end (save-excursion
-                                (org-end-of-subtree t)))
-                 (has-next ))
-            (save-excursion
-              (forward-line 1)
-              (while (and (not has-next)
-                          (< (point) subtree-end)
-                          (re-search-forward "^\\*+ TODO "
-                                             subtree-end t))
-                (unless (member "WAITING" (org-get-tags))
-                  (setq has-next t))))
-            (if has-next
-                next-headline
-              nil)) ; a stuck project, has subtasks but no next task
-        next-headline))))
+   ;;;###autoload
+   (defconst vulpea-agenda-eisen-urg
+    '(tags-todo
+      "-important+urgent"
+      ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+       (org-tags-match-list-sublevels nil))))
 
-
-;; Utilities to build agenda commands -- predicates
+   ;;;###autoload
+    (defconst vulpea-agenda-eisen-alltodos
+     ' (tags-todo
+        "-important-urgent/!TODO"
+        ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
+         (org-agenda-category-filter-preset '("-Habitudes"))
+        ;; (org-tags-match-list-sublevels nil)
+)))
+   
+   ;; Utilities to build agenda commands -- skip
 
-;;;###autoload
-(defun vulpea-agenda-project-p ()
-  "Return non-nil if the heading at point is a project.
-Basically, it's any item with some todo keyword and tagged as
-PROJECT."
-  (let* ((comps (org-heading-components))
-         (todo (nth 2 comps))
-         (tags (split-string (or (nth 5 comps) "") ":")))
-    (and (member todo org-todo-keywords-1)
-         (member "PROJET" tags))))
+   ;;;###autoload
+   (defun vulpea-agenda-skip-habits ()
+     "Skip tasks that are habits."
+     (save-restriction
+       (widen)
+       (let ((subtree-end (save-excursion (org-end-of-subtree t))))
+         (cond
+          ((org-is-habit-p)
+           subtree-end)
+          (t
+           nil)))))
 
-;;;###autoload
-(defun vulpea-agenda-project-subtree-p ()
-  "Any task with a todo keyword that is in a project subtree.
-Callers of this function already widen the buffer view."
-  (let ((task (save-excursion (org-back-to-heading 'invisible-ok)
-                              (point))))
-    (save-excursion
-      (vulpea-agenda-find-project-task)
-      (if (equal (point) task)
-          nil
-        t))))
+   ;;;###autoload
+   (defun vulpea-agenda-skip-non-projects ()
+     "Skip trees that are not projects."
+     (if (save-excursion (vulpea-agenda-skip-non-stuck-projects))
+         (save-restriction
+           (widen)
+           (let ((subtree-end (save-excursion (org-end-of-subtree t))))
+             (cond
+              ((vulpea-agenda-project-p)
+               nil)
+              ((and (vulpea-agenda-project-subtree-p)
+                    (not (vulpea-agenda-task-p)))
+               nil)
+              (t
+               subtree-end))))
+       (save-excursion (org-end-of-subtree t))))
 
-;;;###autoload
-(defun vulpea-agenda-task-p ()
-  "Any task with a todo keyword and no subtask."
-  (save-restriction
-    (widen)
-    (let ((has-subtask)
-          (subtree-end (save-excursion (org-end-of-subtree t)))
-          (is-a-task (member (nth 2 (org-heading-components))
-                             org-todo-keywords-1)))
-      (save-excursion
-        (forward-line 1)
-        (while (and (not has-subtask)
-                    (< (point) subtree-end)
-                    (re-search-forward "^\\*+ " subtree-end t))
-          (when (member (org-get-todo-state) org-todo-keywords-1)
-            (setq has-subtask t))))
-      (and is-a-task (not has-subtask)))))
+   ;;;###autoload
+   (defun vulpea-agenda-skip-non-tasks ()
+     "Show non-project tasks.
+   Skip project and sub-project tasks, habits, and project related
+   tasks."
+     (save-restriction
+       (widen)
+       (let ((next-headline (save-excursion
+                              (or (outline-next-heading)
+                                  (point-max)))))
+         (cond
+          ((vulpea-agenda-task-p)
+           nil)
+          (t
+           next-headline)))))
 
-
-;; Utilities to build agenda commands -- search
+   ;;;###autoload
+   (defun vulpea-agenda-skip-non-stuck-projects ()
+     "Skip trees that are not stuck projects."
+     (save-restriction
+       (widen)
+       (let ((next-headline (save-excursion
+                              (or (outline-next-heading)
+                                  (point-max)))))
+         (if (vulpea-agenda-project-p)
+             (let* ((subtree-end (save-excursion
+                                   (org-end-of-subtree t)))
+                    (has-next ))
+               (save-excursion
+                 (forward-line 1)
+                 (while (and (not has-next)
+                             (< (point) subtree-end)
+                             (re-search-forward "^\\*+ TODO "
+                                                subtree-end t))
+                   (unless (member "ATTENDRE" (org-get-tags))
+                     (setq has-next t))))
+               (if has-next
+                   next-headline
+                 nil)) ; a stuck project, has subtasks but no next task
+           next-headline))))
 
-;;;###autoload
-(defun vulpea-agenda-find-project-task ()
-  "Move point to the parent (project) task if any."
-  (save-restriction
-    (widen)
-    (let ((parent-task (save-excursion
-                         (org-back-to-heading 'invisible-ok)
-                         (point))))
-      (while (org-up-heading-safe)
-        (when (member (nth 2 (org-heading-components))
-                      org-todo-keywords-1)
-          (setq parent-task (point))))
-      (goto-char parent-task)
-      parent-task)))
+   
+   ;; Utilities to build agenda commands -- predicates
 
-
+   ;;;###autoload
+   (defun vulpea-agenda-project-p ()
+     "Return non-nil if the heading at point is a project.
+   Basically, it's any item with some todo keyword and tagged as
+   PROJECT."
+     (let* ((comps (org-heading-components))
+            (todo (nth 2 comps))
+            (tags (split-string (or (nth 5 comps) "") ":")))
+       (and (member todo org-todo-keywords-1)
+            (member "PROJET" tags))))
 
-;;;###autoload
-(defun vulpea-agenda-category (&optional len)
-  "Get category of item at point for agenda.
-Category is defined by one of the following items:
-- CATEGORY property
-- TITLE keyword
-- TITLE property
-- filename without directory and extension
-When LEN is a number, resulting string is padded right with
-spaces and then truncated with ... on the right if result is
-longer than LEN.
-Usage example:
-  (setq org-agenda-prefix-format
-        '((agenda . \" %(vulpea-agenda-category) %?-12t %12s\")))
-Refer to `org-agenda-prefix-format' for more information."
-  (let* ((file-name (when buffer-file-name
-                      (file-name-sans-extension
-                       (file-name-nondirectory buffer-file-name))))
-         (title (vulpea-buffer-prop-get "title"))
-         (category (org-get-category))
-         (result
-          (or (if (and
-                   title
-                   (string-equal category file-name))
-                  title
-                category)
-              "")))
-    (if (numberp len)
-        (s-truncate len (s-pad-right len " " result))
-      result)))
+   ;;;###autoload
+   (defun vulpea-agenda-project-subtree-p ()
+     "Any task with a todo keyword that is in a project subtree.
+   Callers of this function already widen the buffer view."
+     (let ((task (save-excursion (org-back-to-heading 'invisible-ok)
+                                 (point))))
+       (save-excursion
+         (vulpea-agenda-find-project-task)
+         (if (equal (point) task)
+             nil
+           t))))
 
-
+   ;;;###autoload
+   (defun vulpea-agenda-task-p ()
+     "Any task with a todo keyword and no subtask."
+     (save-restriction
+       (widen)
+       (let ((has-subtask)
+             (subtree-end (save-excursion (org-end-of-subtree t)))
+             (is-a-task (member (nth 2 (org-heading-components))
+                                org-todo-keywords-1)))
+         (save-excursion
+           (forward-line 1)
+           (while (and (not has-subtask)
+                       (< (point) subtree-end)
+                       (re-search-forward "^\\*+ " subtree-end t))
+             (when (member (org-get-todo-state) org-todo-keywords-1)
+               (setq has-subtask t))))
+         (and is-a-task (not has-subtask)))))
 
-(provide 'lib-vulpea-agenda)
-;;; lib-vulpea-agenda.el ends here
+   
+   ;; Utilities to build agenda commands -- search
+
+   ;;;###autoload
+   (defun vulpea-agenda-find-project-task ()
+     "Move point to the parent (project) task if any."
+     (save-restriction
+       (widen)
+       (let ((parent-task (save-excursion
+                            (org-back-to-heading 'invisible-ok)
+                            (point))))
+         (while (org-up-heading-safe)
+           (when (member (nth 2 (org-heading-components))
+                         org-todo-keywords-1)
+             (setq parent-task (point))))
+         (goto-char parent-task)
+         parent-task)))
+
+   
+
+   ;;;###autoload
+   (defun vulpea-agenda-category (&optional len)
+     "Get category of item at point for agenda.
+   Category is defined by one of the following items:
+   - CATEGORY property
+   - TITLE keyword
+   - TITLE property
+   - filename without directory and extension
+   When LEN is a number, resulting string is padded right with
+   spaces and then truncated with ... on the right if result is
+   longer than LEN.
+   Usage example:
+     (setq org-agenda-prefix-format
+           '((agenda . \" %(vulpea-agenda-category) %?-12t %12s\")))
+   Refer to `org-agenda-prefix-format' for more information."
+     (let* ((file-name (when buffer-file-name
+                         (file-name-sans-extension
+                          (file-name-nondirectory buffer-file-name))))
+            (title (vulpea-buffer-prop-get "title"))
+            (category (org-get-category))
+            (result
+             (or (if (and
+                      title
+                      (string-equal category file-name))
+                     title
+                   category)
+                 "")))
+       (if (numberp len)
+           (s-truncate len (s-pad-right len " " result))
+         result)))
+
+   
+
+   (provide 'lib-vulpea-agenda)
+   ;;; lib-vulpea-agenda.el ends here
 #+end_src
 *** Vulpea org ID
 :PROPERTIES:
@@ -6520,9 +6822,15 @@ Targets are defined by `vulpea-id-auto-targets'."
 ;;; lib-vulpea-id.el ends here
 #+end_src
 ** Coding
+:PROPERTIES:
+:ID:                     a1bbc1a9-e27e-4f24-b62d-c5dbae52689c
+:END:
 Setup Coding languages
 
 *** Basic IDE
+:PROPERTIES:
+:ID:                     bbc17bb5-e026-4a01-83c7-19a4d1924c96
+:END:
 Setup the basic Coding IDE
 
 *** LISP setup
@@ -6678,6 +6986,7 @@ Smartparens setup here
 ** Communications
 :PROPERTIES:
 :header-args: :tangle lisp/init-telega.el :noweb yes
+:ID:                     2b35cb3e-c354-4899-96f6-d16d8097f7ac
 :END:
 
 *** Telega setup
@@ -6767,6 +7076,7 @@ Smartparens setup here
 *** Ease of editing
 :PROPERTIES:
 :header-args: :tangle no
+:ID:                     de45708b-cfcc-4add-a59b-8cbc64b4f85e
 :END:
 
 #+begin_src emacs-lisp :noweb-ref functions
@@ -6785,6 +7095,7 @@ Bind it to =C-z i= because =C-z C-c= is taken for capture.
 *** Ease of reloading
 :PROPERTIES:
 :header-args: :tangle no
+:ID:                     510ef849-87e9-4def-abb8-a28f040752a4
 :END:
 
 #+begin_src emacs-lisp :noweb-ref functions
@@ -6911,6 +7222,9 @@ The goal of this file is to require all init-xxx files. The structure is trivial
       ;;; init.el ends here
 #+end_src
 *** Load the config -disabled
+:PROPERTIES:
+:ID:                     a40cbe30-7947-492b-a365-5dbba82a37a4
+:END:
 
 I keep most of my config in =config.el=, which is tangled directly from
 this file.  This init just loads that file, either from lisp
@@ -6991,6 +7305,9 @@ the package manager or the UI code.
 #+end_src
 
 ** Libraries & Config
+:PROPERTIES:
+:ID:                     19f2b8c1-c022-4c5d-8a4d-92bc544213f2
+:END:
 *** String
 :PROPERTIES:
 :header-args: :tangle lisp/lib-string.el :noweb yes
