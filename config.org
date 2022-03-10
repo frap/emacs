@@ -173,7 +173,6 @@ setting some default settings on early-init
   (defvar native-comp-async-report-warnings-errors)
   (setq native-comp-async-report-warnings-errors nil))
 
-
 #+end_src
 * Path & Directories
 :PROPERTIES:
@@ -569,13 +568,13 @@ Configure grabage collection
 #+end_src
 
 *** local UI config
-setup local config and personl functions
+setup local config and personal functions
 #+begin_src
 (use-package local-config
   :straight nil
   :preface
   (defgroup local-config ()
-    "Customization group for local settings."
+    "Customisation group for local settings."
     :prefix "local-config-"
     :group 'emacs)
   (defcustom local-config-title-show-bufname t
@@ -710,13 +709,12 @@ Use no-littering to automatically set common paths to the new user-emacs-directo
 :PROPERTIES:
 :ID:                     8e5d71f2-1d6b-4a25-843d-980894a67fac
 :END:
-Set Up Good Defaults. Taken from [[https://github.com/mfiano/dotfiles/blob/master/.emacs.d/lisp/mf-settings.el][mifano's emacs setup]]
-
-Some constants that I use.
+Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a  few utilities that heI keeps re-using in various parts of my Emacs code base. To keep things modular, I place them all in a dedicated prot-common.el file, which can then be marked as a dependency by other libraries of mine. As such, all we do here is load the file.
 #+begin_src emacs-lisp :noweb-ref constants
 
-(require 'subr-x)
-;;; Initialise Constants
+(setup (:require prot-common))
+
+;;; Initialise Gas Constants
   (defconst ENV-IS-NATIVECOMP? (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
   (defconst ENV-IS-GRAPHIC? (display-graphic-p))
   (defconst ENV-IS-MAC?     (eq system-type 'darwin))
@@ -734,18 +732,100 @@ Some constants that I use.
     (if (proper-list-p exp) exp (list exp)))
 #+end_src
 
-** Keyboard
+* Keyboard bindings & custom functions
 :PROPERTIES:
 :ID:                     a218fd94-1b2d-405d-a572-53bf5a382654
 :END:
+prot-simple.el contains a wide range of commands that are broadly in line with the built-in simple.el and lisp.el libraries. While I could offer an overview of each item in my library, I feel the code and accompanying documentation strings are clear enough for you to peruse the source directly (reproduced further below).
+
+Still, here are some highlights for those who don’t like studying the source code:
+
+- prot-simple-insert-pair will surround either the symbol-at-point or the active region with a pair of delimiters. It prompts for completion on which pair to use, while the most recently used entry becomes the default, so next time the user can just add it with RET at the minibuffer prompt. With an optional prefix argument (C-u) it asks for how many times to insert the selected delimiters (e.g. you want to wrap two angled brackets around the region).
+- prot-simple-scratch-buffer produces a buffer with the major-mode of the current one. With a prefix argument (C-u) it instead applies the major-mode which is stored in the user customisation option prot-simple-scratch-buffer-default-mode. With a double prefix argument (C-u C-u) it prompts for completion on which major-mode to use. If the region is active, its contents are copied to the newly created scratch buffer. The idea is based on the scratch.el package by Ian Eure.
+- prot-simple-copy-line-or-region copies the current line or the region, if that is active. With a prefix argument (C-u) it creates a duplicate of it right below.
+
+All of the other commands are optimisations for common motions or little quality-of-life improvements for oft-required operations (such as transposition of objects or marking of balanced expressions).
+
+Given that this is a foundational piece of my Emacs setup, it is the appropriate place to re-bind or free up some common key combinations for use elsewhere.
 #+begin_src emacs-lisp :noweb-ref keyboard
+(setup (:require prot-simple)
+  (setq prot-simple-date-specifier "%F")
+  (setq prot-simple-time-specifier "%R %z")
+  (setq delete-pair-blink-delay 0.15) ; Emacs28 -- see `prot-simple-delete-pair-dwim'
+  (setq prot-simple-scratch-buffer-default-mode 'markdown-mode)
+  (setq help-window-select t)
+
+  ;; General commands
+  (let ((map global-map))
+    (define-key map (kbd "<insert>") nil)
+    (define-key map (kbd "C-z") nil)
+    (define-key map (kbd "C-x C-z") nil)
+    (define-key map (kbd "C-h h") nil)
+    (define-key map (kbd "M-`") nil)
+    (define-key map (kbd "C-h .") #'prot-simple-describe-symbol) ; overrides `display-local-help'
+    (define-key map (kbd "C-h K") #'describe-keymap) ; overrides `Info-goto-emacs-key-command-node'
+    (define-key map (kbd "C-h c") #'describe-char) ; overrides `describe-key-briefly'
+    (define-key map (kbd "C-c s") #'prot-simple-scratch-buffer)
+    ;; Commands for lines
+    (define-key map (kbd "C-S-w") #'prot-simple-copy-line-or-region)
+    (define-key map (kbd "C-S-y") #'prot-simple-yank-replace-line-or-region)
+    (define-key map (kbd "M-SPC") #'cycle-spacing)
+    (define-key map (kbd "M-o") #'delete-blank-lines)   ; alias for C-x C-o
+    (define-key map (kbd "M-k") #'prot-simple-kill-line-backward)
+    (define-key map (kbd "C-S-n") #'prot-simple-multi-line-next)
+    (define-key map (kbd "C-S-p") #'prot-simple-multi-line-prev)
+    (define-key map (kbd "<C-return>") #'prot-simple-new-line-below)
+    (define-key map (kbd "<C-S-return>") #'prot-simple-new-line-above)
+    ;; Commands for text insertion or manipulation
+    (define-key map (kbd "C-=") #'prot-simple-insert-date)
+    (define-key map (kbd "C-<") #'prot-simple-escape-url)
+    (define-key map (kbd "C-'") #'prot-simple-insert-pair)
+    (define-key map (kbd "M-'") #'prot-simple-insert-pair)
+    (define-key map (kbd "M-\\") #'prot-simple-delete-pair-dwim)
+    (define-key map (kbd "C-M-;") #'prot-simple-cite-region)
+    (define-key map (kbd "C-M-^") #'prot-simple-insert-undercaret)
+    (define-key map (kbd "<C-M-backspace>") #'backward-kill-sexp)
+    (define-key map (kbd "M-c") #'capitalize-dwim)
+    (define-key map (kbd "M-l") #'downcase-dwim)        ; "lower" case
+    (define-key map (kbd "M-u") #'upcase-dwim)
+    ;; Commands for object transposition
+    (define-key map (kbd "C-t") #'prot-simple-transpose-chars)
+    (define-key map (kbd "C-x C-t") #'prot-simple-transpose-lines)
+    (define-key map (kbd "C-S-t") #'prot-simple-transpose-paragraphs)
+    (define-key map (kbd "C-x M-t") #'prot-simple-transpose-sentences)
+    (define-key map (kbd "C-M-t") #'prot-simple-transpose-sexps)
+    (define-key map (kbd "M-t") #'prot-simple-transpose-words)
+    ;; Commands for marking objects
+    (define-key map (kbd "M-@") #'prot-simple-mark-word)       ; replaces `mark-word'
+    (define-key map (kbd "C-M-SPC") #'prot-simple-mark-construct-dwim)
+    (define-key map (kbd "C-M-d") #'prot-simple-downward-list)
+    ;; Commands for paragraphs
+    (define-key map (kbd "M-Q") #'prot-simple-unfill-region-or-paragraph)
+    ;; Commands for windows and pages
+    (define-key map (kbd "C-x n k") #'prot-simple-delete-page-delimiters)
+    (define-key map (kbd "C-x M") #'prot-simple-monocle)
+    ;; NOTE 2022-03-02: Elsewhere I provide my `logos.el' package which
+    ;; has the functionality of these three commands.
+    ;;
+    ;; (define-key map [remap narrow-to-region] #'prot-simple-narrow-dwim)
+    ;; (define-key map [remap forward-page] #'prot-simple-forward-page-dwim)
+    ;; (define-key map [remap backward-page] #'prot-simple-backward-page-dwim)
+    ;;
+    ;; Commands for buffers
+    (define-key map (kbd "M-=") #'count-words)
+    (define-key map (kbd "<C-f2>") #'prot-simple-rename-file-and-buffer)
+    (define-key map (kbd "C-x K") #'prot-simple-kill-buffer-current)
+    (define-key map (kbd "M-s b") #'prot-simple-buffers-major-mode)
+    (define-key map (kbd "M-s v") #'prot-simple-buffers-vc-root)))
+)
+  (setup
   (use-package general
       :commands (general-define-key))
 
     (general-create-definer leader-def
       :states nil
       :keymaps 'override
-      :prefix "C-c"
+      :prefix "M-m"
       :prefix-command 'prefix-command
       :prefix-map 'prefix-map)
 
@@ -777,40 +857,40 @@ Some constants that I use.
   :init
   (setq mode-line-end-spaces nil))
 
-(use-package simple
-  :straight nil
-  :bind (("M-z" . zap-up-to-char)
-         ("M-S-z" . zap-to-char)
-         ("C-x k" . kill-this-buffer)
-         ("C-h C-f" . describe-face))
-  :hook ((before-save . delete-trailing-whitespace)
-         (overwrite-mode . overwrite-set-cursor-shape))
-  :custom
-  (yank-excluded-properties t)
-  (blink-matching-delay 0)
-  (blink-matching-paren t)
-  (copy-region-blink-delay 0)
-  :init
-  (column-number-mode 1)
-  (line-number-mode 1)
-  (transient-mark-mode -1)
-  (defun overwrite-set-cursor-shape ()
-    (when (display-graphic-p)
-      (setq cursor-type (if overwrite-mode 'hollow 'box))))
-  (define-advice keyboard-quit (:around (quit))
-    "Quit the current context.
-When there is an active minibuffer and we are not inside it close
-it.  When we are inside the minibuffer use the regular
-`minibuffer-keyboard-quit' which quits any active region before
-exiting.  When there is no minibuffer `keyboard-quit' unless we
-are defining or executing a macro."
-    (if (active-minibuffer-window)
-        (if (minibufferp)
-            (minibuffer-keyboard-quit)
-          (abort-recursive-edit))
-      (unless (or defining-kbd-macro
-                  executing-kbd-macro)
-        (funcall-interactively quit)))))
+;; (use-package simple
+;;   :straight nil
+;;   :bind (("M-z" . zap-up-to-char)
+;;          ("M-S-z" . zap-to-char)
+;;          ("C-x k" . kill-this-buffer)
+;;          ("C-h C-f" . describe-face))
+;;   :hook ((before-save . delete-trailing-whitespace)
+;;          (overwrite-mode . overwrite-set-cursor-shape))
+;;   :custom
+;;   (yank-excluded-properties t)
+;;   (blink-matching-delay 0)
+;;   (blink-matching-paren t)
+;;   (copy-region-blink-delay 0)
+;;   :init
+;;   (column-number-mode 1)
+;;   (line-number-mode 1)
+;;   (transient-mark-mode -1)
+;;   (defun overwrite-set-cursor-shape ()
+;;     (when (display-graphic-p)
+;;       (setq cursor-type (if overwrite-mode 'hollow 'box))))
+;;   (define-advice keyboard-quit (:around (quit))
+;;     "Quit the current context.
+;; When there is an active minibuffer and we are not inside it close
+;; it.  When we are inside the minibuffer use the regular
+;; `minibuffer-keyboard-quit' which quits any active region before
+;; exiting.  When there is no minibuffer `keyboard-quit' unless we
+;; are defining or executing a macro."
+;;     (if (active-minibuffer-window)
+;;         (if (minibufferp)
+;;             (minibuffer-keyboard-quit)
+;;           (abort-recursive-edit))
+;;       (unless (or defining-kbd-macro
+;;                   executing-kbd-macro)
+;;         (funcall-interactively quit)))))
 
   (setup (:straight which-key)
       ;;    (which-key-mode 1)
@@ -842,9 +922,38 @@ are defining or executing a macro."
 #+end_src
 keychords with hydra
 #+begin_src emacs-lisp :noweb-ref keyboard
+(use-package hydra
+  :config
+  (progn
+    ;; (setq hydra-lv nil)
+    (set-face-attribute 'hydra-face-red      nil :foreground "Red"        :bold t)
+    (set-face-attribute 'hydra-face-blue     nil :foreground "RoyalBlue3" :bold t)
+    (set-face-attribute 'hydra-face-amaranth nil :foreground "#e52b50"    :bold t)
+    (set-face-attribute 'hydra-face-pink     nil :foreground "HotPink1"   :bold t)
+    (set-face-attribute 'hydra-face-teal     nil :foreground "#367588"    :bold t)
+    (hydra-add-font-lock)))
 
-(setup (:straight hydra)
-  (require 'hydra))
+;; https://github.com/abo-abo/hydra/wiki/Hydra-Colors#colorful-hydras
+;; https://github.com/abo-abo/hydra/wiki/internals#exit
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | Body     | Non-color                   | Head      | Executing             | After     |
+;; | Color    | Alternative                 | Inherited | NON-HEADS             | executing |
+;; |          |                             | Color     |                       | HEADS     |
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | red      | :foreign-keys nil (default) | red       | Allow and Quit        |           |
+;; |          | :exit nil (default)         |           |                       | Continue  |
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | blue     | :foreign-keys nil (default) | blue      | Allow and Quit        |           |
+;; |          | :exit t                     |           |                       | Quit      |
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | amaranth | :foreign-keys warn          | red       | Disallow and Continue |           |
+;; |          | :exit nil (default)         |           |                       | Continue  |
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | teal     | :foreign-keys warn          | blue      | Disallow and Continue |           |
+;; |          | :exit t                     |           |                       | Quit      |
+;; |----------+-----------------------------+-----------+-----------------------+-----------|
+;; | pink     | :foreign-keys run           | red       | Allow and Continue    |           |
+;; |          | :exit nil (default)         |           |                       | Continue  |
 
 #+end_src
 * Utility Functions & macros
@@ -1342,7 +1451,8 @@ Some Defaults for my preferred appearance
                        org-mode-hook
                        outline-mode-hook
                        prog-mode-hook))
-    (add-hook mode-hook #'formfeed-make-display-line)))
+   ;; (add-hook mode-hook #'formfeed-make-display-line)
+))
 #+end_src
 *** Menu and Tool bars
 :PROPERTIES:
@@ -1384,42 +1494,93 @@ On Linux, I have a custom build of Iosevka that I like.
   (setup (:straight mixed-pitch)
       (:hook-into text-mode)
 
-  (use-package font
-  :straight nil
-  :preface
-  (defun font-installed-p (font-name)
-    "Check if a font with FONT-NAME is available."
-    (find-font (font-spec :name font-name)))
-  (provide 'font)
-  :config
-  (cond ((font-installed-p "JetBrains Mono")
-         (set-face-attribute 'default nil :font "JetBrains Mono"))
-        ((font-installed-p "Source Code Pro")
-         (set-face-attribute 'default nil :font "Source Code Pro")))
-  (when (font-installed-p "Iosevka Aile")
-    (set-face-attribute 'variable-pitch nil :font "Iosevka Aile" :weight 'light)))
+  ;;; Font configurations (prot-fonts.el)
+(setup (:require prot-fonts)
+  ;; This is defined in Emacs C code: it belongs to font settings.
+  (setq x-underline-at-descent-line t)
 
-  ;; Set the font face based on platform
-  (pcase system-type
-    ((or 'gnu/linux 'windows-nt 'cygwin)
-     (set-face-attribute 'default nil
-                         :font "JetBrains Mono"
-                         :weight 'light
-                         :height 120
-                         ))
-    ('darwin (set-face-attribute 'default nil :font "Fira Mono" :height 130)))
+  ;; And this is for Emacs28.
+  (setq-default text-scale-remap-header-line t)
 
-  ;; Set the fixed pitch face
-  (set-face-attribute 'fixed-pitch nil
-                      :font "JetBrains Mono"
-                      :weight 'light
-                      )
+  ;; Make sure to read the `prot-fonts-typeface-sets-alist' doc string,
+  ;; as it explains what those property lists should contain.
+  ;;
+  ;; The version of "Hack" that I custom is a custom build on mine:
+  ;; <https://gitlab.com/protesilaos/hack-font-mod>.  Same principle for
+  ;; Iosevka Comfy: <https://gitlab.com/protesilaos/iosevka-comfy>.
+  (setq prot-fonts-typeface-sets-alist
+        '((small . ( :fixed-pitch-family "JetBrains Mono"
+                     :fixed-pitch-regular-weight regular
+                     :fixed-pitch-heavy-weight bold
+                     :fixed-pitch-height 75
+                     :fixed-pitch-line-spacing 1
+                     :variable-pitch-family "FiraGO"
+                     :variable-pitch-height 1.05
+                     :variable-pitch-regular-weight normal))
 
-  ;; Set the variable pitch face
-  (set-face-attribute 'variable-pitch nil
-                      ;; :font "Cantarell"
-                      :font "Iosevka Aile"
-                      :weight 'light))
+          (small-alt . ( :fixed-pitch-family "Iosevka Slab"
+                         :fixed-pitch-regular-weight regular
+                         :fixed-pitch-heavy-weight extrabold
+                         :fixed-pitch-height 80
+                         :fixed-pitch-line-spacing 1
+                         :variable-pitch-family "Iosevka Aile"
+                         :variable-pitch-height 1.0
+                         :variable-pitch-regular-weight normal))
+
+          (regular . ( :fixed-pitch-family "JetBrains Mono"
+                       :fixed-pitch-regular-weight regular
+                       :fixed-pitch-heavy-weight extrabold
+                       :fixed-pitch-height 100
+                       :fixed-pitch-line-spacing nil
+                       :variable-pitch-family "FiraGO"
+                       :variable-pitch-height 1.0
+                       :variable-pitch-regular-weight normal))
+
+          (large . ( :fixed-pitch-family "Iosevka Slab"
+                     :fixed-pitch-regular-weight semilight
+                     :fixed-pitch-heavy-weight bold
+                     :fixed-pitch-height 135
+                     :fixed-pitch-line-spacing nil
+                     :variable-pitch-family "Iosevka Aile"
+                     :variable-pitch-height 1.0
+                     :variable-pitch-regular-weight normal))
+
+          (large-alt . ( :fixed-pitch-family "Hack"
+                         :fixed-pitch-regular-weight normal
+                         :fixed-pitch-heavy-weight bold
+                         :fixed-pitch-height 130
+                         :fixed-pitch-line-spacing nil
+                         :variable-pitch-family "FiraGO"
+                         :variable-pitch-height 1.05
+                         :variable-pitch-regular-weight normal))))
+
+  ;; TODO 2021-08-27: I no longer have a laptop.  Those configurations
+  ;; are not relevant, but I keep them around as the idea is still good.
+
+  ;; The value of `prot-fonts--laptop-desktop-keys-list' becomes '(small
+  ;; regular) based on the car of the first two cons cells found in
+  ;; `prot-fonts-typeface-sets-alist'.  The assumption is that those
+  ;; contain sets from smaller to larger display types.
+  (setq prot-fonts--laptop-desktop-keys-list
+        (prot-fonts--laptop-desktop-keys))
+
+  ;; This is the breakpoint, in pixels, for determining whether we are
+  ;; on the small or large screen layout.  The number here is my
+  ;; laptop's screen width, while it expands beyond that when I connect
+  ;; it to an external monitor (how I normally set it up on my desk).
+  (setq prot-fonts-max-small-resolution-width 1366)
+
+  ;; And this just sets the right font depending on whether my laptop is
+  ;; connected to an external monitor or not.
+  (prot-fonts-fonts-per-monitor)
+
+  ;; See theme section for this hook and also read the doc string of
+  ;; `prot-fonts-restore-last'.
+  (add-hook 'modus-themes-after-load-theme-hook #'prot-fonts-restore-last)
+
+  (let ((map global-map))
+    (define-key map (kbd "C-c f") #'prot-fonts-set-fonts)
+    (define-key map (kbd "C-c F") #'prot-fonts-set-default-font)))
 
   ;; Required for proportional font in posframe
   (setup (:straight company-posframe)
@@ -1494,33 +1655,163 @@ On Linux, I have a custom build of Iosevka that I like.
 :END:
 
 #+begin_src emacs-lisp
-  (setup (:straight spacegray-theme))
 
-  (use-package modus-themes
-    :if ENV-IS-GRAPHIC?
-    :requires (functions local-config)
-    :custom-face
-    (font-lock-doc-face ((t (:foreground nil :inherit font-lock-comment-face))))
-    (line-number ((t (:foreground nil :background nil :inherit shadow))))
-    (line-number-current-line ((t (:foreground nil :weight bold :background nil :inherit hl-line))))
-    :custom
-    (modus-themes-org-blocks nil)
-    (modus-themes-syntax '(faint alt-syntax))
-    (modus-themes-region '(bg-only no-extend))
-    (modus-themes-operandi-color-overrides '((bg-main . "#fcfbfa") (fg-main . "#101010")))
-    (modus-themes-vivendi-color-overrides (if (in-termux-p)
-                                              '((bg-main . "#000000") (fg-main . "#e5e6e7"))
-                                            '((bg-main . "#1e1e1e") (fg-main . "#dedddc"))))
-    (modus-themes-completions '((matches . (intense bold))
-                                (selection . (intense))))
-    (modus-themes-mode-line '(moody borderless))
-    :init
-    (cond ((in-termux-p)
-           (load-theme local-config-dark-theme t))
-          ;;((gnome-dark-mode-enabled-p)
-          ;; (load-theme local-config-dark-theme t))
-          (t (load-theme local-config-light-theme t))))
+;;; Modus themes (my highly accessible themes)
+(setup (:require modus-themes)
+  ;; Add all your customisations prior to loading the themes
+  ;;
+  (setq modus-themes-italic-constructs t
+        modus-themes-bold-constructs t
+        modus-themes-mixed-fonts nil
+        modus-themes-subtle-line-numbers nil
+        modus-themes-intense-mouseovers nil
+        modus-themes-deuteranopia t
+        modus-themes-tabs-accented nil
+        modus-themes-variable-pitch-ui t
+        modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
 
+        modus-themes-fringes nil ; {nil,'subtle,'intense}
+
+        ;; Options for `modus-themes-lang-checkers' are either nil (the
+        ;; default), or a list of properties that may include any of those
+        ;; symbols: `straight-underline', `text-also', `background',
+        ;; `intense' OR `faint'.
+        modus-themes-lang-checkers nil
+
+        ;; Options for `modus-themes-mode-line' are either nil, or a list
+        ;; that can combine any of `3d' OR `moody', `borderless',
+        ;; `accented', a natural number for extra padding (or a cons cell
+        ;; of padding and NATNUM), and a floating point for the height of
+        ;; the text relative to the base font size (or a cons cell of
+        ;; height and FLOAT)
+        modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
+
+        ;; Options for `modus-themes-markup' are either nil, or a list
+        ;; that can combine any of `bold', `italic', `background',
+        ;; `intense'.
+        modus-themes-markup nil
+
+        ;; Options for `modus-themes-syntax' are either nil (the default),
+        ;; or a list of properties that may include any of those symbols:
+        ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
+        modus-themes-syntax nil
+
+        ;; Options for `modus-themes-hl-line' are either nil (the default),
+        ;; or a list of properties that may include any of those symbols:
+        ;; `accented', `underline', `intense'
+        modus-themes-hl-line '(intense)
+
+        ;; Options for `modus-themes-paren-match' are either nil (the
+        ;; default), or a list of properties that may include any of those
+        ;; symbols: `bold', `intense', `underline'
+        modus-themes-paren-match intense
+
+        ;; Options for `modus-themes-links' are either nil (the default),
+        ;; or a list of properties that may include any of those symbols:
+        ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
+        ;; `bold', `italic', `background'
+        modus-themes-links nil
+
+        ;; Options for `modus-themes-box-buttons' are either nil (the
+        ;; default), or a list that can combine any of `flat',
+        ;; `accented', `faint', `variable-pitch', `underline', the
+        ;; symbol of any font weight as listed in
+        ;; `modus-themes-weights', and a floating point number
+        ;; (e.g. 0.9) for the height of the button's text.
+        modus-themes-box-buttons '(variable-pitch flat faint 0.9)
+
+        ;; Options for `modus-themes-prompts' are either nil (the
+        ;; default), or a list of properties that may include any of those
+        ;; symbols: `background', `bold', `gray', `intense', `italic'
+        modus-themes-prompts '(background subtle)
+
+        ;; The `modus-themes-completions' is an alist that reads three
+        ;; keys: `matches', `selection', `popup'.  Each accepts a nil
+        ;; value (or empty list) or a list of properties that can include
+        ;; any of the following (for WEIGHT read further below):
+        ;;
+        ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
+        ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
+        ;; `popup' - same as `selected'
+        ;; `t' - applies to any key not explicitly referenced (check docs)
+        ;;
+        ;; WEIGHT is a symbol such as `semibold', `light', or anything
+        ;; covered in `modus-themes-weights'.  Bold is used in the absence
+        ;; of an explicit WEIGHT.
+        modus-themes-completions
+        '((matches . (extrabold background))
+          (selection . (semibold intense accented text-also))
+          (popup . (accented intense)))
+
+        modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
+
+        ;; Options for `modus-themes-region' are either nil (the default),
+        ;; or a list of properties that may include any of those symbols:
+        ;; `no-extend', `bg-only', `accented'
+        modus-themes-region '(no-extend bg-only)
+
+        ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
+        modus-themes-diffs 'desaturated
+
+        modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
+
+        modus-themes-org-agenda ; this is an alist: read the manual or its doc string
+        '((header-block . (variable-pitch regular 1.4))
+          (header-date . (bold-today grayscale underline-today 1.2))
+          (event . (accented varied))
+          (scheduled . uniform)
+          (habit . nil))
+
+        modus-themes-headings ; this is an alist: read the manual or its doc string
+          '((1 . (variable-pitch light 1.6))
+            (2 . (variable-pitch regular 1.4))
+            (3 . (variable-pitch regular 1.3))
+            (4 . (1.2))
+            (5 . (1.1))
+            (t . (monochrome 1.05)))
+
+        ;; Sample for headings:
+        ;; ;; '((1 . (variable-pitch light 1.6))
+
+        ;; modus-themes-headings
+        ;; '((1 . (variable-pitch light 1.6))
+        ;;   (2 . (variable-pitch regular 1.4))
+        ;;   (3 . (variable-pitch regular 1.3))
+        ;;   (4 . (1.2))
+        ;;   (5 . (1.1))
+        ;;   (t . (monochrome 1.05)))
+        )
+
+  ;; Load the theme files before enabling a theme (else you get an error).
+  (modus-themes-load-themes)
+
+  ;; Custom faces (for demo purposes---check the themes' manual for more
+  ;; advanced uses).
+  (defun prot/modus-themes-custom-faces ()
+    (modus-themes-with-colors
+      (custom-set-faces
+       `(cursor ((,class :background ,magenta-intense)))
+       `(fill-column-indicator ((,class :background ,bg-inactive
+                                        :foreground ,bg-inactive))))))
+
+  (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
+
+  ;; Enable the theme at startup.  This is done after loading the files.
+  ;; You only need `modus-themes-load-operandi' for the light theme or
+  ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
+  ;; a simple test to load a light/dark theme based on some general time
+  ;; ranges (just accounting for the hour and without checking for the
+  ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
+  ;; to switch themes at will.
+  (let ((time (string-to-number (format-time-string "%H"))))
+    (if (and (> time 7) (< time 18))
+        (modus-themes-load-operandi)
+      (modus-themes-load-vivendi)))
+
+  ;; Also check my package configurations for `prot-fonts' because I use
+  ;; the `modus-themes-after-load-theme-hook' for some typeface-related
+  ;; tweaks (as those are made at the "face" level).
+  (define-key global-map (kbd "<f5>") #'modus-themes-toggle))
 
 (setup (:straight doom-themes)
   (setq doom-themes-enable-bold t)
@@ -1622,7 +1913,7 @@ setup diff and highlights
         (:hook diff-hl-magit-post-refresh))))
 
 #+end_src
-** Window Setup
+* Window Setup
 :PROPERTIES:
 :header-args: :noweb-ref windose
 :ID:                     1c36aad2-dfb6-4189-9aea-45732dba3d5d
@@ -1632,23 +1923,117 @@ setup diff and highlights
 
 #+begin_src emacs-lisp
   (setup windows
-      (setq split-height-threshold nil)
-      (setq split-width-threshold 160)
+      (setq display-buffer-alist
+        `(;; no window
+          ("\\`\\*Async Shell Command\\*\\'"
+           (display-buffer-no-window))
+          ;; top side window
+          ("\\*\\(Flymake diagnostics\\|Package-Lint\\).*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 0))
+          ("\\*Messages.*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 1))
+          ("\\*\\(Backtrace\\|Warnings\\|Compile-Log\\|Flymake log\\)\\*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 2))
+          ;; left side window
+          ("\\*\\(.* # Help.*\\|Help\\)\\*"    ; See the hooks for `visual-line-mode'
+           (display-buffer-reuse-mode-window display-buffer-in-side-window)
+           (window-width . 0.25)
+           (side . left)
+           (slot . 0))
+          ;; right side window
+          ("\\*keycast\\*"
+           (display-buffer-in-side-window)
+           (dedicated . t)
+           (window-width . 0.25)
+           (side . right)
+           (slot . -1)
+           (window-parameters . ((no-other-window . t)
+                                 (mode-line-format . none))))
+          ;; bottom side window
+          ("\\*Org Select\\*"
+           (display-buffer-in-side-window)
+           (dedicated . t)
+           (side . bottom)
+           (slot . 0)
+           (window-parameters . ((mode-line-format . none))))
+          ;; bottom buffer (NOT side window)
+          ("\\*Embark Actions\\*"
+           (display-buffer-reuse-mode-window display-buffer-at-bottom)
+           (window-height . fit-window-to-buffer)
+           (window-parameters . ((no-other-window . t)
+                                 (mode-line-format . none))))
+          ;; below current window
+          ("\\*.*\\(e?shell\\|v?term\\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected))
+          ("\\*\\vc-\\(incoming\\|outgoing\\|git : \\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected)
+           ;; NOTE 2021-10-06: we cannot `fit-window-to-buffer' because
+           ;; the height is not known in advance.
+           (window-height . 0.2))
+          ("\\*\\(Calendar\\|Bookmark Annotation\\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected)
+           (window-height . fit-window-to-buffer))))
+      ;;(setq split-height-threshold nil)
+      ;;(setq split-width-threshold 160)
       (setq window-divider-default-bottom-width 2)
       (setq window-divider-default-places t)
       (setq window-divider-default-right-width 2)
-      (setq window-resize-pixelwise nil))
+      (setq window-resize-pixelwise nil)
+      (setq window-combination-resize t)
+  (setq even-window-sizes 'height-only)
+  (setq window-sides-vertical nil)
+  (setq switch-to-buffer-in-dedicated-window 'pop)
+
+  (add-hook 'help-mode-hook #'visual-line-mode)
+  (add-hook 'custom-mode-hook #'visual-line-mode)
+
+  (let ((map global-map))
+    (define-key map (kbd "C-x <down>") #'next-buffer)
+    (define-key map (kbd "C-x <up>") #'previous-buffer)
+    (define-key map (kbd "C-x C-n") #'next-buffer)     ; override `set-goal-column'
+    (define-key map (kbd "C-x C-p") #'previous-buffer) ; override `mark-page'
+    (define-key map (kbd "C-x !") #'delete-other-windows-vertically)
+    (define-key map (kbd "C-x _") #'balance-windows)      ; underscore
+    (define-key map (kbd "C-x -") #'fit-window-to-buffer) ; hyphen
+    (define-key map (kbd "C-x +") #'balance-windows-area)
+    (define-key map (kbd "C-x }") #'enlarge-window)
+    (define-key map (kbd "C-x {") #'shrink-window)
+    (define-key map (kbd "C-x >") #'enlarge-window-horizontally) ; override `scroll-right'
+    (define-key map (kbd "C-x <") #'shrink-window-horizontally)) ; override `scroll-left'
+  (let ((map resize-window-repeat-map))
+    (define-key map ">" #'enlarge-window-horizontally)
+    (define-key map "<" #'shrink-window-horizontally)))
 
 #+end_src
 #+begin_src emacs-lisp
-  (setup (:straight ace-window)
-    (setq aw-background t)
-    (setq aw-scope 'frame)
-    (ace-window-display-mode 1)
-    (:hide-mode))
+  ;; (setup (:straight ace-window)
+  ;;   (setq aw-background t)
+  ;;   (setq aw-scope 'frame)
+  ;;   (ace-window-display-mode 1)
+  ;;   (:hide-mode))
 
 (setup (:straight windmove)
-  (windmove-default-keybindings))
+    (setq windmove-create-window nil)     ; Emacs 27.1
+  (let ((map global-map))
+    ;; Those override some commands that are already available with
+    ;; C-M-u, C-M-f, C-M-b.
+    (define-key map (kbd "C-M-<up>") #'windmove-up)
+    (define-key map (kbd "C-M-<right>") #'windmove-right)
+    (define-key map (kbd "C-M-<down>") #'windmove-down)
+    (define-key map (kbd "C-M-<left>") #'windmove-left)
+    (define-key map (kbd "C-M-S-<up>") #'windmove-swap-states-up)
+    (define-key map (kbd "C-M-S-<right>") #'windmove-swap-states-right) ; conflicts with `org-increase-number-at-point'
+    (define-key map (kbd "C-M-S-<down>") #'windmove-swap-states-down)
+    (define-key map (kbd "C-M-S-<left>") #'windmove-swap-states-left)))
 
 (setup (:straight winner)
   (winner-mode 1))
@@ -1658,7 +2043,7 @@ setup diff and highlights
 #+end_src
 
 #+begin_src emacs-lisp :noweb-ref pkg-ui
-  (window-divider-mode +1)
+ ;; (window-divider-mode +1)
 #+end_src
 
 *** Splitting windows sensibly
@@ -1867,13 +2252,6 @@ and have made a custom fringe bitmap.
 #+end_src
 *** setup backups
 #+begin_src emacs-lisp
-(setup (:require autorevert)
-          (setq auto-revert-check-vc-info t)
-          (setq auto-revert-remote-files t)
-          (setq global-auto-revert-non-file-buffers t)
-          (setq auto-revert-verbose nil)
-          (global-auto-revert-mode 1)
-          (:hide-mode auto-revert))
 
 (setup (:require savehist)
           (setq history-delete-duplicates t)
@@ -1909,18 +2287,37 @@ and have made a custom fringe bitmap.
             (:hook executable-make-buffer-file-executable-if-script-p)))
 
 #+end_src
-** Indentation
-:PROPERTIES:
-:ID:                     499df3a6-0e15-4f23-b915-ead73842e866
-:END:
-use electric-indent but have a way of turning it off
-#+begin_src emacs-lisp
-;; easier to search
-(setq-default
-search-default-mode #'char-fold-to-regexp
-replace-char-fold t)
+** Electric
+Emacs labels as “electric” any behaviour that involves contextual auto-insertion of characters. while the idea is neat, I generally dislike it because of its false positives. This is a summary of my settings:
 
-
+- If electric-pair-mode is enabled (which I might do manually), insert quotes and brackets in pairs. Only do so if there is no alphabetic character after the cursor.
+- The cryptic numbers in the pairs set, correspond to curly single and double quotes and these «». The contents of this set are always inserted in pairs, regardless of major mode. To get those numbers, evaluate (string-to-char CHAR) where CHAR is the one you are interested in. For example, get the literal tab’s character with (string-to-char "\t").
+- While inputting a pair, inserting the closing character will just skip over the existing one, rather than add a new one. So typing ( will insert () and then typing ) will just be the same as moving forward one character C-f.
+- Do not skip over whitespace when operating on pairs. Combined with the above point, this means that a new character will be inserted, rather than be skipped over. I find this better, because it prevents the point from jumping forward, plus it allows for more natural editing.
+- The whitespace characters are space (\s), tab (\t), and newline (\n).
+- The rest concern the conditions for transforming quotes into their curly equivalents. I keep this disabled, because curly quotes are distinct characters. It is difficult to search for them. Just note that on GNU/Linux you can type them directly by hitting the “compose” key and then an angled bracket (< or >) followed by a quote mark.
+#+begin_src emacs-lisp
+;;; Configure 'electric' behaviour
+(setup electric
+  (setq electric-pair-inhibit-predicate 'electric-pair-conservative-inhibit)
+  (setq electric-pair-preserve-balance t)
+  (setq electric-pair-pairs
+        '((8216 . 8217)
+          (8220 . 8221)
+          (171 . 187)))
+  (setq electric-pair-skip-self 'electric-pair-default-skip-self)
+  (setq electric-pair-skip-whitespace nil)
+  (setq electric-pair-skip-whitespace-chars '(9 10 32))
+  (setq electric-quote-context-sensitive t)
+  (setq electric-quote-paragraph t)
+  (setq electric-quote-string nil)
+  (setq electric-quote-replace-double t)
+  (electric-pair-mode -1)
+  (electric-quote-mode -1)
+  ;; I don't like auto indents in Org and related.  They are okay for
+  ;; programming.
+  (electric-indent-mode -1)
+  (add-hook 'prog-mode-hook #'electric-indent-local-mode))
 
 ;; electric everything (but there must be a way to disable it)
 (when (fboundp 'electric-pair-mode)
@@ -1934,6 +2331,22 @@ replace-char-fold t)
 (defun editor-disable-electric-pair ()
 "Disable the command `electric-pair-mode' locally."
   (electric-pair-local-mode -1))
+
+#+end_src
+** Indentation
+:PROPERTIES:
+:ID:                     499df3a6-0e15-4f23-b915-ead73842e866
+:END:
+use electric-indent but have a way of turning it off
+#+begin_src emacs-lisp
+;; easier to search
+(setq-default
+search-default-mode #'char-fold-to-regexp
+replace-char-fold t)
+
+
+
+
 
 #+end_src
 
@@ -2077,12 +2490,28 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 
 #+end_src
 
-** Avy - Filter, Select, Act
+** Jump to visible position - Avy
 :PROPERTIES:
 :ID:                     e2c2803d-7159-4431-9bff-1ada59aaece5
 :END:
-Setup avy in filter, select, act mode
+The avy package by Oleh Krehel lets you select a location on the screen to move the cursor to. It does so by producing an overlay with characters that need to be typed to specify the location. By default, the overlay covers the candidate, though I change the avy-style to have it appear as a prefix instead.
+
+There are several commands on offer which narrow down the candidates. My favourite is avy-goto-char-timer (closely followed by avy-goto-char-2 and avy-goto-word-1). It prompts for a character and then has a time window lasting avy-timeout-seconds during which it can read more characters. Once Avy receives the input, it overlays every word that contains those characters in succession. If there is a single match, it jumps directly to it.
+
+Avy has the ability to act on the candidate rather than simply jump to it. Karthik Chikmagalur has a comprehensive essay on the matter, which I consider essential reading for anyone wanting to make best use of this package: Avy can do anything (2021-10-21). I still am not sure whether I need all that power though, as in my workflow I jump to a point and then invoke embark-act (see Extended minibuffer actions (embark.el)).
+
+Finally, we can use Avy to select a candidate from the *Completions* buffer (see Minibuffer configurations and my extras (mct.el)).Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
+ (setup (:straight avy)
+  (setq avy-all-windows nil) ; only the current window
+  (setq avy-all-windows-alt t) ; all windows with C-u
+  (setq avy-single-candidate-jump t)
+  (setq avy-background nil)
+  (setq avy-case-fold-search nil) ; case is significant
+  (setq avy-timeout-seconds 0.5)
+  (setq avy-style 'pre) ; prefixes candidate; otherwise use `at-full'
+  (define-key global-map (kbd "C-.") #'avy-goto-char-timer))
+
  (setup (:straight avy)
      (:disable)
       (:global  "M-j"  'avy-goto-char-timer
@@ -2203,6 +2632,99 @@ Setup avy in filter, select, act mode
     ;;    ("M-Z" . avy-zap-to-char-dwim)))
 
 #+end_src
+** Search
+The built-in search mechanisms, defined in the libraries isearch.el and replace.el are minimal in their presentation, yet powerful in their applications. There are the main points of entry to the commands they offer:
+
+- isearch-forward (C-s) prompts for a string after point and offers live feedback on its progress. isearch-backward (C-r) moves in the opposite direction.
+     - Two distinct keys may seem redundant at first, but you really appreciate this level of precision when recording keyboard macros (see, for example, my video about Isearch powers in keyboard macros (2020-01-21)).
+     - Use C-M-s and C-M-r for running a search against a regular expression, or call isearch-toggle-regexp (M-r) after starting a regular isearch.
+- query-replace (M-%) replaces all matches of a string and asks you for confirmation on each of them. If you check its help page (press ? after invoking the command), you will learn that ! stands for an affirmative answer to all, which is a standard in all such prompts.
+     - query-replace-regexp (C-M-%) does the same for regular expressions.
+- occur (M-s o) places all matches of a regular expression or string in a dedicated buffer. That can function as an index for moving to the relevant points in the buffer, but also as a means of refactoring all matches at once. Just make the *Occur* buffer editable with e. Running occur with a numeric argument provides N lines of context around the given match.
+
+The beauty of the Occur and Replace commands is that they can be initiated from within an active Isearch session, using the same keys. So C-s INPUT M-s o will search for input and then run occur on it. Try C-h k C-s to get a help menu with all the extra keys you can use with isearch.
+#+begin_src emacs-lisp
+;;; Isearch, occur, grep, and extras (prot-search.el)
+(setup (:require isearch)
+  (setq search-highlight t)
+  (setq search-whitespace-regexp ".*?")
+  (setq isearch-lax-whitespace t)
+  (setq isearch-regexp-lax-whitespace nil)
+  (setq isearch-lazy-highlight t)
+  ;; All of the following variables were introduced in Emacs 27.1.
+  (setq isearch-lazy-count t)
+  (setq lazy-count-prefix-format nil)
+  (setq lazy-count-suffix-format " (%s/%s)")
+  (setq isearch-yank-on-move 'shift)
+  (setq isearch-allow-scroll 'unlimited)
+  ;; These variables are from Emacs 28
+  (setq isearch-repeat-on-direction-change t)
+  (setq lazy-highlight-initial-delay 0.5)
+  (setq lazy-highlight-no-delay-length 3)
+  (setq isearch-wrap-pause t)
+
+  (define-key minibuffer-local-isearch-map (kbd "M-/") #'isearch-complete-edit)
+  (let ((map isearch-mode-map))
+    (define-key map (kbd "C-g") #'isearch-cancel) ; instead of `isearch-abort'
+    (define-key map (kbd "M-/") #'isearch-complete)))
+
+(setup (:require replace)
+  (setq list-matching-lines-jump-to-current-line t)
+  (add-hook 'occur-mode-hook #'hl-line-mode)
+  (add-hook 'occur-mode-hook #'prot-common-truncate-lines-silently) ; from `prot-common.el'
+  (define-key occur-mode-map (kbd "t") #'toggle-truncate-lines))
+
+(setup (:require grep))
+
+(setup (:require prot-search)
+  (setq prot-search-outline-regexp-alist
+        '((emacs-lisp-mode . "^\\((\\|;;;+ \\)")
+          (org-mode . "^\\(\\*+ +\\|#\\+[Tt][Ii][Tt][Ll][Ee]:\\)")))
+  (setq prot-search-todo-keywords
+        (concat "TODO\\|FIXME\\|NOTE\\|REVIEW\\|XXX\\|KLUDGE"
+                "\\|HACK\\|WARN\\|WARNING\\|DEPRECATED\\|BUG"))
+
+  (let ((map global-map))
+    (define-key map (kbd "M-s %") #'prot-search-isearch-replace-symbol)
+    (define-key map (kbd "M-s M-<") #'prot-search-isearch-beginning-of-buffer)
+    (define-key map (kbd "M-s M->") #'prot-search-isearch-end-of-buffer)
+    (define-key map (kbd "M-s g") #'prot-search-grep)
+    (define-key map (kbd "M-s u") #'prot-search-occur-urls)
+    (define-key map (kbd "M-s t") #'prot-search-occur-todo-keywords)
+    (define-key map (kbd "M-s M-t") #'prot-search-grep-todo-keywords) ; With C-u it runs `prot-search-git-grep-todo-keywords'
+    (define-key map (kbd "M-s M-o") #'prot-search-occur-outline)
+    (define-key map (kbd "M-s M-u") #'prot-search-occur-browse-url))
+  (let ((map isearch-mode-map))
+    (define-key map (kbd "<up>") #'prot-search-isearch-repeat-backward)
+    (define-key map (kbd "<down>") #'prot-search-isearch-repeat-forward)
+    (define-key map (kbd "<backspace>") #'prot-search-isearch-abort-dwim)
+    (define-key map (kbd "<C-return>") #'prot-search-isearch-other-end)))
+#+end_src
+** Writeable grep
+With wgrep we can directly edit the results of a grep and save the changes to all affected buffers. In principle, this is the same as what the built-in occur offers. We can use it to operate on a list of matches by leveraging the full power of Emacs’ editing capabilities (e.g. keyboard macros, query and replace a regexp…).
+#+begin_src emacs-lisp
+;;; wgrep (writable grep)
+(setup (:require wgrep)
+  (setq wgrep-auto-save-buffer t)
+  (setq wgrep-change-readonly-file t)
+  (let ((map grep-mode-map))
+    (define-key map (kbd "e") #'wgrep-change-to-wgrep-mode)
+    (define-key map (kbd "C-x C-q") #'wgrep-change-to-wgrep-mode)
+    (define-key map (kbd "C-c C-c") #'wgrep-finish-edit)))
+
+#+end_src
+
+** Cross-references
+Xref provides helpful commands for code navigation and discovery, such as xref-find-definitions (M-.) and its counterpart xref-pop-marker-stack (M-,=). It is a library that gets used by a variety of tools, including =project.el (see Projects (project.el and prot-project.el)).
+#+begin_src emacs-lisp
+;;; Cross-references (xref.el)
+(setup (:require xref)
+  ;; All those have been changed for Emacs 28
+  (setq xref-show-definitions-function #'xref-show-definitions-completing-read) ; for M-.
+  (setq xref-show-xrefs-function #'xref-show-definitions-buffer) ; for grep and the like
+  (setq xref-file-name-display 'project-relative)
+  (setq xref-search-program 'grep))
+#+end_src
 ** Spelling
 :PROPERTIES:
 :ID:                     646035cd-ccc8-4a21-b116-f5d2269dbad9
@@ -2286,6 +2808,82 @@ I use the dictionary package for Emacs, and I’m lazy about it:
 
 #+end_src
 
+** Colour previewing
+The following package reads a colour value, such as hexadecimal RGB, and sets the background for the value in that colour. Quite useful when reviewing my themes (rainbow-mode is activated manually).
+#+begin_src emacs-lisp
+    (setup (:straight rainbow-mode)
+    (setq rainbow-ansi-colors nil)
+    (setq rainbow-x-colors nil))
+
+#+end_src
+** Conveniences
+*** Automatic time stamps for files (time-stamp.el)
+
+The built-in time-stamp.el provides the means to automatically update a predefined header with the time its file was last edited/saved. This is, in my experience, particularly useful for packages that have a stable version but also need to disambiguate their latest tagged release from their current development state.
+
+By default, this is done by checking the first eight lines of the file for the Time-stamp: <> entry. Though that is configurable. To properly utilise this library, you need to implement file-local variables. Those should control the exact format of the time stamp. For examples, this is what I have in my modus-themes.el:
+
+;; Local Variables:
+;; time-stamp-start: "Last-Modified:[ \t]+\\\\?[\"<]"
+;; time-stamp-end: "\\\\?[\">]"
+;; time-stamp-format: "%Y-%02m-%02d %02H:%02M:%02S %5z"
+;; End:
+
+Check M-x find-library RET time-stamp RET for all variables you may want to control.
+
+All we do here is enable the package and add a hook to insert a time stamp upon save, where relevant. It works seamlessly.
+
+#+begin_src emacs-lisp
+;;; Automatic time stamps for files (time-stamp.el)
+(setup (:require time-stamp)
+  (add-hook 'before-save-hook #'time-stamp))
+
+#+end_src
+*** Auto revert mode
+This mode ensures that the buffer is updated whenever the file changes. A change can happen externally or by some other tool inside of Emacs (e.g. kill a Magit diff).
+#+begin_src emacs-lisp
+(setup (:require autorevert)
+          (setq auto-revert-check-vc-info t)
+          (setq auto-revert-remote-files t)
+          (setq global-auto-revert-non-file-buffers t)
+          (setq auto-revert-verbose nil)
+          (add-hook 'after-init-hook #'global-auto-revert-mode)
+          (:hide-mode auto-revert))
+
+#+end_src
+*** Preserve contents of system clipboard
+
+Say you copied a link from your web browser, then switched to Emacs to paste it somewhere. Before you do that, you notice something you want to kill. Doing that will place the last kill to the clipboard, thus overriding the thing you copied earlier. We can have a kill ring solution to this with the following:
+#+begin_src emacs-lisp
+;;; Preserve contents of system clipboard
+(setq save-interprogram-paste-before-kill t)
+
+#+end_src
+Now the contents of the clipboard are stored in the kill ring and can be retrieved from there (e.g. with M-y).
+*** Newline characters for file ending
+
+For some major modes, such as diff-mode, a final newline is of paramount importance. Without it you cannot, for instance, apply a patch cleanly. As such, the mode-require-final-newline will add a newline character when visiting or saving a buffer of relevance.
+
+#+begin_src emacs-lisp
+;;; Newline characters for file ending
+(setq mode-require-final-newline 'visit-save)
+
+#+end_src
+
+*** Zap characters
+There are two kinds of “zap” functionality:
+
+- `zap-up-to-char` will delete everything from point up to the character you provide it with. Think of how you may want to remove a file name but keep its file type extension, so M-x zap-up-to-char RET . will do just that.
+- zap-to-char, which is bound to M-z by default, will delete the target character as well.
+
+I bind the former to M-z as I use it more often and leave its counterpart on M-Z (M-S-z).
+#+begin_src emacs-lisp
+;;; Zap characters
+(let ((map global-map))
+  (define-key map (kbd "M-z") #'zap-up-to-char)
+  (define-key map (kbd "M-Z") #'zap-to-char)) ; M-S-z
+
+#+end_src
 ** Encodings & expand region
 :PROPERTIES:
 :ID:                     7c67910a-5992-4b18-a845-c454b93186c3
@@ -2584,79 +3182,66 @@ Bindings will be enabled next time region is highlighted."
   (provide 'region-bindings)
   :init
   (region-bindings-mode-enable))
+#+end_src
+*** Ibuffer and extras
+ibuffer.el ships with Emacs and it provides a drop-in replacement for list-buffers. Compared to its counterpart, it allows for granular control over the buffer list and is more powerful overall. For this reason I bind it to C-x C-b.
 
-   (setup minibuffer
-     (file-name-shadow-mode 1)
-     (minibuffer-depth-indicate-mode 1)
-    (minibuffer-electric-default-mode 1)
-    (fset #'yes-or-no-p #'y-or-n-p)
-    (setq enable-recursive-minibuffers t)
-    (setq file-name-shadow-properties '(invisible t intangible t))
-    (setq minibuffer-eldef-shorten-default t)
-    (setq minibuffer-prompt-properties
-          '(read-only t cursor-intangible t face minibuffer-prompt))
-    (setq read-answer-short t)
-    (setq read-extended-command-predicate #'command-completion-default-include-p)
-    (setq use-short-answers t)
-    ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
-    (defun +minibuffer-complete-history ()
-      "Complete minibuffer history."
-      (interactive)
-      (completion-in-region (minibuffer--completion-prompt-end) (point-max)
-                            (symbol-value minibuffer-history-variable)
-                            nil))
-    (:with-hook minibuffer-setup-hook
-      (:hook cursor-intangible-mode))
-    (:with-map minibuffer-local-map
-      (:bind "M-/" #'+minibuffer-complete-history))
-    (:with-map minibuffer-inactive-mode-map
-      (:bind "<mouse-1>" ignore)))
+Overview of its features:
 
+- mark and delete buffers same way you do in dired (see the previous sections on dired (directory editor, file manager));
+- mark by a predicate, such as name, major mode, etc.;
+- sort buffers by name, filesystem path, major mode, size;
+- run occur on the marked buffers (remember: Occur produces a buffer that you can edit once you enable the editable state with e);
+- run query-replace or query-replace-regexp on marked buffers.
+
+Run the universal help command for major mode documentation (C-h m) while inside ibuffer to get a detailed list of all available commands and their key bindings.
+#+begin_src emacs-lisp
   (setup ibuffer
     (:also-load ibuf-ext)
     (:option ibuffer-expert t
+             ibuffer-display-summary nil
+             ibuffer-use-other-window nil
              ibuffer-show-empty-filter-groups nil
-             ibuffer-saved-filter-groups
-             '(("default"
-                ("Org" (mode . org-mode))
-                ("emacs" (or (name . "^\\*scratch\\*$")
-                             (name . "^\\*Messages\\*$")
-                             (name . "^\\*Warnings\\*$")
-                             (name . "^\\*straight-process\\*$")
-                             (name . "^\\*Calendar\\*$")))
-                ("customize" (mode . Custom-mode))
-                ("emacs-config" (or (filename . ".emacs.d")
-                                    (mode . +init-mode)))
-                ("git" (or (name . "^\*magit")
-                           (name . "^\magit")))
-                ("help" (or (mode . help-mode)
-                            (mode . Info-mode)
-                            (mode . helpful-mode)))
-                ("irc" (or (mode . erc-mode)
-                           (mode . circe-server-mode)
-                           (mode . circe-channel-mode)))
-                ("shell" (or (mode . eshell-mode)
-                             (mode . shell-mode)
-                             (mode . vterm-mode)))
-                ("web" (or (mode . elpher-mode)
-                           (mode . eww-mode))))))
-    (:hook (defun ibuffer@filter-to-default ()
-             (ibuffer-auto-mode +1)
-             (ibuffer-switch-to-saved-filter-groups "default"))))
+             ibuffer-movement-cycle nil
+             ibuffer-default-sorting-mode 'filename/process
+             ibuffer-use-header-line t
+             ibuffer-default-shrink-to-minimum-size nil
+             ibuffer-formats
+             '((mark modified read-only locked " "
+                (name 40 40 :left :elide)
+                " "
+                (size 9 -1 :right)
+                " "
+                (mode 16 16 :left :elide)
+                " " filename-and-process)
+               (mark " "
+                (name 16 -1)
+                " " filename))
+             ibuffer-saved-filter-groups nil
+             ibuffer-old-time 48)
+    (:global "C-x C-b" #'ibuffer)
+    (:hook hl-line-mode)
+    (let ((map ibuffer-mode-map))
+      (define-key map (kbd "* f") #'ibuffer-mark-by-file-name-regexp)
+      (define-key map (kbd "* g") #'ibuffer-mark-by-content-regexp) ; "g" is for "grep"
+      (define-key map (kbd "* n") #'ibuffer-mark-by-name-regexp)
+      (define-key map (kbd "s n") #'ibuffer-do-sort-by-alphabetic)  ; "sort name" mnemonic
+      (define-key map (kbd "/ g") #'ibuffer-filter-by-content)))
 
-  ;; (setup (:straight shackle)
-  ;;   (setq shackle-rules
-  ;;         `((compilation-mode
-  ;;            :select t :align right :size 0.33)
-  ;;           (magit-status-mode
-  ;;            :select t :align right :size 0.5)
-  ;;           ((help-mode helpful-mode)
-  ;;            :select t :align right :size 0.4)
-  ;;           ((sly-xref-mode "\\*\\(sly-mrepl\\|ielm\\)")
-  ;;            :regexp t :noselect t :align below :size 0.24)))
-  ;;   (shackle-mode 1))
 #+end_src
+ The default way Emacs makes buffer names unique is really ugly and,
+  dare I say it, stupid.  Instead, I want them to be uniquified by their
+  filesystem paths.
 
+#+begin_src emacs-lisp
+  (setup (:require uniquify)
+    (setq uniquify-after-kill-buffer-p t)
+    (setq uniquify-buffer-name-style 'forward)
+    (setq-default
+     uniquify-separator "/"
+     uniquify-ignore-buffers-re "^\\*"))
+
+#+end_src
 * Sanity settings
 :PROPERTIES:
 :header-args: :noweb-ref sanity
@@ -2684,29 +3269,7 @@ Setup Scratch and minibuffer
     (setq require-final-newline t)
     (setq vc-follow-symlinks t))
 
-
-  (setup selection
-    (setq kill-do-not-save-duplicates t)
-    (setq select-enable-clipboard t)
-    (setq select-enable-primary t)
-    (setq x-select-enable-clipboard-manager nil))
-
-
   #+end_src
-
-  The default way Emacs makes buffer names unique is really ugly and,
-  dare I say it, stupid.  Instead, I want them to be uniquified by their
-  filesystem paths.
-
-#+begin_src emacs-lisp
-  (setup (:require uniquify)
-    (setq uniquify-after-kill-buffer-p t)
-    (setq uniquify-buffer-name-style 'forward)
-    (setq-default
-     uniquify-separator "/"
-     uniquify-ignore-buffers-re "^\\*"))
-
-#+end_src
 
 * Project Setup
 :PROPERTIES:
@@ -2911,16 +3474,88 @@ Setup of magit for cool git
 
 #+end_src
 
-* Navigation
+* Completion Framework & Extras
 :PROPERTIES:
+:header-args: :noweb-ref pkg-completion
 :ID:                     73011391-29f2-4810-b02e-b4b9775c1554
 :END:
+Unlike the desktop metaphor, the optimal way to use Emacs is through searching and narrowing selection candidates. Spend less time worrying about where things are on the screen and more on how fast you can bring them into focus. This is, of course, a matter of realigning priorities, as we still wish to control every aspect of the interface, as we do elsewhere in this document.
+** Orderless
+The, dare I say, sublime “orderless” package is developed by Omar Antolín Camarena. It provides the orderless completion style for efficient, out-of-order grouped pattern matching. The components can be determined using several styles, such as regexp, flex, prefix, initialism (check its README because there are lots of variations). Delimiters are literal spaces by default, but can be configured to match other characters, with hyphens and slashes being likely choices. As such, Orderless can supersede—and for most part improve upon—many of the completion styles that come built into Emacs, adding to them the powerful out-of-order capability.
 
-*** Completion
+All we do here is set up Orderless. The orderless completion style is appended to the minibuffer’s customisation option for completion-styles. That is defined in Minibuffer configurations and extras.
+
+My prot-orderless.el contains the few minor tweaks I introduce (full code further below). It defines three style dispatchers. Those are single characters that acquire a special meaning while at the end of a given input:
+
+- With the equals sign appended to a sequence of characters, we call prot-orderless-literal-dispatcher which instructs orderless to match that sequence as a literal string.
+- A comma at the end of a string of characters treats that group as an initialism, per prot-orderless-initialism-dispatcher.
+- While a tilde (prot-orderless-flex-dispatcher) makes it a flex match.
+
+#+begin_src emacs-lisp
+;;; Orderless completion style (and prot-orderless.el)
+(setup (:straight orderless)
+  (:require prot-orderless)
+  (setq orderless-component-separator " +")
+  ;; NOTE 2022-02-06: I made some major changes and this list may need
+  ;; to be refined further.  Remember to check my `completion-styles'
+  ;; and the `completion-category-overrides'.
+  (setq orderless-matching-styles
+        '( orderless-prefixes orderless-strict-leading-initialism
+           orderless-flex orderless-regexp))
+  (setq orderless-style-dispatchers
+        '(prot-orderless-literal-dispatcher
+          prot-orderless-initialism-dispatcher
+          prot-orderless-flex-dispatcher))
+
+  ;; SPC should never complete: use it for `orderless' groups.
+  ;; The `?' is a regexp construct.
+  (let ((map minibuffer-local-completion-map))
+    (define-key map (kbd "SPC") nil)
+    (define-key map (kbd "?") nil)))
+
+#+end_src
+** Completion annotations
+This is a utility jointly developed by Daniel Mendler and Omar Antolín Camarena that provides annotations to completion candidates. It is meant to be framework-agnostic
+#+begin_src emacs-lisp
+;;; Completion annotations (marginalia)
+ (setup (:straight marginalia)
+    (:load-after vertico
+      (setq marginalia-max-relative-age 0)  ; time is absolute here!
+		 (marginalia-mode 1))
+    (:with-map minibuffer-local-map
+      (:bind "M-A" marginalia-cycle)))
+
+#+end_src
+** Selection
+#+begin_src emacs-lisp :noweb-ref pkg-completion
+ (setup selection
+    (setq kill-do-not-save-duplicates t)
+    (setq select-enable-clipboard t)
+    (setq select-enable-primary t)
+    (setq x-select-enable-clipboard-manager nil))
+
+#+end_src
+** Minibuffer Configurations
 :PROPERTIES:
 :ID:                     4cac10bb-2e1d-4ca3-8a9b-11ef8ca3611f
 :END:
-Emacs completion parlava
+The minibuffer is the epicentre of extended interactivity with all sorts of Emacs workflows: to select a buffer, open a file, provide an answer to some prompt, such as a number, regular expression, password, and so on.
+
+Emacs has built-in capabilities to perform two distinct tasks related to such interactions:
+
+*** Narrowing
+    Use pattern matching algorithms to limit the list of choices (known as “candidates” or “completion candidates”) to those matching the given input. There are several pattern matching styles already built-in, while we can opt to extend them further.
+*** Selecting
+    Visualise the list of completion candidates and pick an item out of it using regular motions or concomitant extras. By default, Emacs visualises results in a special *Completions* buffer, which does not have lots of features and is not particularly pleasing to use.
+*** Completion styles
+    I rely on a mixture of built-in styles as well as the external orderless package by Omar Antolín Camarena. Orderless is placed last on some lists because simpler searches work fine with the other styles. My ordering goes from least to most powerful. Orderless is better suited for complex pattern matching. The way completion styles work, when one style cannot match anything, Emacs tries the next one on the list, until one of them yields results. As such, it is easy to activate Orderless on demand, either by separating input groups with spaces or passing one of the style dispatchers that are acceptable (read the Orderless completion style).
+
+    For file queries in particular, there exists a niche functionality in the built-in initials and partial-completion styles to navigate abbreviated paths. Here is an example with the latter: you can type ~/.l/s/fo which will match ~/.local/share/fonts. The variable completion-category-overrides can control the standard option of completion-styles on a per-category basis.
+*** Recursive minibuffers
+    I enable recursive minibuffers. This practically means that you can start something in the minibuffer, switch to another window, call the minibuffer again, run some commands, and then move back to what you initiated in the original minibuffer. Or simply call an M-x command while in the midst of a minibuffer session. To exit, hit C-] (abort-recursive-edit), though the regular C-g should also do the trick.
+
+    The minibuffer-depth-indicate-mode will show a recursion indicator, represented as a number, next to the minibuffer prompt, if a recursive edit is in progress (also check Mode line recursion indicators).
+
 #+begin_src emacs-lisp :noweb-ref pkg-completion
   (use-package vertico
   :bind ( :map vertico-map
@@ -2939,12 +3574,132 @@ Emacs completion parlava
   ;; Tidy shadowed file names
   :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
 
- (setup (:straight marginalia)
-    (:load-after vertico
-		 (marginalia-mode 1))
-    (:with-map minibuffer-local-map
-      (:bind "M-A" marginalia-cycle)))
+  ;;; Minibuffer configurations and my extras (mct.el)
+(setup  minibuffer
+  (setq completion-styles '(basic orderless)) ; also see `completion-category-overrides'
+  (setq completion-category-defaults nil)
+  ;; For a list of known completion categories, check the MCT manual's
+  ;; section on the matter:
+  ;; <https://protesilaos.com/emacs/mct#h:1f42c4e6-53c1-4e8a-81ef-deab70822fa4>
+  (setq completion-category-overrides
+        ;; NOTE 2021-10-25: I am adding `basic' because it works better as a
+        ;; default for some contexts.  Read:
+        ;; <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=50387>.
+        ;;
+        ;; `partial-completion' is a killer app for files, because it
+        ;; can expand ~/.l/s/fo to ~/.local/share/fonts.
+        '((file (styles . (basic partial-completion orderless)))
+          (project-file (styles . (basic substring partial-completion orderless)))
+          (imenu (styles . (basic substring orderless)))
+          (kill-ring (styles . (basic substring orderless)))
+          (consult-location (styles . (basic substring orderless)))))
 
+  (setq completion-cycle-threshold 2)
+  (setq completion-flex-nospace nil) ; though I don't use the built-in `flex' style...
+  (setq completion-pcm-complete-word-inserts-delimiters nil)
+  (setq completion-pcm-word-delimiters "-_./:| ")
+  (setq completion-ignore-case t)
+  (setq completions-detailed t)
+  (setq-default case-fold-search t)   ; For general regexp
+
+  ;; Grouping of completions for Emacs 28
+  (setq completions-group t)
+  (setq completions-group-sort nil)
+  (setq completions-group-format
+        (concat
+         (propertize "    " 'face 'completions-group-separator)
+         (propertize " %s " 'face 'completions-group-title)
+         (propertize " " 'face 'completions-group-separator
+                     'display '(space :align-to right))))
+
+  (setq read-buffer-completion-ignore-case t)
+  (setq read-file-name-completion-ignore-case t)
+
+  (setq enable-recursive-minibuffers t)
+  (setq read-answer-short t) ; also check `use-short-answers' for Emacs28
+  (setq resize-mini-windows t)
+  (setq minibuffer-eldef-shorten-default t)
+
+  (setq echo-keystrokes 0.25)           ; from the C source code
+  (setq kill-ring-max 60)               ; Keep it small
+
+  ;; Do not allow the cursor to move inside the minibuffer prompt.  I
+  ;; got this from the documentation of Daniel Mendler's Vertico
+  ;; package: <https://github.com/minad/vertico>.
+  (setq minibuffer-prompt-properties
+        '(read-only t cursor-intangible t face minibuffer-prompt))
+
+  (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+
+  ;; Adapted from Vertico.
+  (defun crm-indicator (args)
+    "Add prompt indicator to `completing-read-multiple' filter ARGS."
+    ;; The `error' face just makes the text red.
+    (cons (concat (propertize "[CRM] " 'face 'error) (car args)) (cdr args)))
+
+  (advice-add #'completing-read-multiple :filter-args #'crm-indicator)
+
+  (file-name-shadow-mode 1)
+  (minibuffer-depth-indicate-mode 1)
+  (minibuffer-electric-default-mode 1)
+
+  ;; I use this prefix for other searches
+  (define-key minibuffer-local-must-match-map (kbd "M-s") nil))
+
+   ;; (setup minibuffer
+   ;;   (file-name-shadow-mode 1)
+   ;;   (minibuffer-depth-indicate-mode 1)
+   ;;  (minibuffer-electric-default-mode 1)
+   ;;  (fset #'yes-or-no-p #'y-or-n-p)
+   ;;  (setq enable-recursive-minibuffers t)
+   ;;  (setq file-name-shadow-properties '(invisible t intangible t))
+   ;;  (setq minibuffer-eldef-shorten-default t)
+   ;;  (setq minibuffer-prompt-properties
+   ;;        '(read-only t cursor-intangible t face minibuffer-prompt))
+   ;;  (setq read-answer-short t)
+   ;;  (setq read-extended-command-predicate #'command-completion-default-include-p)
+   ;;  (setq use-short-answers t)
+   ;;  ;; https://www.manueluberti.eu//emacs/2021/12/10/shell-command/
+   ;;  (defun +minibuffer-complete-history ()
+   ;;    "Complete minibuffer history."
+   ;;    (interactive)
+   ;;    (completion-in-region (minibuffer--completion-prompt-end) (point-max)
+   ;;                          (symbol-value minibuffer-history-variable)
+   ;;                          nil))
+   ;;  (:with-hook minibuffer-setup-hook
+   ;;    (:hook cursor-intangible-mode))
+   ;;  (:with-map minibuffer-local-map
+   ;;    (:bind "M-/" #'+minibuffer-complete-history))
+   ;;  (:with-map minibuffer-inactive-mode-map
+   ;;    (:bind "<mouse-1>" ignore)))
+#+end_src
+
+*** Enhanced minibuffer commands
+Daniel Mendler’s Consult is a welcome addition to the ecosystem of modular, extensible tools that work with the standard minibuffer completion mechanisms and, by extension, with every user interface that largely conforms with them (Icomplete, Selectrum) or fully respects them (Embark and Daniel’s own Vertico). For my case, this means that it works with everything included in Completion framework and extras.
+
+Consult’s value proposition is two-fold: (1) remain aligned with the Emacs completion paradigm, and (2) offer minibuffer-centric commands that either enhance aspects of interactivity and functionality found in existing commands or outright provide them from scratch.
+
+Some Consult commands are drop-in replacements for built-in options. For example consult-complex-command offers an improved interactive experience over the default repeat-complex-command. Same principle for consult-goto-line which displays the line numbers and offers a live preview of where you are about to land.
+
+Other commands enhance the defaults with a filtering mechanism that targets candidates by their type. A case in point is consult-imenu which recognises syntactic constructs that are variables, functions, macros (configurable via consult-imenu-narrow, consult-imenu-toplevel).
+
+This “filtering” mechanism, which is internally known as “narrowing”, can be accessed via a key binding for all commands that support it. In my case, that key is the right angled bracket, or greater than sign (>) from inside the minibuffer (configure consult-narrow-key). So you type the narrow key and follow it up with another key that matches the relevant targets. Hit backspace to remove the narrowing. As for the available keys, type ? which calls consult-narrow-help.
+
+This narrowing-by-type mechanism can also be used without inputting the consult-narrow-key, just by typing in the appropriate character and inserting a space. For instance, to search only for functions in consult-imenu, you type f and then a space. Consult will add an indicator to the minibuffer prompt describing the active filter.
+
+In general, commands that involve multiple groups can benefit from this type of narrowing. The prime example is consult-buffer which combines sources of recently visited files, bookmarks, and buffers (those are configurable via the variable consult-buffer-sources). Though others follow the same principle, such as the aforementioned consult-imenu and consult-bookmark.
+
+Another intriguing facility of Consult is its asynchronous call to external processes, such as grep and find. Those calls can be configured to return some output based on a minimum number of characters, while they also allow for tweaks to their update delays. Interactivity is already a given, meaning that you can continue typing and see the results pop up. Furthermore, they implement a two-stage input scheme, separated by a configurable delimiter (# by default and controlled with consult-async-default-split):
+
+    First you type in the pattern that should be sent to the external program. This is what triggers the asynchronous call. So your input looks like this: #PATTERN. The pattern will typically consist of some text or a regular expression, but can also include command line flags for the underlying CLI program (check Consult’s documentation for the technicalities).
+    Then you can add another field delimiter to instruct Consult to (i) keep the results that #PATTERN gave you and (ii) leverage Emacs’ own mechanisms to further narrow the list. Now your input looks like this: #PATTERN#MORE-PATTERNS. The #MORE-PATTERNS will use whatever completion styles you have configured (check my completion-styles).
+
+As already suggested, Consult provides previews for its commands. This feature should work without any further intervention.
+
+Consult can shine when used in tandem with Embark to produce buffers that hold all the candidates of any given minibuffer completion command (Extended minibuffer actions and more (embark.el and prot-embark.el)). For example, embark-export can be called from inside consult-grep (and variants) to deliver a dedicated grep-mode buffer, which can then be edited with the help of the wgrep package (check wgrep (writable grep)). Use that to quickly refactor some pattern across your files.
+
+Other nice extensions of Consult are (i) its ability to work as a generic front-end for completion, and (ii) its preview facility for registers. The former is done by consult-completion-in-region which provides completion for commands such as dabbrev-completion or the TAB key in programming buffers (see Tabs, indentation, and the TAB key). While the latter is an overall prettier presentation for the familiar register preview window
+#+begin_src emacs-lisp
 (use-package consult
   :preface
   (defvar consult-prefix-map (make-sparse-keymap))
@@ -2958,10 +3713,23 @@ Emacs completion parlava
           ("g" . consult-grep)
           ("f" . jnf/consult-ripgrep))
   :custom
-  (consult-preview-key nil)
+  (consult-preview-key any)
   :init
   (setq completion-in-region-function #'consult-completion-in-region)
   :config
+   (setq consult-line-numbers-widen t)
+  ;; (setq completion-in-region-function #'consult-completion-in-region)
+  (setq consult-async-min-input 3)
+  (setq consult-async-input-debounce 0.5)
+  (setq consult-async-input-throttle 0.8)
+  (setq consult-narrow-key ">")
+  (setq consult-imenu-config
+        '((emacs-lisp-mode :toplevel "Functions"
+                           :types ((?f "Functions" font-lock-function-name-face)
+                                   (?m "Macros"    font-lock-keyword-face)
+                                   (?p "Packages"  font-lock-constant-face)
+                                   (?t "Types"     font-lock-type-face)
+                                   (?v "Variables" font-lock-variable-name-face)))))
    ;; Updating the default to include "--ignore-case"
      (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 --ignore-case --no-heading --line-number . -e ARG OPTS")
 
@@ -3002,7 +3770,33 @@ Emacs completion parlava
      ;; This adds thin lines, sorting and hides the mode line of the window.
      (advice-add #'register-preview :override #'consult-register-window)
      (advice-add #'consult-line :around #'jnf/consult-line '((name . "wrapper")))
-     (advice-add #'consult-ripgrep :around #'jnf/consult-ripgrep '((name . "wrapper"))))
+     (advice-add #'consult-ripgrep :around #'jnf/consult-ripgrep '((name . "wrapper")))
+     (setq consult-after-jump-hook nil) ; reset it to avoid conflicts with my function
+  (add-hook 'consult-after-jump-hook #'prot-pulse-recentre-top) ; see `prot-pulse.el'
+
+  (add-hook 'completion-list-mode-hook #'consult-preview-at-point-mode)
+
+  (require 'consult-imenu) ; the `imenu' extension is in its own file
+
+  (let ((map global-map))
+    (define-key map (kbd "C-x r b") #'consult-bookmark) ; override `bookmark-jump'
+    (define-key map (kbd "C-x M-:") #'consult-complex-command)
+    (define-key map (kbd "C-x M-m") #'consult-minor-mode-menu)
+    (define-key map (kbd "C-x M-k") #'consult-kmacro)
+    (define-key map [remap goto-line] #'consult-goto-line)
+    (define-key map (kbd "M-K") #'consult-keep-lines) ; M-S-k is similar to M-S-5 (M-%)
+    (define-key map (kbd "M-F") #'consult-focus-lines) ; same principle
+    (define-key map (kbd "M-s M-b") #'consult-buffer)
+    (define-key map (kbd "M-s M-f") #'consult-find)
+    (define-key map (kbd "M-s M-g") #'consult-grep)
+    (define-key map (kbd "M-s M-h") #'consult-history)
+    (define-key map (kbd "M-s M-i") #'consult-imenu)
+    (define-key map (kbd "M-s M-l") #'consult-line)
+    (define-key map (kbd "M-s M-m") #'consult-mark)
+    (define-key map (kbd "M-s M-s") #'consult-outline)
+    (define-key map (kbd "M-s M-y") #'consult-yank-pop)
+    (define-key map (kbd "C-x r r") #'consult-register)) ; Use the register's prefix
+  (define-key consult-narrow-map (kbd "?") #'consult-narrow-help))
 
 (use-package corfu
   :straight ( :host github
@@ -3049,10 +3843,6 @@ Emacs completion parlava
   (corfu-doc-max-height 20)
   (corfu-doc-max-width 84))
 
-(use-package orderless
-  :config
-  (add-to-list 'completion-styles 'orderless t))
-
 (use-package cape
   :config
   (setq completion-at-point-functions '(cape-file cape-dabbrev)))
@@ -3061,35 +3851,6 @@ Emacs completion parlava
     (:needs "rg")
     (setq ripgrep-arguments "--ignore-case"))
 
-
- ;; A few more useful configurations...
- (setup emacs
-      ;; TAB cycle if there are only few candidates
-      (setq completion-cycle-threshold 3)
-
-      ;; Enable indentation+completion using the TAB key.
-      ;; `completion-at-point' is often bound to M-TAB.
-      (setq tab-always-indent 'complete)
-
-      ;; Add prompt indicator to `completing-read-multiple'.
-      ;; Alternatively try `consult-completing-read-multiple'.
-      (defun crm-indicator (args)
-        (cons (concat "[CRM] " (car args)) (cdr args)))
-      (advice-add #'completing-read-multiple :filter-args #'crm-indicator)
-
-      ;; Do not allow the cursor in the minibuffer prompt
-      (setq minibuffer-prompt-properties
-            '(read-only t cursor-intangible t face minibuffer-prompt))
-      (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
-
-      ;; Emacs 28: Hide commands in M-x which do not work in the current mode.
-      ;; Vertico commands are hidden in normal buffers.
-      ;; (setq read-extended-command-predicate
-      ;;       #'command-completion-default-include-p)
-
-      ;; recursive minibuffers
-      (setq enable-recursive-minibuffers nil))
-
 #+end_src
 
 * Note Taking
@@ -3097,6 +3858,185 @@ Emacs completion parlava
 :header-args: :noweb-ref pkg-org
 :ID:                     b4494a7b-c67e-401c-b130-7592fb7d7a7c
 :END:
+In its purest form, Org is a markup language that is similar to Markdown: symbols are used to denote the meaning of a construct in its context, such as what may represent a headline element or a phrase that calls for emphasis.
+
+What lends Org its super powers though is everything else built around it: a rich corpus of Elisp functions that automate, link, combine, enhance, structure, or otherwise enrich the process of using this rather straightforward system of plain text notation.
+
+Couched in those terms, Org is at once a distribution of well integrated libraries and a vibrant ecosystem that keeps producing new ideas and workflows on how to organise one’s life with plain text.
+*** Org Workflow
+   :PROPERTIES:
+   :header-args:    :tangle no
+   :ID:                     7dbbb031-83de-45c1-a743-69bd6cd700cb
+   :END:
+The ever changing Org setup part
+#+begin_src elisp :tangle no
+;; Turn on indentation and auto-fill mode for Org files
+(defun gas/org-mode-setup ()
+  (org-indent-mode)       ;; turn on org indent
+  (variable-pitch-mode 1) ;; turn on variable-pitch
+  (auto-fill-mode 0)      ;; turn off auto-fill
+  (visual-line-mode 1)    ;; turn on visual-line-mode
+  (show-paren-mode 1)     ;; show parentheses
+  )
+
+(setup (:straight org)
+  (:also-load org-tempo)
+  ;; (:hook gas/org-mode-setup)
+  (:global "C-c a"  org-agenda
+           "C-c c"  org-capture
+           "C-c l"  org-store-link)
+  (:bind   "C-'"  nil
+           "C-,"  nil
+           "<C-return>"    nil
+           "<C-S-return>"  nil
+           "C-M-S-<right>" nil
+           "C-M-S-<left>"  nil
+           "C-c S-l"       org-toggle-link-display
+           "C-c C-S-l"     org-insert-last-stored-link)
+  ;; This is where my ~heart~ org files are.
+  (setq org-directory
+        (if ENV-IS-TERMUX?
+            "~/storage/shared/org"
+          vulpea-directory))
+  (setq org-imenu-depth 7)
+
+
+;;;; refile, todo
+  (setq org-refile-targets
+        '((org-agenda-files . (:maxlevel . 2))
+          (nil . (:maxlevel . 2))))
+  (setq org-refile-use-outline-path t)
+  (setq org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-refile-use-cache t)
+  (setq org-reverse-note-order nil)
+  ;; setup todo keywords
+  (setq
+   org-todo-keywords
+   '((sequence "TODO(t)" "SUIVANT(n)" "|" "FINI(d!)")
+     (sequence "ATTENDRE(w@/!)"
+               "ENATTENTE(h@/!)"
+               "|"
+               "ANNULÉ(c@/!)"
+               "RÉUNION(m)")))
+  (setq org-todo-keyword-faces
+        '(("TODO"     . org-todo)
+          ("ENATTENTE"  . (:foreground "black" :background "#FFEF9F"))
+          ("ANNULÉ" . (:foreground "#94BFF3" :weight bold :strike-through t))
+          ("FINI"     . (:foreground "black" :background "#91ba31"))
+          ("RÉUNION" . '(bold org-todo))
+          ("ATTENDRE" . '(bold shadow))))
+  (setq org-use-fast-todo-selection 'expert)
+  (setq org-priority-faces
+        '((?A . '(bold org-priority))
+          (?B . org-priority)
+          (?C . '(shadow org-priority))))
+  (setq org-fontify-done-headline nil)
+  (setq org-fontify-todo-headline nil)
+  (setq org-fontify-quote-and-verse-blocks t)
+  (setq org-fontify-whole-heading-line nil)
+  (setq org-fontify-whole-block-delimiter-line nil)
+  (setq org-highlight-latex-and-related nil) ; other options affect elisp regexp in src blocks
+  (setq org-enforce-todo-dependencies t)
+  (setq org-enforce-todo-checkbox-dependencies t)
+  (setq org-track-ordered-property-with-tag t)
+  (setq org-highest-priority ?A)
+  (setq org-lowest-priority ?C)
+  (setq org-default-priority ?A)
+  (setq ;;org-adapt-indentation nil ; don't indent things
+   org-capture-bookmark nil
+   org-catch-invisible-edits 'smart            ;; try not to accidently do weird stuff in invisible regions
+   org-confirm-babel-evaluate nil
+   org-cycle-separator-lines 2
+   org-edit-src-content-indentation 2
+   org-ellipsis " …"
+   org-export-coding-system 'utf-8-unix
+   org-export-headline-levels 8
+   org-export-in-background t                  ;; run export processes in external emacs process
+   org-export-with-section-numbers nil
+   org-export-with-smart-quotes t
+   org-export-with-sub-superscripts '{}        ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+   org-export-with-toc t
+   org-fontify-quote-and-verse-blocks t
+   org-fontify-whole-heading-line t
+   org-hide-block-startup nil
+   org-hide-emphasis-markers t                 ;; so dont see text markers aka bold italic
+   org-html-coding-system 'utf-8-unix
+   org-html-todo-kwd-class-prefix "keyword "
+   org-id-link-to-org-use-id 'create-if-interactive
+   org-id-locations-file (/org-path ".orgids")
+   org-image-actual-width '(300)
+   org-list-allow-alphabetical t               ;; have a. A. a\) A\) list bullets
+   org-log-done 'time                          ;; having the time a item is done sounds convenient
+   org-outline-path-complete-in-steps nil
+   org-pretty-entities t                       ;; special symbols, latex
+   org-return-follows-link t
+   org-src-tab-acts-natively t
+   org-src-fontify-natively t
+   org-src-preserve-indentation nil
+   org-startup-folded 'content
+   org-startup-indented t                       ;; removed leading * for nicer view
+   org-startup-with-inline-images t
+   ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behaviour in headings.
+   org-special-ctrl-a/e t
+   org-special-ctrl-k t
+   org-use-property-inheritance t              ; it's convenient to have properties inherited
+   )
+
+  ;; Setup list of Org modules that should always be loaded together
+  ;; with Org.
+  (setq org-modules '(org-id org-attach))
+
+  (setq org-refile-targets '((nil :maxlevel . 3)
+                             (org-agenda-files :maxlevel . 3))
+        org-refile-use-outline-path t)
+
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (clojure . t)
+     (shell . t)
+     (python . t)
+     ;;(ledger . t)
+     ))
+  ;;(with-no-warnings
+  (setq org-ts-regexp-both-braket "\\([[<]\\)\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ?[^]\n>]*?\\)\\([]>]\\)")
+  (defface org-deadline-custom-braket '((t (:inherit 'default))) "org-deadline" :group 'org)
+  (defface org-scheduled-custom-braket '((t (:inherit 'default))) "org-schedule" :group 'org)
+  (defface org-priority-hide '((t ())) "org-priority-hide" :group 'org)
+  (defface org-scheduled-custom '((t (:inherit 'default))) "org-schedule" :group 'org)
+  (defface org-closed-custom '((t (:inherit 'default))) "org-close" :group 'org)
+  (defface org-todo-keyword-done '((t ())) "org-done" :group 'org)
+  (defface org-todo-keyword-next '((t ())) "org-next" :group 'org)
+  (defface org-todo-keyword-proj '((t ())) "org-proj" :group 'org)
+  (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
+  (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
+  (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
+  ;;)
+  (with-no-warnings
+    (custom-declare-face 'org-todo-keyword-next  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+    (custom-declare-face 'org-todo-keyword-proj '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+    (custom-declare-face 'org-todo-keyword-wait  '((t (:inherit (bold warning org-todo)))) "")
+    (custom-declare-face 'org-todo-keyword-kill  '((t (:inherit (bold error org-todo)))) ""))
+  ;; change CAPITAL Keywords to lowercase
+  (defun org-syntax-convert-keyword-case-to-lower ()
+    "Convert all #+KEYWORDS to #+keywords."
+    (interactive)
+    (save-excursion
+      (goto-char (point-min))
+      (let ((count 0)
+            (case-fold-search nil))
+        (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+          (unless (s-matches-p "RESULTS" (match-string 0))
+            (replace-match (downcase (match-string 0)) t)
+            (setq count (1+ count))))
+        (message "Remplacement de %d occurrences" count))))
+
+  (push '("conf-unix" . conf-unix) org-src-lang-modes)
+  (:load-after hl-fill-column
+    (:hook gas/org-mode-setup)))
+
+#+end_src
+
 *** Vulpea
 :PROPERTIES:
 :ID:                     b8538a46-829b-43a2-af58-3123de1cf852
@@ -3145,6 +4085,16 @@ Setup d12frosted's vulpea
 
   (use-package org
     :straight (:type built-in)
+    :preface
+     ;; Set my default org-export backends. This variable needs to be set before
+     ;; org.el is loaded.
+     (setq org-export-backends '(ascii html latex))
+     ;; Do not open links of mouse left clicks.
+     ;; Default behavior caused inline images in Org buffers to pop up in their
+     ;; own buffers when left clicked on by mistake. I can still intentionally
+     ;; open links and such images in new buffers by doing C-c C-o.
+     (setq org-mouse-1-follows-link nil)
+    :mode ("\\.org\\'" . org-mode)
     :hook ((org-mode . visual-line-mode)
            (org-mode . adaptive-wrap-prefix-mode)
            ;; oh, how much I hate it in Org mode buffers
@@ -3166,12 +4116,13 @@ Setup d12frosted's vulpea
                               :extend t))))
     (org-drawer ((t (:foreground nil :inherit shadow))))
     :custom
-    (org-tags-column -120)
+    ;;(org-tags-column -120)
+    (org-ellipsis "…")
     (org-startup-folded 'content)
     (org-highlight-latex-and-related '(latex))
     (org-preview-latex-default-process 'dvisvgm)
     (org-src-fontify-natively t)
-    (org-preview-latex-image-directory ".ltximg/")
+
     (org-confirm-babel-evaluate nil)
     (org-log-done 'time)
     (org-image-actual-width nil)
@@ -3186,42 +4137,76 @@ Setup d12frosted's vulpea
     (defun /org-path (path)
       (expand-file-name path org-directory))
 
-    ;;(setq org-default-notes-file (/org-path "inbox.org"))
-    ;; Setup list of Org modules that should always be loaded together
-    ;; with Org.
-    (setq org-modules '(org-id org-attach))
-    ;; pretty org files
-    (setq
-     org-adapt-indentation nil
-     org-hidden-keywords nil
-     org-hide-emphasis-markers nil
-     org-hide-leading-stars nil
-     org-image-actual-width '(512)
-     org-imenu-depth 1
-     org-pretty-entities nil
-     org-startup-folded t)
+    :config
+    ;;;; general settings
+  (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
+  (setq org-special-ctrl-a/e nil)
+  (setq org-special-ctrl-k nil)
+  (setq org-M-RET-may-split-line '((default . nil)))
+  (setq org-hide-emphasis-markers nil)
+  (setq org-hide-macro-markers nil)
+  (setq org-hide-leading-stars nil)
+  (setq org-cycle-separator-lines 0)
+  (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
+        '(("s" . "src")
+          ("E" . "src emacs-lisp")
+          ("e" . "example")
+          ("q" . "quote")
+          ("v" . "verse")
+          ("V" . "verbatim")
+          ("c" . "center")
+          ("C" . "comment")))
+  (setq org-catch-invisible-edits 'show)
+  (setq org-return-follows-link nil)
+  (setq org-loop-over-headlines-in-active-region 'start-level)
+  (setq org-modules '(ol-info ol-eww))
+  (setq org-use-sub-superscripts '{})
+  (setq org-insert-heading-respect-content t)
 
-    ;; do not allow invisible edits (...)
-    (setq org-catch-invisible-edits 'error)
+    ;;; Org Variables
+    (setq org-src-fontify-natively t)   ;Fontify code in code blocks
+    ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
+    (setq org-pretty-entities t)
+    ;; Render subscripts and superscripts in Org buffers
+    (setq org-pretty-entities-include-sub-superscripts t)
 
-    ;; formatting for properties
-    (setq org-property-format "%-24s %s")
+    ;; Allow _ and ^ characters to sub/super-script strings but only when
+    ;; string is wrapped in braces
+    (setq org-use-sub-superscripts '{}) ;In-buffer rendering
 
-    ;; setup todo keywords
-    (setq
-     org-todo-keywords
-     '((sequence "TODO(t)" "|" "FINI(d!)")
-       (sequence "ATTENDRE(w@/!)"
-                 "ENATTENTE(h@/!)"
-                 "|"
-                 "ANNULÉ(c@/!)"
-                 "RÉUNION"))
+    ;; Single key command execution when at beginning of a headline
+    (setq org-use-speed-commands t)     ;? speed-key opens Speed Keys help
+    (setq org-speed-commands-user '(("m" . org-mark-subtree)))
+
+    (setq org-hide-leading-stars  t)
+    ;; Prevent auto insertion of blank lines before headings and list items
+    (setq org-blank-before-new-entry '((heading)
+                                       (plain-list-item)))
+
+    ;; fold / overview  - collapse everything, show only level 1 headlines
+    ;; content          - show only headlines
+    ;; nofold / showall - expand all headlines except the ones with :archive:
+    ;;                    tag and property drawers
+    ;; showeverything   - same as above but without exceptions
+    (setq org-startup-folded 'showall)
+
+    ;; https://orgmode.org/manual/Clean-view.html
+    (setq org-startup-indented t)       ;Enable `org-indent-mode' on Org startup
+    (with-eval-after-load 'org-indent
+      (setq org-indent-indentation-per-level 1)) ;Default = 2
+
+    (setq org-log-done 'time) ;Insert only timestamp when closing an Org TODO item
+    ;; (setq org-log-done 'note) ;Insert timestamp and note when closing an Org TODO item
+    ;; https://orgmode.org/manual/Closing-items.html
+
+
+
+    ;; Block entries from changing state to DONE while they have children
+    ;; that are not DONE - https://orgmode.org/manual/TODO-dependencies.html
+    org-enforce-todo-dependencies t
 
      ;; use fast todo selection
      org-use-fast-todo-selection t
-
-     ;; block parent until children are done
-     org-enforce-todo-dependencies t
 
      ;; allo to fast fix todo state without triggering anything
      org-treat-S-cursor-todo-selection-as-state-change nil
@@ -3247,11 +4232,25 @@ Setup d12frosted's vulpea
                                          "litnotes"
                                          "people"))
 
+    ;; http://emacs.stackexchange.com/a/17513/115
+    (setq org-special-ctrl-a/e '(t   ;For C-a. Possible values: nil, t, 'reverse
+                                 . t)) ;For C-e. Possible values: nil, t, 'reverse
+
+    ;; do not allow invisible edits with error (...)
+    (setq org-catch-invisible-edits 'smart) ;http://emacs.stackexchange.com/a/2091/115
+
     ;; avoid noisy `org-check-agenda-file'
     (advice-add #'org-check-agenda-file
                 :around
                 #'vulpea-check-agenda-file)
-    :config
+
+    ;; Setup list of Org modules that should always be loaded together
+    ;; with Org.
+    (setq org-modules '(org-id org-attach))
+
+    ;; formatting for properties
+    (setq org-property-format "%-24s %s")
+
     (defun discard-history ()
       "Discard undo history of org src and capture blocks."
       (setq buffer-undo-list nil)
@@ -3417,6 +4416,7 @@ Setup d12frosted's vulpea
         (,vulpea-agenda-cmd-refile
          ,vulpea-agenda-cmd-today
          ,vulpea-agenda-cmd-focus
+         ,vulpea-agenda-eisen-imp-y-urg
          ,vulpea-agenda-cmd-projects
          ,vulpea-agenda-cmd-waiting)
         ((org-agenda-buffer-name vulpea-agenda-main-buffer-name)))
@@ -3476,6 +4476,15 @@ Setup d12frosted's vulpea
     :straight nil
     :defer t
     :config
+    (setq org-latex-compiler "xelatex") ;introduced in Org 9.0
+
+    (setq org-latex-prefer-user-labels t) ;org-mode version 8.3+
+
+    ;; Previewing latex fragments in Org mode
+    ;; https://orgmode.org/worg/org-tutorials/org-latex-preview.html
+    ;; (setq org-latex-create-formula-image-program 'dvipng) ;NOT Recommended
+    (setq org-latex-create-formula-image-program 'imagemagick) ;Recommended
+
     (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
     (add-to-list 'org-latex-packages-alist '("" "color"))
     (setq org-preview-latex-image-directory
@@ -3527,126 +4536,6 @@ Setup d12frosted's vulpea
     :unless (version<= org-version "9.1.9")))
 
 #+end_src
-*** Org Workflow
-   :PROPERTIES:
-   :header-args:    :tangle no
-   :ID:                     7dbbb031-83de-45c1-a743-69bd6cd700cb
-   :END:
-The ever changing Org setup part
-#+begin_src elisp :tangle no
-
-
-
-  ;; Turn on indentation and auto-fill mode for Org files
-  (defun gas/org-mode-setup ()
-    (org-indent-mode)       ;; turn on org indent
-    (variable-pitch-mode 1) ;; turn on variable-pitch
-    (auto-fill-mode 0)      ;; turn off auto-fill
-    (visual-line-mode 1)    ;; turn on visual-line-mode
-    (show-paren-mode 1)     ;; show parentheses
-    )
-
-  (setup (:straight org)
-    (:also-load org-tempo)
-    ;; (:hook gas/org-mode-setup)
-    (:global "C-c a"  org-agenda)
-    (:bind   "C-c c"  org-capture
-                "C-c l"  org-store-link)
-    (setq ;;org-adapt-indentation nil ; don't indent things
-     org-capture-bookmark nil
-     org-catch-invisible-edits 'smart            ;; try not to accidently do weird stuff in invisible regions
-     org-confirm-babel-evaluate nil
-     org-cycle-separator-lines 2
-     org-edit-src-content-indentation 2
-     org-ellipsis " …"
-     org-export-coding-system 'utf-8-unix
-     org-export-headline-levels 8
-     org-export-in-background t                  ;; run export processes in external emacs process
-     org-export-with-section-numbers nil
-     org-export-with-smart-quotes t
-     org-export-with-sub-superscripts '{}        ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
-     org-export-with-toc t
-     org-fontify-quote-and-verse-blocks t
-     org-fontify-whole-heading-line t
-     org-hide-block-startup nil
-     org-hide-emphasis-markers t                 ;; so dont see text markers aka bold italic
-     org-html-coding-system 'utf-8-unix
-     org-html-todo-kwd-class-prefix "keyword "
-     org-id-link-to-org-use-id 'create-if-interactive
-     org-id-locations-file (/org-path ".orgids")
-     org-image-actual-width '(300)
-     org-list-allow-alphabetical t               ;; have a. A. a\) A\) list bullets
-     org-log-done 'time                          ;; having the time a item is done sounds convenient
-     org-outline-path-complete-in-steps nil
-     org-pretty-entities t                       ;; special symbols, latex
-     org-return-follows-link t
-     org-src-tab-acts-natively t
-     org-src-fontify-natively t
-     org-src-preserve-indentation nil
-     org-startup-folded 'content
-     org-startup-indented t                       ;; removed leading * for nicer view
-     org-startup-with-inline-images t
-     ;; Use the special C-a, C-e and C-k definitions for Org, which enable some special behaviour in headings.
-     org-special-ctrl-a/e t
-     org-special-ctrl-k t
-     org-use-property-inheritance t              ; it's convenient to have properties inherited
-     )
-
-     ;; Setup list of Org modules that should always be loaded together
-    ;; with Org.
-    (setq org-modules '(org-id org-attach))
-
-    (setq org-refile-targets '((nil :maxlevel . 3)
-                   (org-agenda-files :maxlevel . 3))
-      org-refile-use-outline-path t)
-
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((emacs-lisp . t)
-       (clojure . t)
-       (shell . t)
-       (python . t)
-       ;;(ledger . t)
-       ))
-    ;;(with-no-warnings
-    (setq org-ts-regexp-both-braket "\\([[<]\\)\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ?[^]\n>]*?\\)\\([]>]\\)")
-    (defface org-deadline-custom-braket '((t (:inherit 'default))) "org-deadline" :group 'org)
-    (defface org-scheduled-custom-braket '((t (:inherit 'default))) "org-schedule" :group 'org)
-    (defface org-priority-hide '((t ())) "org-priority-hide" :group 'org)
-    (defface org-scheduled-custom '((t (:inherit 'default))) "org-schedule" :group 'org)
-    (defface org-closed-custom '((t (:inherit 'default))) "org-close" :group 'org)
-    (defface org-todo-keyword-done '((t ())) "org-done" :group 'org)
-    (defface org-todo-keyword-next '((t ())) "org-next" :group 'org)
-    (defface org-todo-keyword-proj '((t ())) "org-proj" :group 'org)
-    (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
-    (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
-    (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
-    ;;)
-    (with-no-warnings
-      (custom-declare-face 'org-todo-keyword-next  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
-      (custom-declare-face 'org-todo-keyword-proj '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
-      (custom-declare-face 'org-todo-keyword-wait  '((t (:inherit (bold warning org-todo)))) "")
-      (custom-declare-face 'org-todo-keyword-kill  '((t (:inherit (bold error org-todo)))) ""))
-    ;; change CAPITAL Keywords to lowercase
-    (defun org-syntax-convert-keyword-case-to-lower ()
-      "Convert all #+KEYWORDS to #+keywords."
-      (interactive)
-      (save-excursion
-    (goto-char (point-min))
-    (let ((count 0)
-          (case-fold-search nil))
-      (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-        (unless (s-matches-p "RESULTS" (match-string 0))
-          (replace-match (downcase (match-string 0)) t)
-          (setq count (1+ count))))
-      (message "Remplacement de %d occurrences" count))))
-
-    (push '("conf-unix" . conf-unix) org-src-lang-modes)
-    (:load-after hl-fill-column
-         (:hook gas/org-mode-setup)))
-
-#+end_src
-
 *** Fonts, Bullets & Links
    :PROPERTIES:
    :header-args:    :tangle no
@@ -4354,6 +5243,32 @@ Set basic subword mode and eldoc setting for prog-mode
     (:hide-mode))
 
 #+end_src
+** Parentheses
+Configure the mode that highlights matching delimiters or parentheses. I consider this of utmost importance when working with languages such as elisp.
+
+Summary of what these do:
+
+- Activate the mode upon startup.
+- Show the matching delimiter/parenthesis if on screen, else show nothing. It is possible to highlight the expression enclosed by the delimiters, by using either mixed or expression. The latter always highlights the entire balanced expression, while the former will only do so if the matching delimiter is off screen.
+- show-paren-when-point-in-periphery lets you highlight parentheses even if the point is in their vicinity. This means the beginning or end of the line, with space in between. I used that for a long while and it server me well. Now that I have a better understanding of Elisp, I disable it.
+- Do not highlight a match when the point is on the inside of the parenthesis.
+#+begin_src emacs-lisp :noweb-ref code-paren
+;;; Parentheses (show-paren-mode)
+(setup paren
+  (setq show-paren-style 'parenthesis)
+  (setq show-paren-when-point-in-periphery nil)
+  (setq show-paren-when-point-inside-paren nil)
+  ;;(setq show-paren-context-when-offscreen 'child-frame) ; Emacs 29
+  (add-hook 'after-init-hook #'show-paren-mode))
+
+;; matching braces
+;; (use-package paren
+;;   :straight nil
+;;   :hook (prog-mode . show-paren-mode)
+;;   :custom
+;;     (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+;; )
+#+end_src
 *** setup smartparens
   Setup smartparens and rainbow delimiters
 #+begin_src emacs-lisp :noweb-ref code-paren
@@ -4361,13 +5276,7 @@ Set basic subword mode and eldoc setting for prog-mode
 (setup (:require elec-pair)
     (electric-pair-mode 1))
 
-;; matching braces
-(use-package paren
-  :straight nil
-  :hook (prog-mode . show-paren-mode)
-  :custom
-    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
-)
+
     ;; dimm parenthesis
     ;; (setup (:straight paren-face)
     ;;   (:hook-into emacs-lisp-mode
@@ -4415,9 +5324,6 @@ Set basic subword mode and eldoc setting for prog-mode
         (:hook-into prog-mode)
         (:bind "C-<tab>"   #'+hs-cycle
            "C-S-<tab>" #'+hs-global-cycle)))
-
-    (setup (:straight rainbow-mode)
-     (:hook-into prog-mode))
 
     (setup (:straight rainbow-delimiters)
       ;;(setq rainbow-delimiters-max-face-count 2)
@@ -5083,10 +5989,12 @@ Emacs Speaks Statistics
 :ID:                     fd9b171e-7f6a-4140-86e6-57a4b3d726e9
 :END:
 Change the Mac modifiers to my liking. I also disable passing Control characters to the system, to avoid that C-M-space launches the Character viewer instead of running mark-sexp.
+
+
 #+begin_src emacs-lisp
 (cond (ENV-IS-MAC?
-       (setq mac-command-modifier      'meta
-              mac-option-modifier         'alt
+       (setq mac-command-modifier      'super
+              mac-option-modifier         'meta
               mac-right-option-modifier   'alt
               mac-pass-control-to-system nil)))
 #+end_src
@@ -7621,49 +8529,53 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 - Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
 
 #+begin_src emacs-lisp
-;;; init.el --- Gas Init -*- lexical-binding: t -*-
-<<disclaimer>>
-;;; Code:
-  (defmacro +with-message (message &rest body)
-    "Execute BODY, with MESSAGE.
-                  If body executes without errors, ** MESSAGE... terminé will be displayed."
-    (declare (indent 1))
-    (let ((msg (gensym)))
-      `(let ((,msg ,message))
-         (unwind-protect (progn (message "%s..." ,msg)
-                                ,@body)
-           (message "** %s... terminé!!" ,msg)))))
+    ;;; init.el --- Gas Init -*- lexical-binding: t -*-
+    <<disclaimer>>
+    ;;; Code:
+      (defmacro +with-message (message &rest body)
+	"Execute BODY, with MESSAGE.
+		      If body executes without errors, ** MESSAGE... terminé will be displayed."
+	(declare (indent 1))
+	(let ((msg (gensym)))
+	  `(let ((,msg ,message))
+	     (unwind-protect (progn (message "%s..." ,msg)
+				    ,@body)
+	       (message "** %s... terminé!!" ,msg)))))
 
-;;; Set up extra load paths and functionality
-;; Since we might be running in CI or other environments, stick to
-;; XDG_CONFIG_HOME value if possible.
-(let ((emacs-home/ (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-                         (expand-file-name "emacs/" xdg)
-                       user-emacs-directory)))
-;; Add Lisp directory to `load-path'.
-(add-to-list 'load-path (expand-file-name "lisp" emacs-home/)))
+    ;;; Set up extra load paths and functionality
+    ;; Since we might be running in CI or other environments, stick to
+    ;; XDG_CONFIG_HOME value if possible.
+    (let ((emacs-home/ (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+			     (expand-file-name "emacs/" xdg)
+			   user-emacs-directory)))
+    ;; Add Lisp directory to `load-path'.
+    (add-to-list 'load-path (expand-file-name "lisp" emacs-home/)))
 
-;;; Bootstrap
-;;; ============================================================================
-;;; Specify some directory paths & constants
-;;; ============================================================================
-(require 'config-path)
+  ;;; Bootstrap
+  ;;; ============================================================================
+  ;;; Specify the directory paths
+  ;;; ============================================================================
+    (require 'config-path)
 
-<<constants>>
-;;; ============================================================================
-;;; Set up the package manager
-;;; ============================================================================
-(require 'init-elpa)
+  ;;; ============================================================================
+  ;;; Set up the package manager
+  ;;; ============================================================================
+    (require 'init-elpa)
 
-;; Setup `custom-file`.
-(setq custom-file (concat emacs-config/ "custom.el"))
+  ;;; ============================================================================
+  ;;; Specify the directory paths
+  ;;; ============================================================================
+    <<constants>>
 
-;; load autoloads file
-(unless elpa-bootstrap-p
-    (unless (file-exists-p path-autoloads-file)
-      (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-             "eru install emacs"))
-    (load path-autoloads-file nil 'nomessage))
+  ;; Setup `custom-file`.
+    (setq custom-file (concat emacs-config/ "custom.el"))
+
+    ;; load autoloads file
+    (unless elpa-bootstrap-p
+	(unless (file-exists-p path-autoloads-file)
+	  (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+		 "eru install emacs"))
+	(load path-autoloads-file nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp

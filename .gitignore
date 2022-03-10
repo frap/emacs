@@ -1,4 +1,9 @@
-*.el
+lisp/enfer*.el
+lisp/init*.el
+lisp/lib*.el
+lisp/custom*.el
+lisp/dash*.el
+custom.el
 *~
 eln-cache/
 .org-id-locations
