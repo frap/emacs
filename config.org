@@ -1355,8 +1355,9 @@ ripgrep and gist
 :END:
 Some Defaults for my preferred appearance
 #+begin_src emacs-lisp
-  ;; be quiet at startup; don't load or display anything unnecessary
-  (setq-default
+  (setup appearance
+    ;; be quiet at startup; don't load or display anything unnecessary
+    (setq-default
      inhibit-startup-message t
      inhibit-startup-screen t
      inhibit-startup-echo-area-message user-login-name
@@ -1366,15 +1367,29 @@ Some Defaults for my preferred appearance
      use-file-dialog nil
      use-dialog-box nil)
 
+    (setq display-time-default-load-average nil)
+    (setq echo-keystrokes 0.1)
+    (setq highlight-nonselected-windows nil)
+    (setq visible-bell nil)
+    (setq x-gtk-use-system-tooltips nil)
+    (setq x-stretch-cursor nil)
+
+    ;; update
+    (setq idle-update-delay 1.0)
+
     ;; disable cursor blinking
     (blink-cursor-mode -1)
+    (setq blink-matching-paren nil)
+    ;; hide cursors in other windose
+    (setq-default cursor-in-non-selected-windows nil)
+    (setq-default cursor-type 'hbar)
 
     ;; play around with frame title (which I rarely see)
     (setq frame-title-format
-	  '("%b@"
-	    (:eval (or (file-remote-p default-directory 'host)
-		       system-name))
-	    " — Emacs"))
+          '("%b@"
+            (:eval (or (file-remote-p default-directory 'host)
+                       system-name))
+            " — Emacs"))
 
     ;; for some reason only this removes the clutter with xmonad
     (setup  scroll-bar
@@ -1386,13 +1401,19 @@ Some Defaults for my preferred appearance
     ;; mode line
     (column-number-mode)
     (size-indication-mode)
+    ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
+    (setq-default mode-line-format nil)
+
+    ;; line numbers
+    (setq-default display-line-numbers-widen t)
+    (setq-default display-line-numbers-width 3)
 
     (setq-default
      ;; no beeping and no blinking please
      ring-bell-function #'ignore
      visible-bell nil
 
-     ;; make sure that trash is not drawed
+     ;; make sure that trash is not drawn
      indicate-buffer-boundaries nil
      indicate-empty-lines nil
 
@@ -1402,70 +1423,57 @@ Some Defaults for my preferred appearance
      frame-resize-pixelwise t
 
      ;; disable bidirectional text for tiny performance boost
-     bidi-display-reordering nil
+     bidi-display-reordering 'left-to-right
+     bidi-paragraph-direction 'left-to-right
 
-     ;; hide cursors in other windoes
-     cursor-in-non-selected-windows nil)
+     ;; truncate lines
+     truncate-lines t)
 
-    ;; (setup appearance
-    ;;   ;;(setq blink-matching-paren nil)
-    ;;   (setq display-time-default-load-average nil)
-    ;;   (setq echo-keystrokes 0.1)
-    ;;   (setq highlight-nonselected-windows nil)
-    ;;   (setq idle-update-delay 1.0)
-    ;;   (setq inhibit-startup-echo-area-message t)
-    ;;   (setq inhibit-startup-screen t)
-    ;;   (setq use-dialog-box nil)
-    ;;   (setq use-file-dialog nil)
-    ;;   (setq visible-bell nil)
-    ;;   (setq x-gtk-use-system-tooltips nil)
-    ;;   (setq x-stretch-cursor nil)
-    ;;   (setq-default bidi-display-reordering 'left-to-right)
-    ;;   (setq-default bidi-paragraph-direction 'left-to-right)
-    ;;   (setq-default cursor-in-non-selected-windows nil)
-    ;;   (setq-default cursor-type 'hbar)
-    ;;   (setq-default display-line-numbers-widen t)
-    ;;   (setq-default display-line-numbers-width 3)
-    ;;   (setq-default indicate-buffer-boundaries nil)
-    ;;   (setq-default truncate-lines t)
-    ;;   (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
-    ;;     (:hook display-line-numbers-mode))
-    ;;   (:with-hook text-mode-hook
-    ;;     (:hook visual-line-mode)))
+     (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
+       (:hook display-line-numbers-mode))
+       (:with-hook text-mode-hook
+         (:hook visual-line-mode)))
 
- (use-package formfeed
-  :straight nil
-  :preface
-  (defun formfeed-make-display-line ()
-    "Display the formfeed ^L char as a comment or as a continuous line."
-    (unless buffer-display-table
-      (setq buffer-display-table (make-display-table)))
-    (aset buffer-display-table ?\^L
-          (vconcat (make-list (or fill-column 70)
-                              (make-glyph-code
-                               (string-to-char (or comment-start "-"))
-                               'shadow)))))
-  (provide 'formfeed)
-  :init
-  (dolist (mode-hook '(help-mode-hook
-                       org-mode-hook
-                       outline-mode-hook
-                       prog-mode-hook))
-   ;; (add-hook mode-hook #'formfeed-make-display-line)
-))
+   
+
+    (use-package formfeed
+      :straight nil
+      :preface
+      (defun formfeed-make-display-line ()
+        "Display the formfeed ^L char as a comment or as a continuous line."
+        (unless buffer-display-table
+          (setq buffer-display-table (make-display-table)))
+        (aset buffer-display-table ?\^L
+              (vconcat (make-list (or fill-column 70)
+                                  (make-glyph-code
+                                   (string-to-char (or comment-start "-"))
+                                   'shadow)))))
+      (provide 'formfeed)
+      :init
+      (dolist (mode-hook '(help-mode-hook
+                           org-mode-hook
+                           outline-mode-hook
+                           prog-mode-hook))
+        ;; (add-hook mode-hook #'formfeed-make-display-line)
+        ))
+
+    
+
 #+end_src
-*** Menu and Tool bars
+*** Menu bar & fringe on
 :PROPERTIES:
 :ID:                     29668972-915f-4b30-b610-8eb235bee74c
 :END:
 #+begin_src elisp
-(menu-bar-mode -1)            ; Disable the menu bar
-(unless ENV-IS-TERMUX?
-  (set-fringe-mode 10)        ; Give some breathing room
-  (menu-bar-mode 1))          ; I like menu whilst learning
+  (menu-bar-mode -1)            ; Disable the menu bar
+  (unless ENV-IS-TERMUX?
+    (set-fringe-mode 10)        ; Give some breathing room
+    (menu-bar-mode 1))          ; I like menu whilst learning
+
+   
 
 #+end_src
-*** Fonts & Emojis
+*** Fonts, Emojis & Icons
 :PROPERTIES:
 :ID:                     e70dbb98-1d6f-4837-8b45-ffc730e45e99
 :END:
@@ -1491,8 +1499,8 @@ On Linux, I have a custom build of Iosevka that I like.
   (setup (:straight unicode-fonts)
     (unicode-fonts-setup))
 
-  (setup (:straight mixed-pitch)
-      (:hook-into text-mode)
+  ;;(setup (:straight mixed-pitch)
+  ;;   (:hook-into text-mode)
 
   ;;; Font configurations (prot-fonts.el)
 (setup (:require prot-fonts)
@@ -1500,7 +1508,7 @@ On Linux, I have a custom build of Iosevka that I like.
   (setq x-underline-at-descent-line t)
 
   ;; And this is for Emacs28.
-  (setq-default text-scale-remap-header-line t)
+  ;;(setq-default text-scale-remap-header-line t)
 
   ;; Make sure to read the `prot-fonts-typeface-sets-alist' doc string,
   ;; as it explains what those property lists should contain.
@@ -1608,15 +1616,13 @@ On Linux, I have a custom build of Iosevka that I like.
              :repo "Malabarba/spinner.el")))
 #+end_src
 
-*** Frame titles, sizes and mouse setup
+***  Mouse & scrolling setup and initial framesize
 :PROPERTIES:
 :ID:                     8d16458c-e38a-4060-91e8-40a3a034e639
 :END:
 
 #+begin_src emacs-lisp
-  ;; (setq-default frame-title-format
-  ;;               (concat invocation-name "@" (system-name)
-  ;;                       ": %b %+%+ %f"))
+
   (unless ENV-IS-TERMUX?
     (setup mouse
       (setq focus-follows-mouse t)
@@ -1650,6 +1656,9 @@ On Linux, I have a custom build of Iosevka that I like.
     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
     (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+
+ 
+
 #+end_src
 
 *** Themes & Modeline
@@ -1658,160 +1667,160 @@ On Linux, I have a custom build of Iosevka that I like.
 :END:
 
 #+begin_src emacs-lisp
-
-;;; Modus themes (my highly accessible themes)
-(setup (:require modus-themes)
+  ;;; Modus themes (Prositelaus highly accessible themes)
+  (setup (:require modus-themes)
   ;; Add all your customisations prior to loading the themes
   ;;
-  (setq modus-themes-italic-constructs t
-        modus-themes-bold-constructs t
-        modus-themes-mixed-fonts nil
-        modus-themes-subtle-line-numbers nil
-        modus-themes-intense-mouseovers nil
-        modus-themes-deuteranopia t
-        modus-themes-tabs-accented nil
-        modus-themes-variable-pitch-ui t
-        modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
+    (setq modus-themes-italic-constructs t
+          modus-themes-bold-constructs t
+          modus-themes-mixed-fonts nil
+          modus-themes-subtle-line-numbers nil
+          modus-themes-intense-mouseovers nil
+          modus-themes-deuteranopia t
+          modus-themes-tabs-accented nil
+          modus-themes-variable-pitch-ui t
+          modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
 
-        modus-themes-fringes nil ; {nil,'subtle,'intense}
+          modus-themes-fringes nil ; {nil,'subtle,'intense}
 
-        ;; Options for `modus-themes-lang-checkers' are either nil (the
-        ;; default), or a list of properties that may include any of those
-        ;; symbols: `straight-underline', `text-also', `background',
-        ;; `intense' OR `faint'.
-        modus-themes-lang-checkers nil
+     ;; Options for `modus-themes-lang-checkers' are either nil (the
+     ;; default), or a list of properties that may include any of those
+     ;; symbols: `straight-underline', `text-also', `background',
+     ;; `intense' OR `faint'.
+          modus-themes-lang-checkers nil
 
-        ;; Options for `modus-themes-mode-line' are either nil, or a list
-        ;; that can combine any of `3d' OR `moody', `borderless',
-        ;; `accented', a natural number for extra padding (or a cons cell
-        ;; of padding and NATNUM), and a floating point for the height of
-        ;; the text relative to the base font size (or a cons cell of
-        ;; height and FLOAT)
-        modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
+     ;; Options for `modus-themes-mode-line' are either nil, or a list
+     ;; that can combine any of `3d' OR `moody', `borderless',
+     ;; `accented', a natural number for extra padding (or a cons cell
+     ;; of padding and NATNUM), and a floating point for the height of
+     ;; the text relative to the base font size (or a cons cell of
+     ;; height and FLOAT)
+          modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
 
-        ;; Options for `modus-themes-markup' are either nil, or a list
-        ;; that can combine any of `bold', `italic', `background',
-        ;; `intense'.
-        modus-themes-markup nil
+     ;; Options for `modus-themes-markup' are either nil, or a list
+     ;; that can combine any of `bold', `italic', `background',
+     ;; `intense'.
+          modus-themes-markup nil
 
-        ;; Options for `modus-themes-syntax' are either nil (the default),
-        ;; or a list of properties that may include any of those symbols:
-        ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
-        modus-themes-syntax nil
+     ;; Options for `modus-themes-syntax' are either nil (the default),
+     ;; or a list of properties that may include any of those symbols:
+     ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
+          modus-themes-syntax nil
 
-        ;; Options for `modus-themes-hl-line' are either nil (the default),
-        ;; or a list of properties that may include any of those symbols:
-        ;; `accented', `underline', `intense'
-        modus-themes-hl-line '(intense)
+     ;; Options for `modus-themes-hl-line' are either nil (the default),
+     ;; or a list of properties that may include any of those symbols:
+     ;; `accented', `underline', `intense'
+          modus-themes-hl-line '(intense)
 
-        ;; Options for `modus-themes-paren-match' are either nil (the
-        ;; default), or a list of properties that may include any of those
-        ;; symbols: `bold', `intense', `underline'
-        modus-themes-paren-match intense
+     ;; Options for `modus-themes-paren-match' are either nil (the
+     ;; default), or a list of properties that may include any of those
+     ;; symbols: `bold', `intense', `underline'
+          modus-themes-paren-match '(intense)
 
-        ;; Options for `modus-themes-links' are either nil (the default),
-        ;; or a list of properties that may include any of those symbols:
-        ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
-        ;; `bold', `italic', `background'
-        modus-themes-links nil
+     ;; Options for `modus-themes-links' are either nil (the default),
+     ;; or a list of properties that may include any of those symbols:
+     ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
+     ;; `bold', `italic', `background'
+          modus-themes-links nil
 
-        ;; Options for `modus-themes-box-buttons' are either nil (the
-        ;; default), or a list that can combine any of `flat',
-        ;; `accented', `faint', `variable-pitch', `underline', the
-        ;; symbol of any font weight as listed in
-        ;; `modus-themes-weights', and a floating point number
-        ;; (e.g. 0.9) for the height of the button's text.
-        modus-themes-box-buttons '(variable-pitch flat faint 0.9)
+     ;; Options for `modus-themes-box-buttons' are either nil (the
+     ;; default), or a list that can combine any of `flat',
+     ;; `accented', `faint', `variable-pitch', `underline', the
+     ;; symbol of any font weight as listed in
+     ;; `modus-themes-weights', and a floating point number
+     ;; (e.g. 0.9) for the height of the button's text.
+          modus-themes-box-buttons '(variable-pitch flat faint 0.9)
 
-        ;; Options for `modus-themes-prompts' are either nil (the
-        ;; default), or a list of properties that may include any of those
-        ;; symbols: `background', `bold', `gray', `intense', `italic'
-        modus-themes-prompts '(background subtle)
+     ;; Options for `modus-themes-prompts' are either nil (the
+     ;; default), or a list of properties that may include any of those
+     ;; symbols: `background', `bold', `gray', `intense', `italic'
+          modus-themes-prompts '(background subtle)
 
-        ;; The `modus-themes-completions' is an alist that reads three
-        ;; keys: `matches', `selection', `popup'.  Each accepts a nil
-        ;; value (or empty list) or a list of properties that can include
-        ;; any of the following (for WEIGHT read further below):
-        ;;
-        ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
-        ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
-        ;; `popup' - same as `selected'
-        ;; `t' - applies to any key not explicitly referenced (check docs)
-        ;;
-        ;; WEIGHT is a symbol such as `semibold', `light', or anything
-        ;; covered in `modus-themes-weights'.  Bold is used in the absence
-        ;; of an explicit WEIGHT.
-        modus-themes-completions
-        '((matches . (extrabold background))
-          (selection . (semibold intense accented text-also))
-          (popup . (accented intense)))
+     ;; The `modus-themes-completions' is an alist that reads three
+     ;; keys: `matches', `selection', `popup'.  Each accepts a nil
+     ;; value (or empty list) or a list of properties that can include
+     ;; any of the following (for WEIGHT read further below):
+     ;;
+     ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
+     ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
+     ;; `popup' - same as `selected'
+     ;; `t' - applies to any key not explicitly referenced (check docs)
+     ;;
+     ;; WEIGHT is a symbol such as `semibold', `light', or anything
+     ;; covered in `modus-themes-weights'.  Bold is used in the absence
+     ;; of an explicit WEIGHT.
+          modus-themes-completions
+          '((matches . (extrabold background))
+            (selection . (semibold intense accented text-also))
+            (popup . (accented intense)))
 
-        modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
+          modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
 
-        ;; Options for `modus-themes-region' are either nil (the default),
-        ;; or a list of properties that may include any of those symbols:
-        ;; `no-extend', `bg-only', `accented'
-        modus-themes-region '(no-extend bg-only)
+     ;; Options for `modus-themes-region' are either nil (the default),
+     ;; or a list of properties that may include any of those symbols:
+     ;; `no-extend', `bg-only', `accented'
+          modus-themes-region '(no-extend bg-only)
 
-        ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
-        modus-themes-diffs 'desaturated
+     ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
+          modus-themes-diffs 'desaturated
 
-        modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
+          modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
 
-        modus-themes-org-agenda ; this is an alist: read the manual or its doc string
-        '((header-block . (variable-pitch regular 1.4))
-          (header-date . (bold-today grayscale underline-today 1.2))
-          (event . (accented varied))
-          (scheduled . uniform)
-          (habit . nil))
+          modus-themes-org-agenda ; this is an alist: read the manual or its doc string
+          '((header-block . (variable-pitch regular 1.4))
+            (header-date . (bold-today grayscale underline-today 1.2))
+            (event . (accented varied))
+            (scheduled . uniform)
+            (habit . nil))
 
-        modus-themes-headings ; this is an alist: read the manual or its doc string
-        '((1 . (variable-pitch light 1.6))
-          (2 . (variable-pitch regular 1.4))
-          (3 . (variable-pitch regular 1.3))
-          (4 . (1.2))
-          (5 . (1.1))
-          (t . (monochrome 1.05)))
+          modus-themes-headings ; this is an alist: read the manual or its doc string
+          '((1 . (variable-pitch light 1.6))
+            (2 . (variable-pitch regular 1.4))
+            (3 . (variable-pitch regular 1.3))
+            (4 . (1.2))
+            (5 . (1.1))
+            (t . (monochrome 1.05)))
 
-        ;; Sample for headings:
-        ;; ;; '((1 . (variable-pitch light 1.6))
+          ;; Sample for headings:
+          ;; ;; '((1 . (variable-pitch light 1.6))
 
-        ;; modus-themes-headings
-        ;; '((1 . (variable-pitch light 1.6))
-        ;;   (2 . (variable-pitch regular 1.4))
-        ;;   (3 . (variable-pitch regular 1.3))
-        ;;   (4 . (1.2))
-        ;;   (5 . (1.1))
-        ;;   (t . (monochrome 1.05)))
-        )
+          ;; modus-themes-headings
+          ;; '((1 . (variable-pitch light 1.6))
+          ;;   (2 . (variable-pitch regular 1.4))
+          ;;   (3 . (variable-pitch regular 1.3))
+          ;;   (4 . (1.2))
+          ;;   (5 . (1.1))
+          ;;   (t . (monochrome 1.05)))
+          )
 
-  ;; Load the theme files before enabling a theme (else you get an error).
-  (modus-themes-load-themes)
+    ;; Load the theme files before enabling a theme (else you get an error).
+    (modus-themes-load-themes)
 
-  ;; Configurations for `highlight-parentheses':
-  (require 'highlight-parentheses)
+    ;; Configurations for `highlight-parentheses':
+    (require 'highlight-parentheses)
 
-  (defvar my-highlight-parentheses-use-background t
-    "Prefer `highlight-parentheses-background-colors'.")
+    (defvar my-highlight-parentheses-use-background t
+      "Prefer `highlight-parentheses-background-colors'.")
 
-  (setq my-highlight-parentheses-use-background nil) ; Set to nil to disable backgrounds
+    ;;(setq my-highlight-parentheses-use-background nil) ; Set to nil to disable backgrounds
 
-  (defun my-modus-themes-highlight-parentheses ()
-    (modus-themes-with-colors
-     ;; Our preference for setting either background or foreground
-     ;; styles, depending on `my-highlight-parentheses-use-background'.
-     (if my-highlight-parentheses-use-background
+    (defun my-modus-themes-highlight-parentheses ()
+      (modus-themes-with-colors
+    ;; Our preference for setting either background or foreground
+    ;; styles, depending on `my-highlight-parentheses-use-background'.
+       (if my-highlight-parentheses-use-background
 
-         ;; Here we set color combinations that involve both a background
-         ;; and a foreground value.
-         (setq highlight-parentheses-background-colors (list cyan-refine-bg
-                                                             magenta-refine-bg
-                                                             green-refine-bg
-                                                             yellow-refine-bg)
-               highlight-parentheses-colors (list cyan-refine-fg
-                                                  magenta-refine-fg
-                                                  green-refine-fg
-                                                  yellow-refine-fg))
+    ;; Here we set color combinations that involve both a background
+    ;; and a foreground value.
+       (setq highlight-parentheses-background-colors
+             (list cyan-refine-bg
+                   magenta-refine-bg
+                   green-refine-bg
+                   yellow-refine-bg)
+             highlight-parentheses-colors (list cyan-refine-fg
+                                                magenta-refine-fg
+                                                green-refine-fg
+                                                yellow-refine-fg))
 
        ;; And here we pass only foreground colors while disabling any
        ;; backgrounds.
@@ -1821,108 +1830,97 @@ On Linux, I have a custom build of Iosevka that I like.
                                                 red-intense)
              highlight-parentheses-background-colors nil)))
 
-    ;; Include this if you also want to make the parentheses bold:
-    (set-face-attribute 'highlight-parentheses-highlight nil :inherit 'bold)
+      ;; Include this if you also want to make the parentheses bold:
+      (set-face-attribute 'highlight-parentheses-highlight nil :inherit 'bold)
 
-    ;; Our changes must be evaluated before enabling the relevant mode, so
-    ;; this comes last.
-    (global-highlight-parentheses-mode 1))
+      ;; Our changes must be evaluated before enabling the relevant mode, so
+      ;; this comes last.
+      (global-highlight-parentheses-mode 1))
 
-  (add-hook 'modus-themes-after-load-theme-hook #'my-modus-themes-highlight-parentheses)
+    (add-hook 'modus-themes-after-load-theme-hook #'my-modus-themes-highlight-parentheses)
 
-  ;; (defun prot/modus-themes-custom-faces ()
-  ;;   (modus-themes-with-colors
-  ;;    (custom-set-faces
-  ;;     `(cursor ((,class :background ,magenta-intense)))
-  ;;     `(fill-column-indicator ((,class :background ,bg-inactive
-  ;;                                      :foreground ,bg-inactive))))))
+    ;; (defun prot/modus-themes-custom-faces ()
+    ;;   (modus-themes-with-colors
+    ;;    (custom-set-faces
+    ;;     `(cursor ((,class :background ,magenta-intense)))
+    ;;     `(fill-column-indicator ((,class :background ,bg-inactive
+    ;;                                      :foreground ,bg-inactive))))))
 
-  ;; (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
+    ;; (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
 
-  ;; Enable the theme at startup.  This is done after loading the files.
-  ;; You only need `modus-themes-load-operandi' for the light theme or
-  ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
-  ;; a simple test to load a light/dark theme based on some general time
-  ;; ranges (just accounting for the hour and without checking for the
-  ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
-  ;; to switch themes at will.
-  (let ((time (string-to-number (format-time-string "%H"))))
-    (if (and (> time 7) (< time 18))
-        (modus-themes-load-operandi)
-      (modus-themes-load-vivendi)))
+    ;; Enable the theme at startup.  This is done after loading the files.
+    ;; You only need `modus-themes-load-operandi' for the light theme or
+    ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
+    ;; a simple test to load a light/dark theme based on some general time
+    ;; ranges (just accounting for the hour and without checking for the
+    ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
+    ;; to switch themes at will.
+    (let ((time (string-to-number (format-time-string "%H"))))
+      (if (and (> time 7) (< time 18))
+          (modus-themes-load-operandi)
+        (modus-themes-load-vivendi)))
 
-  ;; Also check my package configurations for `prot-fonts' because I use
-  ;; the `modus-themes-after-load-theme-hook' for some typeface-related
-  ;; tweaks (as those are made at the "face" level).
-  (define-key global-map (kbd "<f5>") #'modus-themes-toggle))
+    ;; Also check my package configurations for `prot-fonts' because I use
+    ;; the `modus-themes-after-load-theme-hook' for some typeface-related
+    ;; tweaks (as those are made at the "face" level).
+    (define-key global-map (kbd "<f5>") #'modus-themes-toggle))
 
-(setup (:straight doom-themes)
-  (setq doom-themes-enable-bold t)
-  (setq doom-themes-enable-italic t)
-  (doom-themes-org-config))
+  (setup (:straight doom-themes)
+    (setq doom-themes-enable-bold t)
+    (setq doom-themes-enable-italic t)
+    (doom-themes-org-config))
 
-(unless ENV-IS-TERMUX?
-  ;; (modus-themes-load-vivendi)
-  ;;(load-theme 'doom-one-light t)
-  (doom-themes-visual-bell-config))
+  (unless ENV-IS-TERMUX?
+    ;; (modus-themes-load-vivendi)
+    ;;(load-theme 'doom-one-light t)
+    (doom-themes-visual-bell-config))
 
-;; Mode-line
-;;Basic Customisation
-(setq display-time-format "%l:%M %p %b %y"
-      display-time-default-load-average nil)
+  ;; Mode-line
+  ;;Basic Customisation
+  (setq display-time-format "%l:%M %p %b %y"
+        display-time-default-load-average nil)
 
-;; Doom Modeline
+  ;; Doom Modeline
 
-(setup (:straight minions)
-  (:hook-into doom-modeline-mode))
+  (setup (:straight minions)
+    (:hook-into doom-modeline-mode))
 
-(setup (:straight doom-modeline)
-  ;; (setq doom-modeline-bar-width 4)
-  (setq doom-modeline-buffer-encoding nil)
-  (setq doom-modeline-buffer-file-name-style 'relative-from-project)
-  (setq doom-modeline-height 30)
-  (setq doom-modeline-major-mode-icon t)
-  (setq doom-modeline-minor-modes t)
-  (:with-hook window-setup-hook
-    (:hook (fn (set-face-attribute
-                'mode-line nil :family "Iosevka Slab" :height 130))))
-  (:hook-into window-setup)
-  (:option doom-modeline-height 15
-           doom-modeline-bar-width 6
-           doom-modeline-lsp t
-           doom-modeline-github nil
-           doom-modeline-mu4e nil
-           doom-modeline-irc t
-           doom-modeline-minor-modes t
-           doom-modeline-persp-name nil
-           doom-modeline-buffer-file-name-style 'truncate-except-project
-           doom-modeline-major-mode-icon nil)
-  (custom-set-faces '(mode-line ((t (:height 0.85))))
-                    '(mode-line-inactive ((t (:height 0.85))))))
+  (setup (:straight doom-modeline)
+    ;; (setq doom-modeline-bar-width 4)
+    (setq doom-modeline-buffer-encoding nil)
+    (setq doom-modeline-buffer-file-name-style 'relative-from-project)
+    (setq doom-modeline-height 30)
+    (setq doom-modeline-major-mode-icon t)
+    (setq doom-modeline-minor-modes t)
+    (:with-hook window-setup-hook
+      (:hook (fn (set-face-attribute
+                  'mode-line nil :family "Iosevka Slab" :height 130))))
+    (:hook-into window-setup)
+    (:option doom-modeline-height 15
+             doom-modeline-bar-width 6
+             doom-modeline-lsp t
+             doom-modeline-github nil
+             doom-modeline-mu4e nil
+             doom-modeline-irc t
+             doom-modeline-minor-modes t
+             doom-modeline-persp-name nil
+             doom-modeline-buffer-file-name-style 'truncate-except-project
+             doom-modeline-major-mode-icon nil)
+    (custom-set-faces '(mode-line ((t (:height 0.85))))
+                      '(mode-line-inactive ((t (:height 0.85))))))
 
-(use-package bui
-  :defer t)
+  (use-package bui
+    :defer t)
 
-;; what does this TODO?
-(use-package lister
-  :straight (lister
-             :type git
-             :host github
-             :repo "publicimageltd/lister"
-             :branch "archive-version-0.7.2")
-  :defer t)
+  ;; what does this TODO?
+  (use-package lister
+    :straight (lister
+               :type git
+               :host github
+               :repo "publicimageltd/lister"
+               :branch "archive-version-0.7.2")
+    :defer t)
 
-
-#+end_src
-*** Don't show default modeline
-:PROPERTIES:
-:ID:                     f761fe6b-6855-4252-848d-de3be17b045a
-:END:
-
-Wait until my *fancy* modeline is loaded -- from [[https://github.com/KaratasFurkan/.emacs.d#remove-redundant-ui][Furkan Karataş]].
-
-#+begin_src emacs-lisp
-    (setq-default mode-line-format nil)
 
 #+end_src
 *** highlights and diff
@@ -2055,6 +2053,8 @@ setup diff and highlights
   (let ((map resize-window-repeat-map))
     (define-key map ">" #'enlarge-window-horizontally)
     (define-key map "<" #'shrink-window-horizontally)))
+
+ 
 
 #+end_src
 #+begin_src emacs-lisp
@@ -3239,37 +3239,38 @@ Overview of its features:
 
 Run the universal help command for major mode documentation (C-h m) while inside ibuffer to get a detailed list of all available commands and their key bindings.
 #+begin_src emacs-lisp
-  (setup ibuffer
-    (:also-load ibuf-ext)
-    (:option ibuffer-expert t
-             ibuffer-display-summary nil
-             ibuffer-use-other-window nil
-             ibuffer-show-empty-filter-groups nil
-             ibuffer-movement-cycle nil
-             ibuffer-default-sorting-mode 'filename/process
-             ibuffer-use-header-line t
-             ibuffer-default-shrink-to-minimum-size nil
-             ibuffer-formats
-             '((mark modified read-only locked " "
-                (name 40 40 :left :elide)
-                " "
-                (size 9 -1 :right)
-                " "
-                (mode 16 16 :left :elide)
-                " " filename-and-process)
-               (mark " "
-                (name 16 -1)
-                " " filename))
-             ibuffer-saved-filter-groups nil
-             ibuffer-old-time 48)
-    (:global "C-x C-b" #'ibuffer)
-    (:hook hl-line-mode)
-    (let ((map ibuffer-mode-map))
-      (define-key map (kbd "* f") #'ibuffer-mark-by-file-name-regexp)
-      (define-key map (kbd "* g") #'ibuffer-mark-by-content-regexp) ; "g" is for "grep"
-      (define-key map (kbd "* n") #'ibuffer-mark-by-name-regexp)
-      (define-key map (kbd "s n") #'ibuffer-do-sort-by-alphabetic)  ; "sort name" mnemonic
-      (define-key map (kbd "/ g") #'ibuffer-filter-by-content)))
+    (setup ibuffer
+      (:also-load ibuf-ext)
+      (:option ibuffer-expert t
+               ibuffer-display-summary nil
+               ibuffer-use-other-window nil
+               ibuffer-show-empty-filter-groups nil
+               ibuffer-movement-cycle nil
+               ibuffer-default-sorting-mode 'filename/process
+               ibuffer-use-header-line t
+               ibuffer-default-shrink-to-minimum-size nil
+               ibuffer-formats
+               '((mark modified read-only locked " "
+                  (name 40 40 :left :elide)
+                  " "
+                  (size 9 -1 :right)
+                  " "
+                  (mode 16 16 :left :elide)
+                  " " filename-and-process)
+                 (mark " "
+                  (name 16 -1)
+                  " " filename))
+               ibuffer-saved-filter-groups nil
+               ibuffer-old-time 48)
+      (:global "C-x C-b" #'ibuffer)
+      (:hook hl-line-mode)
+      ;; (let ((map ibuffer-mode-map))
+      ;;   (define-key map (kbd "* f") #'ibuffer-mark-by-file-name-regexp)
+      ;;   (define-key map (kbd "* g") #'ibuffer-mark-by-content-regexp) ; "g" is for "grep"
+      ;;   (define-key map (kbd "* n") #'ibuffer-mark-by-name-regexp)
+      ;;   (define-key map (kbd "s n") #'ibuffer-do-sort-by-alphabetic)  ; "sort name" mnemonic
+      ;;   (define-key map (kbd "/ g") #'ibuffer-filter-by-content))
+  )
 
 #+end_src
  The default way Emacs makes buffer names unique is really ugly and,
@@ -3743,156 +3744,157 @@ Consult can shine when used in tandem with Embark to produce buffers that hold a
 
 Other nice extensions of Consult are (i) its ability to work as a generic front-end for completion, and (ii) its preview facility for registers. The former is done by consult-completion-in-region which provides completion for commands such as dabbrev-completion or the TAB key in programming buffers (see Tabs, indentation, and the TAB key). While the latter is an overall prettier presentation for the familiar register preview window
 #+begin_src emacs-lisp
-(use-package consult
-  :preface
-  (defvar consult-prefix-map (make-sparse-keymap))
-  (fset 'consult-prefix-map consult-prefix-map)
-  :bind ( :map ctl-x-map
-          ("c" . consult-prefix-map)
-          :map consult-prefix-map
-          ("r" . consult-recent-file)
-          ("o" . consult-outline)
-          ("i" . consult-imenu)
-          ("g" . consult-grep)
-          ("f" . jnf/consult-ripgrep))
-  :custom
-  (consult-preview-key any)
-  :init
-  (setq completion-in-region-function #'consult-completion-in-region)
-  :config
-   (setq consult-line-numbers-widen t)
-  ;; (setq completion-in-region-function #'consult-completion-in-region)
-  (setq consult-async-min-input 3)
-  (setq consult-async-input-debounce 0.5)
-  (setq consult-async-input-throttle 0.8)
-  (setq consult-narrow-key ">")
-  (setq consult-imenu-config
-        '((emacs-lisp-mode :toplevel "Functions"
-                           :types ((?f "Functions" font-lock-function-name-face)
-                                   (?m "Macros"    font-lock-keyword-face)
-                                   (?p "Packages"  font-lock-constant-face)
-                                   (?t "Types"     font-lock-type-face)
-                                   (?v "Variables" font-lock-variable-name-face)))))
-   ;; Updating the default to include "--ignore-case"
-     (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 --ignore-case --no-heading --line-number . -e ARG OPTS")
+  (use-package consult
+    :preface
+    (defvar consult-prefix-map (make-sparse-keymap))
+    (fset 'consult-prefix-map consult-prefix-map)
+    :bind ( :map ctl-x-map
+            ("c" . consult-prefix-map)
+            :map consult-prefix-map
+            ("r" . consult-recent-file)
+            ("o" . consult-outline)
+            ("i" . consult-imenu)
+            ("g" . consult-grep)
+            ("f" . jnf/consult-ripgrep))
+    :custom
+    (consult-preview-key any)
+    :init
+    (setq completion-in-region-function #'consult-completion-in-region)
+    :config
+     (setq consult-line-numbers-widen t)
+    ;; (setq completion-in-region-function #'consult-completion-in-region)
+    (setq consult-async-min-input 3)
+    (setq consult-async-input-debounce 0.5)
+    (setq consult-async-input-throttle 0.8)
+    (setq consult-narrow-key ">")
+    (setq consult-imenu-config
+          '((emacs-lisp-mode :toplevel "Functions"
+                             :types ((?f "Functions" font-lock-function-name-face)
+                                     (?m "Macros"    font-lock-keyword-face)
+                                     (?p "Packages"  font-lock-constant-face)
+                                     (?t "Types"     font-lock-type-face)
+                                     (?v "Variables" font-lock-variable-name-face)))))
+     ;; Updating the default to include "--ignore-case"
+       (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 --ignore-case --no-heading --line-number . -e ARG OPTS")
 
-     ;; From https://github.com/minad/consult/wiki#find-files-using-fd
-     ;; Note: this requires lexical binding
-     (defun jnf/consult-find-using-fd (&optional dir initial)
-       "Find project files.
-  A replacement for `projectile-find-file'."
-       (interactive "P")
-       (let ((consult-find-command "fd --color=never --hidden --exclude .git/ --full-path ARG OPTS"))
-         (consult-find dir initial)))
+       ;; From https://github.com/minad/consult/wiki#find-files-using-fd
+       ;; Note: this requires lexical binding
+       (defun jnf/consult-find-using-fd (&optional dir initial)
+         "Find project files.
+    A replacement for `projectile-find-file'."
+         (interactive "P")
+         (let ((consult-find-command "fd --color=never --hidden --exclude .git/ --full-path ARG OPTS"))
+           (consult-find dir initial)))
 
-     (defun jnf/consult-line (consult-line-function &rest rest)
-       "Advising function around `CONSULT-LINE-FUNCTION'.
-  When there's an active region, use that as the first parameter
-  for `CONSULT-LINE-FUNCTION'.  Otherwise, use the current word as
-  the first parameter.  This function handles the `REST' of the
-  parameters."
-       (interactive)
-       (apply consult-line-function
-              (if (use-region-p) (buffer-substring (region-beginning) (region-end)))
-              rest))
+       (defun jnf/consult-line (consult-line-function &rest rest)
+         "Advising function around `CONSULT-LINE-FUNCTION'.
+    When there's an active region, use that as the first parameter
+    for `CONSULT-LINE-FUNCTION'.  Otherwise, use the current word as
+    the first parameter.  This function handles the `REST' of the
+    parameters."
+         (interactive)
+         (apply consult-line-function
+                (if (use-region-p) (buffer-substring (region-beginning) (region-end)))
+                rest))
 
-     (defun jnf/consult-ripgrep (consult-ripgrep-function &optional dir &rest rest)
-       "Use region or thing at point to populate initial parameter for `CONSULT-RIPGREP-FUNCTION'.
-  When there's an active region, use that as the initial parameter
-  for the `CONSULT-RIPGREP-FUNCTION'.  Otherwise, use the thing at
-  point.
-  `DIR' use the universal argument (e.g. C-u prefix) to first set
-  the directory.  `REST' is passed to the `CONSULT-RIPGREP-FUNCTION'."
-       (interactive "P")
-       (apply consult-ripgrep-function
-              dir
-              (if (use-region-p) (buffer-substring (region-beginning) (region-end)))
-              rest))
+       (defun jnf/consult-ripgrep (consult-ripgrep-function &optional dir &rest rest)
+         "Use region or thing at point to populate initial parameter for `CONSULT-RIPGREP-FUNCTION'.
+    When there's an active region, use that as the initial parameter
+    for the `CONSULT-RIPGREP-FUNCTION'.  Otherwise, use the thing at
+    point.
+    `DIR' use the universal argument (e.g. C-u prefix) to first set
+    the directory.  `REST' is passed to the `CONSULT-RIPGREP-FUNCTION'."
+         (interactive "P")
+         (apply consult-ripgrep-function
+                dir
+                (if (use-region-p) (buffer-substring (region-beginning) (region-end)))
+                rest))
 
-     ;; Optionally tweak the register preview window.
-     ;; This adds thin lines, sorting and hides the mode line of the window.
-     (advice-add #'register-preview :override #'consult-register-window)
-     (advice-add #'consult-line :around #'jnf/consult-line '((name . "wrapper")))
-     (advice-add #'consult-ripgrep :around #'jnf/consult-ripgrep '((name . "wrapper")))
-     (setq consult-after-jump-hook nil) ; reset it to avoid conflicts with my function
-  (add-hook 'consult-after-jump-hook #'prot-pulse-recentre-top) ; see `prot-pulse.el'
+       ;; Optionally tweak the register preview window.
+       ;; This adds thin lines, sorting and hides the mode line of the window.
+       (advice-add #'register-preview :override #'consult-register-window)
+       (advice-add #'consult-line :around #'jnf/consult-line '((name . "wrapper")))
+       (advice-add #'consult-ripgrep :around #'jnf/consult-ripgrep '((name . "wrapper")))
+       (setq consult-after-jump-hook nil) ; reset it to avoid conflicts with my function
+    (add-hook 'consult-after-jump-hook #'prot-pulse-recentre-top) ; see `prot-pulse.el'
 
-  (add-hook 'completion-list-mode-hook #'consult-preview-at-point-mode)
+    (add-hook 'completion-list-mode-hook #'consult-preview-at-point-mode)
 
-  (require 'consult-imenu) ; the `imenu' extension is in its own file
+    (require 'consult-imenu) ; the `imenu' extension is in its own file
 
-  (let ((map global-map))
-    (define-key map (kbd "C-x r b") #'consult-bookmark) ; override `bookmark-jump'
-    (define-key map (kbd "C-x M-:") #'consult-complex-command)
-    (define-key map (kbd "C-x M-m") #'consult-minor-mode-menu)
-    (define-key map (kbd "C-x M-k") #'consult-kmacro)
-    (define-key map [remap goto-line] #'consult-goto-line)
-    (define-key map (kbd "M-K") #'consult-keep-lines) ; M-S-k is similar to M-S-5 (M-%)
-    (define-key map (kbd "M-F") #'consult-focus-lines) ; same principle
-    (define-key map (kbd "M-s M-b") #'consult-buffer)
-    (define-key map (kbd "M-s M-f") #'consult-find)
-    (define-key map (kbd "M-s M-g") #'consult-grep)
-    (define-key map (kbd "M-s M-h") #'consult-history)
-    (define-key map (kbd "M-s M-i") #'consult-imenu)
-    (define-key map (kbd "M-s M-l") #'consult-line)
-    (define-key map (kbd "M-s M-m") #'consult-mark)
-    (define-key map (kbd "M-s M-s") #'consult-outline)
-    (define-key map (kbd "M-s M-y") #'consult-yank-pop)
-    (define-key map (kbd "C-x r r") #'consult-register)) ; Use the register's prefix
-  (define-key consult-narrow-map (kbd "?") #'consult-narrow-help))
+    (let ((map global-map))
+      (define-key map (kbd "C-x r b") #'consult-bookmark) ; override `bookmark-jump'
+      (define-key map (kbd "C-x M-:") #'consult-complex-command)
+      (define-key map (kbd "C-x M-m") #'consult-minor-mode-menu)
+      (define-key map (kbd "C-x M-k") #'consult-kmacro)
+      (define-key map [remap goto-line] #'consult-goto-line)
+      (define-key map (kbd "M-K") #'consult-keep-lines) ; M-S-k is similar to M-S-5 (M-%)
+      (define-key map (kbd "M-F") #'consult-focus-lines) ; same principle
+      (define-key map (kbd "M-s M-b") #'consult-buffer)
+      (define-key map (kbd "M-s M-f") #'consult-find)
+      (define-key map (kbd "M-s M-g") #'consult-grep)
+      (define-key map (kbd "M-s M-h") #'consult-history)
+      (define-key map (kbd "M-s M-i") #'consult-imenu)
+      (define-key map (kbd "M-s M-l") #'consult-line)
+      (define-key map (kbd "M-s M-m") #'consult-mark)
+      (define-key map (kbd "M-s M-s") #'consult-outline)
+      (define-key map (kbd "M-s M-y") #'consult-yank-pop)
+      (define-key map (kbd "C-x r r") #'consult-register)) ; Use the register's prefix
+    (define-key consult-narrow-map (kbd "?") #'consult-narrow-help))
 
-(use-package corfu
-  :straight ( :host github
-              :repo "minad/corfu"
-              :branch "main")
-  :bind ( :map corfu-map
-          ("TAB" . corfu-next)
-          ([tab] . corfu-next)
-          ("S-TAB" . corfu-previous)
-          ([backtab] . corfu-previous)
-          ([remap completion-at-point] . corfu-complete)
-          ("RET" . corfu-complete-and-quit)
-          ("<return>" . corfu-complete-and-quit))
-  :custom
-  (corfu-cycle t)
-  (corfu-preselect-first t)
-  (corfu-scroll-margin 4)
-  (corfu-quit-no-match t)
-  (corfu-quit-at-boundary t)
-  (corfu-max-width 100)
-  (corfu-min-width 42)
-  (corfu-count 9)
-  ;; should be configured in the `indent' package, but `indent.el'
-  ;; doesn't provide the `indent' feature.
-  (tab-always-indent 'complete)
-  :config
-  (defun corfu-complete-and-quit ()
-    (interactive)
-    (corfu-complete)
-    (corfu-quit))
-  :init
-  (corfu-global-mode))
+ 
+  (use-package corfu
+    :straight ( :host github
+                :repo "minad/corfu"
+                :branch "main")
+    :bind ( :map corfu-map
+            ("TAB" . corfu-next)
+            ([tab] . corfu-next)
+            ("S-TAB" . corfu-previous)
+            ([backtab] . corfu-previous)
+            ([remap completion-at-point] . corfu-complete)
+            ("RET" . corfu-complete-and-quit)
+            ("<return>" . corfu-complete-and-quit))
+    :custom
+    (corfu-cycle t)
+    (corfu-preselect-first t)
+    (corfu-scroll-margin 4)
+    (corfu-quit-no-match t)
+    (corfu-quit-at-boundary t)
+    (corfu-max-width 100)
+    (corfu-min-width 42)
+    (corfu-count 9)
+    ;; should be configured in the `indent' package, but `indent.el'
+    ;; doesn't provide the `indent' feature.
+    (tab-always-indent 'complete)
+    :config
+    (defun corfu-complete-and-quit ()
+      (interactive)
+      (corfu-complete)
+      (corfu-quit))
+    :init
+    (corfu-global-mode))
 
-(use-package corfu-doc
-  :straight ( :host github
-              :repo "galeo/corfu-doc"
-              :branch "main")
-  :bind ( :map corfu-map
-          ("M-p" . corfu-doc-scroll-down)
-          ("M-n" . corfu-doc-scroll-up))
-  :hook (corfu-mode . corfu-doc-mode)
-  :custom
-  (corfu-doc-delay 1.25)
-  (corfu-doc-max-height 20)
-  (corfu-doc-max-width 84))
+  (use-package corfu-doc
+    :straight ( :host github
+                :repo "galeo/corfu-doc"
+                :branch "main")
+    :bind ( :map corfu-map
+            ("M-p" . corfu-doc-scroll-down)
+            ("M-n" . corfu-doc-scroll-up))
+    :hook (corfu-mode . corfu-doc-mode)
+    :custom
+    (corfu-doc-delay 1.25)
+    (corfu-doc-max-height 20)
+    (corfu-doc-max-width 84))
 
-(use-package cape
-  :config
-  (setq completion-at-point-functions '(cape-file cape-dabbrev)))
+  (use-package cape
+    :config
+    (setq completion-at-point-functions '(cape-file cape-dabbrev)))
 
-(setup (:straight ripgrep)
-    (:needs "rg")
-    (setq ripgrep-arguments "--ignore-case"))
+  (setup (:straight ripgrep)
+      (:needs "rg")
+      (setq ripgrep-arguments "--ignore-case"))
 
 #+end_src
 
@@ -4359,7 +4361,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 #+begin_src emacs-lisp
 
 (use-package org-roam
-  :defer t
+  :after org
   :commands (org-roam-db-autosync-enable
              org-roam-db-sync)
   :init
@@ -7498,8 +7500,8 @@ It is relative to `vulpea-directory', unless it is absolute.")
     (setq org-default-notes-file vulpea-capture-inbox-file))
   (setq
    org-capture-templates
-   '(("t" "Tâches" plain (file+headline vulpea-capture-inbox-file "B")
-      "* TODO %?\n%U\n" :clock-in t :clock-resume t)
+   '(("t" "Tâches" plain (file+headline vulpea-capture-inbox-file "Boîte de Réception")
+      "** TODO %?\n%U\n" :clock-in t :clock-resume t)
 
      ("m" "Reunion" entry
       (function vulpea-capture-meeting-target)
