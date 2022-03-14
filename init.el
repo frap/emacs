@@ -19,10 +19,10 @@
   
   ;;; Code:
     (defmacro +with-message (message &rest body)
-      "Execute BODY, with MESSAGE.
+  "Execute BODY, with MESSAGE.
 		    If body executes without errors, ** MESSAGE... terminé will be displayed."
-      (declare (indent 1))
-      (let ((msg (gensym)))
+  (declare (indent 1))
+  (let ((msg (gensym)))
 	`(let ((,msg ,message))
 	   (unwind-protect (progn (message "%s..." ,msg)
 				  ,@body)
@@ -39,7 +39,7 @@
 
 ;;; Bootstrap
 ;;; ============================================================================
-;;; Specify the directory paths 
+;;; Specify the directory paths
 ;;; ============================================================================
   (require 'config-path)
 
@@ -49,7 +49,7 @@
   (require 'init-elpa)
 
 ;;; ============================================================================
-;;; Specify the directory paths 
+;;; Specify the directory paths
 ;;; ============================================================================
   
   (setup (:require prot-common))
@@ -76,10 +76,10 @@
 
   ;; load autoloads file
   (unless elpa-bootstrap-p
-      (unless (file-exists-p path-autoloads-file)
+  (unless (file-exists-p path-autoloads-file)
 	(error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-	       "eru install emacs"))
-      (load path-autoloads-file nil 'nomessage))
+	   "eru install emacs"))
+  (load path-autoloads-file nil 'nomessage))
 
 ;;; core
 (require 'init-env)

@@ -1,7 +1,7 @@
 lisp/enfer*.el
 lisp/init*.el
 lisp/lib*.el
-lisp/custom*.el
+lisp/config*.el
 lisp/dash*.el
 custom.el
 *~
