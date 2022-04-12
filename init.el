@@ -28,6 +28,8 @@
 				  ,@body)
 	     (message "** %s... terminé!!" ,msg)))))
 
+  ;; load if-let
+  (require 'subr-x)
   ;;; Set up extra load paths and functionality
   ;; Since we might be running in CI or other environments, stick to
   ;; XDG_CONFIG_HOME value if possible.
