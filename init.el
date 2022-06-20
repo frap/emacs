@@ -1,87 +1,88 @@
 ;;; init.el --- Gas Init -*- lexical-binding: t -*-
-  ;; Copyright (C) 2021 Gas
-  
-  ;; Author: Gas <gas@tuatara.red>
-  ;; Version: 1.0
-  ;; Package-Version: 0.1
-  ;; Created: Sometime during the Covid-19 lockdown
-  ;; Keywords: configuration, emacs
-  ;; URL: https://github.com/frap/emacs.d
-  ;; Package-Requires: ((emacs "27.2"))
-  
-  ;; Timestamp: <>
-  ;; This file is not part of GNU Emacs.
-  
-  ;;; Commentary:
-  ;; This file is automatically tangled from config.org.
-  ;; Hand edits will be overwritten!
-  ;; Je t'ai prévenu putain!
-  
-  ;;; Code:
-    (defmacro +with-message (message &rest body)
-  "Execute BODY, with MESSAGE.
-		    If body executes without errors, ** MESSAGE... terminé will be displayed."
-  (declare (indent 1))
-  (let ((msg (gensym)))
-	`(let ((,msg ,message))
-	   (unwind-protect (progn (message "%s..." ,msg)
-				  ,@body)
-	     (message "** %s... terminé!!" ,msg)))))
 
-  ;; load if-let
-  (require 'subr-x)
-  ;;; Set up extra load paths and functionality
-  ;; Since we might be running in CI or other environments, stick to
-  ;; XDG_CONFIG_HOME value if possible.
-  (let ((emacs-home/ (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-			   (expand-file-name "emacs/" xdg)
-			 user-emacs-directory)))
-  ;; Add Lisp directory to `load-path'.
-  (add-to-list 'load-path (expand-file-name "lisp" emacs-home/)))
+;; Copyright (C) 2001-2022 Gas
 
-;;; Bootstrap
-;;; ============================================================================
-;;; Specify the directory paths
-;;; ============================================================================
-  (require 'config-path)
+;; Author: Gas <gas@tuatara.red>
+;; Version: 1.0
+;; Package-Version: 0.1
+;; Created: Sometime during the Covid-19 lockdown
+;; Keywords: configuration, emacs
+;; URL: https://github.com/frap/emacs.d
+;; Package-Requires: ((emacs "27.2"))
 
-;;; ============================================================================
-;;; Set up the package manager
-;;; ============================================================================
-  (require 'init-elpa)
+;; Timestamp: <>
+;; This file is not part of GNU Emacs.
 
-;;; ============================================================================
-;;; Specify the directory paths
-;;; ============================================================================
-  
-  (setup (:require prot-common))
-  
-  ;;; Initialise Gas Constants
-    (defconst ENV-IS-NATIVECOMP? (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
-    (defconst ENV-IS-GRAPHIC? (display-graphic-p))
-    (defconst ENV-IS-MAC?     (eq system-type 'darwin))
-    (defconst ENV-IS-LINUX?   (eq system-type 'gnu/linux))
-    (defconst ENV-IS-TERMUX?
-      (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
-    (defconst env-sys-name (system-name))
-  
-    (defmacro fn (&rest body)
-      `(lambda () ,@body))
-  
-    (defun doom-enlist (exp)
-      "Return EXP wrapped in a list, or as-is if already a list."
-      (declare (pure t) (side-effect-free t))
-      (if (proper-list-p exp) exp (list exp)))
+;;; Commentary:
+;; This file maybe automatically tangled from config.org.
+;; Hand edits will be overwritten!
+;; Je t'ai prévenu putain!
 
-;; Setup `custom-file`.
-  (setq custom-file (concat emacs-config/ "custom.el"))
+;;; Code:
+(defmacro with-message! (message &rest body)
+"Execute BODY, with MESSAGE.
+      If body executes without errors, ** MESSAGE... terminé will be displayed."
+	(declare (indent 1))
+	(let ((msg (gensym)))
+	  `(let ((,msg ,message))
+	     (unwind-protect (progn (message "%s..." ,msg)
+				    ,@body)
+	       (message "** %s... terminé!!" ,msg)))))
 
-  ;; load autoloads file
-  (unless elpa-bootstrap-p
-  (unless (file-exists-p path-autoloads-file)
-	(error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-	   "eru install emacs"))
-  (load path-autoloads-file nil 'nomessage))
+    ;; load if-let
+    (require 'subr-x)
+    ;;; Set up extra load paths and functionality
+    ;; Since we might be running in CI or other environments, stick to
+    ;; XDG_CONFIG_HOME value if possible.
+    (let ((*emacs-config/* (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+			     (expand-file-name "emacs/" xdg)
+			   user-emacs-directory)))
+    ;; Add Lisp directory to `load-path'.
+    (add-to-list 'load-path (expand-file-name "lisp" *emacs-config/*)))
+
+  ;;; Bootstrap
+  ;;; ============================================================================
+  ;;; Specify the directory paths
+  ;;; ============================================================================
+    (require 'config-path)
+
+  ;;; ============================================================================
+  ;;; Set up the package manager
+  ;;; ============================================================================
+    (require 'init-elpa)
+
+  ;;; ============================================================================
+  ;;; Specify the directory paths
+  ;;; ============================================================================
+    
+    (setup (:require prot-common))
+    
+    ;;; Initialise Gas Constants
+      (defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
+      (defconst *is-gui?* (display-graphic-p))
+      (defconst *is-mac?*     (eq system-type 'darwin))
+      (defconst *is-linux?*   (eq system-type 'gnu/linux))
+      (defconst *is-termux?*
+        (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
+      (defconst *hostname* (system-name))
+    
+      (defmacro fn (&rest body)
+        `(lambda () ,@body))
+    
+      (defun doom-enlist (exp)
+        "Return EXP wrapped in a list, or as-is if already a list."
+        (declare (pure t) (side-effect-free t))
+        (if (proper-list-p exp) exp (list exp)))
+
+  ;; Setup `custom-file`.
+    (setq custom-file (concat *emacs-config/* "custom.el"))
+
+    ;; load autoloads file
+    (unless elpa-bootstrap-p
+	(unless (file-exists-p *emacs-autoloads-file*)
+	  (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+		 "eru install emacs"))
+	(load *emacs-autoloads-file* nil 'nomessage))
 
 ;;; core
 (require 'init-env)

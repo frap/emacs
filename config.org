@@ -14,18 +14,19 @@
 
 Some scripts to setup whether I am on work computer or not
 #+begin_src emacs-lisp :noweb-ref user-config
-  (if (getenv "USER")
-      (defconst IS-WORK (string-match "810989" (getenv "USER")))
-      (defconst IS-WORK nil))
+   ;; (if (getenv "USER")
+   ;;     (defconst IS-WORK (string-match "810989" (getenv "USER")))
+   ;;     (defconst IS-WORK nil))
 
-  (if IS-WORK
+   ;; (if IS-WORK
+   ;;     (setq
+   ;;      user-full-name "Gas 810989"
+   ;;      user-mail-address "gas_gasson@bnz.co.nz")
       (setq
-       user-full-name "Gas 810989"
-       user-mail-address "gas_gasson@bnz.co.nz")
-    (setq
-     user-full-name "Andrés Gasson"
-     user-mail-address "gas@tuatara.red"
-     github-account-name "frap"))
+       user-full-name "Andrés Gasson"
+       user-mail-address "gas@tuatara.red"
+       github-account-name "frap")
+  ;;)
 
 #+end_src
 
@@ -57,14 +58,56 @@ Here feels like as good a place as any to setup =auth-sources=.
 :PROPERTIES:
 :ID:                     bb63575d-8ceb-4c7d-8753-3c3b0ae33630
 :END:
+** Early Init
+:PROPERTIES:
+:header-args: :tangle early-init.el :noweb yes
+:ID:       115da072-e944-4419-a49c-013c2d6368c4
+:END:
+
+Beginning with 27.1, Emacs also loads an =early-init.el= file, before
+the package manager or the UI code.
+
+#+begin_src emacs-lisp
+;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
+<<disclaimer>>
+;;; Code:
+
+(message "Chargement en cours early-init.el...")
+
+(define-advice load (:before (feature &rest _))
+    "Message the user when loading a library."
+    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
+
+;;; ============================================================================
+;;; Emacs startup optimisations
+;;; ============================================================================
+<<garbage-filehandler>>
+
+;;; ============================================================================
+;;; Frame parameters for faster startup
+;;; ============================================================================
+<<early-init-frame>>
+
+;;; ============================================================================
+;;; Specify some directory paths
+;;; ============================================================================
+<<path-config>>
+
+;;; ============================================================================
+;;; Set up the package manager before it is loaded
+;;; ============================================================================
+<<straight-setup>>
+
+(message "Chargement du early-init.el terminé!")
+(provide 'early-init)
+;;; early-init.el ends here
+#+end_src
 
 ** Garbage Collection & File handlers
 :PROPERTIES:
 :header-args: :noweb-ref garbage-filehandler
-:ID:                     56c4a633-3570-4c8d-a72d-b7dab745aac1
 :END:
 Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
-
 
 #+begin_src emacs-lisp
   ;; Garbage collection slows down startup time, so we maximise the threshold for
@@ -119,7 +162,7 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
                        (tool-bar-lines . 0)
                        (bottom-divider-width . 0)
                        (right-divider-width . 1)
-                       (font . "Iosevka Slab 12"))
+                       (font . "Iosevka Slab 14"))
  default-frame-alist initial-frame-alist
  frame-inhibit-implied-resize t            ;; dont resize
  frame-resize-pixelwise t                   ;; as GUI use pixels
@@ -160,94 +203,72 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
 
 #+end_src
 
-*** native Compilation for Emacs28
+
+* Path & Directories
+:PROPERTIES:
+:header-args: :noweb-ref path-config
+:ID:                     81265071-dc7f-4b25-bfb4-844
+:end:
+Need to setup some constants and try to keep state in a "clean" directory structure
+#+begin_src emacs-lisp
+
+;; For the rest of the Emacs configuration, set this directory to something
+;; inside the standard cache directory, so we do not pollute our emacs.d
+;; directory with files that we would then have to ignore with Git.
+(defconst *emacs-config/* user-emacs-directory)
+
+(setq user-emacs-directory
+      (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/")))
+
+;; Add our custom lisp modules to the Emacs load path so they can be discovered.
+(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+
+(defconst *emacs-autoloads-file*
+    (expand-file-name "lisp/init-autoloads.el" *emacs-config/* )
+    "The path to my personal autoloads file.")
+
+(defconst *emacs-etc/* (concat user-emacs-directory "etc/")
+      "Directory for non-volatile storage.
+    Use this for files that don't change much, like servers binaries,
+    external dependencies or long-term shared data.")
+
+  (defconst *emacs-cache/* (concat user-emacs-directory "cache/")
+      "Directory for Emacs volatile storage.
+    Use this for files that change often.")
+
+  (defconst *emacs-packages/*
+      (expand-file-name (format "packages/%s.%s/"
+                                emacs-major-version
+                                emacs-minor-version)
+                        ,user-emacs-directory )
+      "Where Emacs packages are stored.")
+
+  ;; For the rest of the Emacs configuration, set this directory to something
+  ;; inside the standard cache directory, so we do not pollute our emacs.d
+  ;; directory with files that we would then have to ignore with Git.
+  (setq user-emacs-directory *xdg-cache/*)
+
+#+end_src
+*** native Compilation for >= Emacs28
 :PROPERTIES:
 :ID:                     70398db1-dd55-46da-8ac6-9389debcb75e
 :END:
 setting some default settings on early-init
 #+begin_src emacs-lisp
-
+;; For the list of native compilation ELN cache directories, delete all but the
+;; last element, which is always assumed to be the system path, and then cons a
+;; new path in our cache directory to the front. This effectively removes the
+;; entry for the original ~/.emacs.d/eln-cache/ and any others that are
+;; unwanted.
 (when (featurep 'native-compile)
+  (setq native-comp-eln-load-path
+         (cons (expand-file-name "eln-cache/" *emacs-cache/* )
+               (last native-comp-eln-load-path)))
   (defvar native-comp-deferred-compilation)
   (setq native-comp-deferred-compilation t)
   (defvar native-comp-async-report-warnings-errors)
   (setq native-comp-async-report-warnings-errors nil))
-
 #+end_src
-* Path & Directories
-:PROPERTIES:
-:header-args: :noweb-ref path-config
-:ID:                     81265071-dc7f-4b25-bfb4-8442780963e4
-:END:
-Need to setup some constants and try to keep state in a "clean" directory structure
-#+begin_src emacs-lisp
-(defconst path-home/ (file-name-as-directory (getenv "HOME"))
-    "Path to user home directory.
-
-In a nutshell, it's just a value of $HOME.")
-
-(defconst xdg-config/
-    (file-name-as-directory
-     (or (getenv "XDG_CONFIG_HOME")
-         (concat path-home/ ".config")))
-    "Home root directory for personal configurations.")
-
-(defconst emacs-cache/
-    (concat
-     (file-name-as-directory
-      (or (getenv "XDG_CACHE_HOME")
-          (concat path-home/ ".cache")))
-     "emacs/")
-    "The root directory for local Emacs files.
-    Use this as permanent storage for files that are safe to share
-    across systems.")
-
-(defconst emacs-config/
-    (file-name-as-directory
-     (expand-file-name "emacs/" xdg-config/))
-    "The path to this Emacs directory.")
-
-  (defconst emacs-private/
-    (concat path-home/ "Sync/emacs/")
-    "The root directory for private configurations.")
-
-  (defconst path-autoloads-file
-    (expand-file-name "lisp/init-autoloads.el" emacs-config/ )
-    "The path to personal autoloads file.")
-
-  (defconst emacs-etc/ (concat emacs-cache/ "etc/")
-    "Directory for non-volatile storage.
-  Use this for files that don't change much, like servers binaries,
-  external dependencies or long-term shared data.")
-
-  (defconst emacs-cache2/ (concat emacs-cache/ "cache/")
-    "Directory for volatile storage.
-  Use this for files that change often, like cache files.")
-
-  (defconst emacs-packages/
-    (expand-file-name (format "packages/%s.%s/"
-                              emacs-major-version
-                              emacs-minor-version)
-                      emacs-cache/ )
-    "Where packages are stored.")
-
-  ;; For the rest of the Emacs configuration, set this directory to something
-  ;; inside the standard cache directory, so we do not pollute our emacs.d
-  ;; directory with files that we would then have to ignore with Git.
-  (setq user-emacs-directory emacs-cache/)
-
-  ;; For the list of native compilation ELN cache directories, delete all but the
-  ;; last element, which is always assumed to be the system path, and then cons a
-  ;; new path in our cache directory to the front. This effectively removes the
-  ;; entry for the original ~/.emacs.d/eln-cache/ and any others that are
-  ;; unwanted.
-  (if (fboundp 'native-comp-available-p)
-      (setq native-comp-eln-load-path
-            (cons (expand-file-name "eln-cache/" emacs-cache2/ )
-                  (last native-comp-eln-load-path))))
-
-#+end_src
-
 * Emacs Package Management
 :PROPERTIES:
 :header-args: :noweb-ref straight-setup
@@ -255,88 +276,41 @@ In a nutshell, it's just a value of $HOME.")
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
-  ;; Pre-configure the package manager settings before it is loaded.
-  (setq package-enable-at-startup nil
-      package-quickstart nil
-      straight-host-usernames '((github . "frap")
-				(gitlab .  "agasson"))
-      straight-check-for-modifications '(check-on-save
-					 find-when-checking))
 
-  (defvar elpa-bootstrap-p nil)
+(defvar elpa-bootstrap-p nil)
 
-  
+;; Pre-configure the package manager settings before it is loaded.
+(setq package-enable-at-startup nil)
+(setq package-quickstart nil)
+(setq straight-check-for-modifications '(check-on-save find-when-checking))
+(setq straight-profiles `((nil . ,(expand-file-name "lockfile" *emacs-config/* ))))
 
-  (setq package-user/
-	(expand-file-name
-	 "elpa/"
-	 emacs-packages/))
+;; Bootstrap the straight.el package manager if it is not already installed,
+;; then unconditionally load it. We use this rather than Emacs' built-in package
+;; manager.
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el"
+                         user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-  
-  ;; bootstrap straight.el
-  (defvar straight-process-buffer)
-  (setq-default
-   straight-process-buffer          "*straight-process*"
-   straight-repository-branch       "develop"
-   straight-check-for-modifications nil
-   straight-use-package-by-default  t
-   straight-base-dir                emacs-packages/
-   straight-profiles (list
-		                 (cons nil
-			               (expand-file-name "versions/default.el"
-			                  emacs-config/ ))))
+;; Additional post-setup of straight.el.
+(require 'straight-x)
 
-  (defvar bootstrap-version)
-  (let ((bootstrap-file
-	 (expand-file-name "straight/repos/straight.el/bootstrap.el"
-			   straight-base-dir))
-	(bootstrap-version 5))
-    (unless (file-exists-p bootstrap-file)
-      (with-current-buffer
-	  (url-retrieve-synchronously
-	   (concat "https://raw.githubusercontent.com/"
-		   "raxod502/straight.el/"
-		   "develop/install.el")
-	   'silent 'inhibit-cookies)
-	(goto-char (point-max))
-	(eval-print-last-sexp)))
-    (load bootstrap-file nil 'nomessage))
-
-  (defvar elpa-straight-retry-count 3
-    "Amount of retries for `straight' operations.")
-
-  (defun elpa-straight-with-retry (orig-fn &rest args)
-    "Wrapper around ORIG-FN supporting retries.
-		    ORIG-FN is called with ARGS and retried
-		    `elpa-straight-retry-count' times."
-    (let ((n elpa-straight-retry-count)
-	  (res nil))
-      (while (> n 0)
-	(condition-case err
-	    (progn
-	      (setq res (apply orig-fn args)
-		    n 0)
-	      res)
-	  (error
-	   (setq n (- n 1))
-	   (unless (> n 0)
-	     (signal (car err) (cdr err))))))))
-
-  (advice-add #'straight-fetch-package
-	      :around
-	      #'elpa-straight-with-retry)
-  (advice-add #'straight--clone-repository
-	      :around
-	      #'elpa-straight-with-retry)
-
-  ;; Additional post-setup of straight.el.
-  ;;(require 'straight-x)
-  ;;; Appendix
-  ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
-  ;; minibuffer completion functions.  Since it's a (rarely-used, even)
-  ;; alias anyway, I just define it back to nil.  By the way, the alias
-  ;; is `straight-package-neutering-mode'.
-  (defalias 'straight-ಠ_ಠ-mode nil)
+;;; Appendix
+;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
+;; minibuffer completion functions.  Since it's a (rarely-used, even)
+;; alias anyway, I just define it back to nil.  By the way, the alias
+;; is `straight-package-neutering-mode'.
+(defalias 'straight-ಠ_ಠ-mode nil)
   #+end_src
 ** Emacs Package Manager Setup
 :PROPERTIES:
@@ -345,7 +319,7 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 :END:
 Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage packages as well as use-package for copied config
 #+begin_src emacs-lisp
-  ;; Setup `setup'
+;; Setup `setup'
 
   (straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
   ;;use-package - for copied configs
@@ -533,7 +507,7 @@ Setup the Emacs environment from the local env
 	      (set-time-zone-rule newtz))))
 	env))))
 
- (doom-load-envvars-file "~/.cache/emacs/env")
+ (doom-load-envvars-file (expand-file-name "env" *emacs-cache/*))
 
 #+end_src
 ** Emacs Startup Setup
@@ -712,13 +686,13 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a  few
 (setup (:require prot-common))
 
 ;;; Initialise Gas Constants
-  (defconst ENV-IS-NATIVECOMP? (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
-  (defconst ENV-IS-GRAPHIC? (display-graphic-p))
-  (defconst ENV-IS-MAC?     (eq system-type 'darwin))
-  (defconst ENV-IS-LINUX?   (eq system-type 'gnu/linux))
-  (defconst ENV-IS-TERMUX?
+  (defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
+  (defconst *is-gui?* (display-graphic-p))
+  (defconst *is-mac?*     (eq system-type 'darwin))
+  (defconst *is-linux?*   (eq system-type 'gnu/linux))
+  (defconst *is-termux?*
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
-  (defconst env-sys-name (system-name))
+  (defconst *hostname* (system-name))
 
   (defmacro fn (&rest body)
     `(lambda () ,@body))
@@ -968,7 +942,8 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 #+begin_src emacs-lisp
 (require 'cl-lib)
 
-(defmacro +define-dir (name directory &optional docstring inhibit-mkdir)
+;;; Macros
+(defmacro define-dir! (name directory &optional docstring inhibit-mkdir)
     "Define a variable and function NAME expanding to DIRECTORY.
         DOCSTRING is applied to the variable.  Ensure DIRECTORY exists in
         the filesystem, unless INHIBIT-MKDIR is non-nil."
@@ -989,7 +964,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
              (make-directory (file-name-directory file-name) :parents))
            file-name))))
 
-(defun +suppress-messages (oldfn &rest args) ; from pkal
+(defun suppress-messages! (oldfn &rest args) ; from pkal
     "Advice wrapper for suppressing `message'.
         OLDFN is the wrapped function, that is passed the arguments
         ARGS."
@@ -1060,7 +1035,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
   (defmacro fn! (&rest body)
     `(lambda () (interactive) ,@body))
 
-                  ;;; Closure factories
+;;; Closure factories
   (defmacro fn!! (arglist &rest body)
     "Returns (cl-function (lambda ARGLIST BODY...))
                 The closure is wrapped in `cl-function', meaning ARGLIST will accept anything
@@ -1118,12 +1093,12 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
              (save-silently t))
          (prog1 ,@forms (message ""))))))
 
-              ;;; Mutation
-  (defmacro appendq! (sym &rest lists)
+;;;; Mutation
+(defmacro appendq! (sym &rest lists)
     "Append LISTS to SYM in place."
     `(setq ,sym (append ,sym ,@lists)))
 
-  (defmacro setq! (&rest settings)
+(defmacro setq! (&rest settings)
     "A stripped-down `customize-set-variable' with the syntax of `setq'.
 
               This can be used as a drop-in replacement for `setq'. Particularly when you know
@@ -1134,7 +1109,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
               collect `(funcall (or (get ',var 'custom-set) #'set)
                                 ',var ,val))))
 
-  (defmacro delq! (elt list &optional fetcher)
+(defmacro delq! (elt list &optional fetcher)
     "`delq' ELT from LIST in-place.
 
               If FETCHER is a function, ELT is used as the key in LIST (an alist)."
@@ -1144,19 +1119,19 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
                     elt)
                  ,list)))
 
-  (defmacro pushnew! (place &rest values)
+(defmacro pushnew! (place &rest values)
     "Push VALUES sequentially into PLACE, if they aren't already present.
               This is a variadic `cl-pushnew'."
     (let ((var (make-symbol "result")))
       `(dolist (,var (list ,@values) (with-no-warnings ,place))
          (cl-pushnew ,var ,place :test #'equal))))
 
-  (defmacro prependq! (sym &rest lists)
+(defmacro prependq! (sym &rest lists)
     "Prepend LISTS to SYM in place."
     `(setq ,sym (append ,@lists ,sym)))
 
-    ;;; Loading
-  (defmacro add-load-path! (&rest dirs)
+;;; Loading
+(defmacro add-load-path! (&rest dirs)
     "Add DIRS to `load-path', relative to the current file.
               The current file is the file from which `add-to-load-path!' is used."
     `(let ((default-directory ,(dir!))
@@ -1171,10 +1146,7 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 :ID:                     96932d92-d4cc-4d1f-ace0-60da51f8e009
 :END:
 #+begin_src emacs-lisp
-(defvar enfer/ignored-directories
-  `(,user-emacs-directory
-    "eln-cache"))
-
+;;; Variables
 (defvar enfer/ignored-suffixes
   '(".7z" ".bz2" ".db" ".dll" ".dmg" ".elc" ".exe" ".fasl" ".gz" ".iso" ".jar"
     ".o" ".pyc" ".rar" ".so" ".sql" ".sqlite" ".tar" ".tgz" ".xz" ".zip"))
@@ -1185,24 +1157,20 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 :ID:                     f00d3971-f116-4a18-9aad-a005ea5eb4ea
 :END:
 #+begin_src emacs-lisp
+;;; Functions
   (defun enfer/show-startup-time ()
     (message "Heure de démarrage d'Emacs: %.2fs (%d GCs (ramasse-miettes))"
              (float-time (time-subtract after-init-time before-init-time))
              gcs-done))
 
-  (defun /etc-file (file-name)
-    (expand-file-name (format "etc/%s" file-name) user-emacs-directory))
+  (defun save-in-etc-file! (file-name)
+    (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
 
-  (defun /cache-dir-p (path)
+  (defun path-in-cache/? (path)
     (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
 
-  (+define-dir /etc (locate-user-emacs-file "etc")
-    "Directory for all of Emacs's various files.
-    See `no-littering' for examples.")
-
-  (+define-dir sync/ (expand-file-name "~/Sync")
-    "My Syncthing directory.")
-
+  (define-dir! *emacs-sync/* (expand-file-name "~/Sync/emacs")
+    "My Syncthing Emacs directory.")
 
   (defun mf/smarter-move-beginning-of-line (arg)
     (interactive "^p")
@@ -1332,7 +1300,7 @@ ripgrep and gist
   ;;(cua-mode 1)
   ;; load doom-path
 
-  ;;    (setup (:straight-when exec-path-from-shell ENV-IS-MAC?)
+  ;;    (setup (:straight-when exec-path-from-shell *is-mac?*)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
   ;;      (exec-path-from-shell-initialize)
@@ -1451,7 +1419,7 @@ Some Defaults for my preferred appearance
                            org-mode-hook
                            outline-mode-hook
                            prog-mode-hook))
-        ;; (add-hook mode-hook #'formfeed-make-display-line)
+        (add-hook mode-hook #'formfeed-make-display-line)
         ))
 
     
@@ -1463,7 +1431,7 @@ Some Defaults for my preferred appearance
 :END:
 #+begin_src elisp
   (menu-bar-mode -1)            ; Disable the menu bar
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
     (set-fringe-mode 10)        ; Give some breathing room
     (menu-bar-mode 1))          ; I like menu whilst learning
 
@@ -1620,7 +1588,7 @@ On Linux, I have a custom build of Iosevka that I like.
 
 #+begin_src emacs-lisp
 
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
     (setup mouse
       (setq focus-follows-mouse t)
       (setq make-pointer-invisible t)
@@ -1636,7 +1604,7 @@ On Linux, I have a custom build of Iosevka that I like.
       (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
 
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
     (setup scrolling
       (setq auto-hscroll-mode 'current-line)
       (setq auto-window-vscroll nil)
@@ -1648,7 +1616,7 @@ On Linux, I have a custom build of Iosevka that I like.
       (setq scroll-preserve-screen-position t)
       (setq scroll-step 1)))
 
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
@@ -1867,7 +1835,7 @@ On Linux, I have a custom build of Iosevka that I like.
     (setq doom-themes-enable-italic t)
     (doom-themes-org-config))
 
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
     ;; (modus-themes-load-vivendi)
     ;;(load-theme 'doom-one-light t)
     (doom-themes-visual-bell-config))
@@ -2269,17 +2237,31 @@ and have made a custom fringe bitmap.
 
 #+begin_src emacs-lisp
 (setup abbrev
-      (:option abbrev-file-name (sync/ "abbrev.el")
+      (:option abbrev-file-name (*emacs-sync/* "abbrev.el")
                save-abbrevs 'silent)
       (:hook-into text-mode
                   circe-chat-mode))
+
+(setup hippie-expand
+  (:option hippie-expand-try-functions-list
+      '(try-expand-dabbrev
+        try-expand-dabbrev-all-buffers
+        try-expand-dabbrev-from-kill
+        try-complete-file-name-partially
+        try-complete-file-name
+        try-expand-all-abbrevs
+        try-expand-list
+        try-expand-line
+        try-complete-lisp-symbol-partially
+        try-complete-lisp-symbol))
+:global "M-/" #'hippie-expand)
 
 #+end_src
 *** setup recent files
 #+begin_src
  (setup (:require recentf)
           (setq recentf-auto-cleanup 'mode)
-          (setq recentf-exclude `(,#'/cache-dir-p
+          (setq recentf-exclude `(,#'path-in-cache/?
                                   "^/tmp/"
                                   "COMMIT_EDITMSG$"
                                   ".gz$"))
@@ -2306,12 +2288,12 @@ and have made a custom fringe bitmap.
                   regexp-search-ring
                   search-ring))
           (setq savehist-autosave-interval 60)
-          (setq savehist-file (/etc-file "history"))
+          (setq savehist-file (save-in-etc-file! "history"))
           (setq savehist-save-minibuffer-history t)
           (savehist-mode 1))
 
         (setup (:require saveplace)
-          (setq save-place-file (/etc-file "places"))
+          (setq save-place-file (save-in-etc-file! "places"))
           (setq save-place-forget-unreadable-files nil)
           (save-place-mode 1))
 
@@ -3025,7 +3007,7 @@ Setup the buffers to my liking
 
   
 
-  (defvar buffer-scratch-files-dir (concat emacs-etc/ "scratch/")
+  (defvar buffer-scratch-files-dir (concat *emacs-etc/* "scratch/")
     "Where to store project scratch files.
     Files are created by `buffer-open-project-scratch'.")
 
@@ -3238,9 +3220,9 @@ Overview of its features:
 
 Run the universal help command for major mode documentation (C-h m) while inside ibuffer to get a detailed list of all available commands and their key bindings.
 #+begin_src emacs-lisp
-    (setup ibuffer
-      (:also-load ibuf-ext)
-      (:option ibuffer-expert t
+(setup ibuffer
+    (:also-load ibuf-ext)
+    (:option ibuffer-expert t
                ibuffer-display-summary nil
                ibuffer-use-other-window nil
                ibuffer-show-empty-filter-groups nil
@@ -3272,17 +3254,17 @@ Run the universal help command for major mode documentation (C-h m) while inside
   )
 
 #+end_src
- The default way Emacs makes buffer names unique is really ugly and,
+The default way Emacs makes buffer names unique is really ugly and,
   dare I say it, stupid.  Instead, I want them to be uniquified by their
   filesystem paths.
 
 #+begin_src emacs-lisp
-  (setup (:require uniquify)
-    (setq uniquify-after-kill-buffer-p t)
-    (setq uniquify-buffer-name-style 'forward)
-    (setq-default
-     uniquify-separator "/"
-     uniquify-ignore-buffers-re "^\\*"))
+(setup (:require uniquify)
+  (setq uniquify-after-kill-buffer-p t)
+  (setq uniquify-buffer-name-style 'forward)
+  (setq-default
+   uniquify-separator "/"
+   uniquify-ignore-buffers-re "^\\*"))
 
 #+end_src
 * Sanity settings
@@ -3292,13 +3274,13 @@ Run the universal help command for major mode documentation (C-h m) while inside
 :END:
 Setup Scratch and minibuffer
 #+begin_src emacs-lisp
-  (use-package subr
+(use-package subr
   :straight nil
   :no-require t
   :init
   (fset 'yes-or-no-p 'y-or-n-p))
 
-  (setup files
+(setup files
     (setq auto-mode-case-fold nil)
     (setq auto-save-default nil)
     (setq auto-save-list-file-prefix nil)
@@ -3312,7 +3294,7 @@ Setup Scratch and minibuffer
     (setq require-final-newline t)
     (setq vc-follow-symlinks t))
 
-  #+end_src
+#+end_src
 
 * Project Setup
 :PROPERTIES:
@@ -3322,7 +3304,7 @@ Setup Scratch and minibuffer
 
 setup of emacs project
 #+begin_src emacs-lisp
-(setq project-list-file (expand-file-name "projects" emacs-etc/))
+(setq project-list-file (expand-file-name "projects" *emacs-etc/*))
 
 (defalias 'project-switch #'project-switch-project)
 
@@ -3404,7 +3386,7 @@ Setup of magit for cool git
       :init
       (setq-default forge-database-file
                     (expand-file-name "forge/forge-database.sqlite"
-                                      emacs-etc/)))
+                                      *emacs-etc/*)))
 
       (setup (:straight git-timemachine)
           (:bind
@@ -3534,7 +3516,7 @@ My prot-orderless.el contains the few minor tweaks I introduce (full code furthe
 - A comma at the end of a string of characters treats that group as an initialism, per prot-orderless-initialism-dispatcher.
 - While a tilde (prot-orderless-flex-dispatcher) makes it a flex match.
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :noweb-ref orderless
 ;;; Orderless completion style (and prot-orderless.el)
 (setup (:straight orderless)
   (:require prot-orderless)
@@ -3559,7 +3541,7 @@ My prot-orderless.el contains the few minor tweaks I introduce (full code furthe
 #+end_src
 ** Completion annotations
 This is a utility jointly developed by Daniel Mendler and Omar Antolín Camarena that provides annotations to completion candidates. It is meant to be framework-agnostic
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :noweb-ref annotations
 ;;; Completion annotations (marginalia)
  (setup (:straight marginalia)
     (:load-after vertico
@@ -3899,7 +3881,6 @@ Other nice extensions of Consult are (i) its ability to work as a generic front-
 
 * Note Taking
 :PROPERTIES:
-:header-args: :noweb-ref pkg-org
 :ID:                     b4494a7b-c67e-401c-b130-7592fb7d7a7c
 :END:
 In its purest form, Org is a markup language that is similar to Markdown: symbols are used to denote the meaning of a construct in its context, such as what may represent a headline element or a phrase that calls for emphasis.
@@ -3907,8 +3888,40 @@ In its purest form, Org is a markup language that is similar to Markdown: symbol
 What lends Org its super powers though is everything else built around it: a rich corpus of Elisp functions that automate, link, combine, enhance, structure, or otherwise enrich the process of using this rather straightforward system of plain text notation.
 
 Couched in those terms, Org is at once a distribution of well integrated libraries and a vibrant ecosystem that keeps producing new ideas and workflows on how to organise one’s life with plain text.
+
+** Notes tangle
+:PROPERTIES:
+:header-args: :tangle lisp/init-notes.el :noweb yes
+:ID:       324cd406-d1af-4262-a7e1-8afab24f987c
+:END:
+
+Setup org-mode
+
+#+begin_src emacs-lisp
+  ;;; init-notes.el --- Org/Roam Workflow -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+  (require 'config-path)
+  (require 'init-elpa)
+  (require 'init-env)
+  (require 'init-selection)
+  (require  'config-orgmode)
+
+  (+with-message "Notes/Roam Workflow"
+
+ (defconst *notes/*
+  (file-name-as-directory (expand-file-name "~/org")))
+
+  <<vulpea>>
+
+  )
+(provide 'init-notes)
+;;; init-notes.el ends here
+#+end_src
+
 ** Vulpea
 :PROPERTIES:
+:header-args: :noweb-ref vulpea
 :ID:                     b8538a46-829b-43a2-af58-3123de1cf852
 :END:
 Setup d12frosted's vulpea's helper for org-roam
@@ -3955,68 +3968,16 @@ Setup d12frosted's vulpea's helper for org-roam
   
 
 #+end_src
-** Org mode Basic Setup
-   :PROPERTIES:
-   :header-args:    :tangle no
+** Org mode Defaults
+:PROPERTIES:
+   :header-args:    :tangle lisp/org-defaults.el :noweb yes
    :ID:                     7dbbb031-83de-45c1-a743-69bd6cd700cb
    :END:
-The ever changing Org setup part
-#+begin_src elisp :tangle no
-;; Turn on indentation and auto-fill mode for Org files
-(defun gas/org-mode-setup ()
-  (org-indent-mode)       ;; turn on org indent
-  (variable-pitch-mode 1) ;; turn on variable-pitch
-  (auto-fill-mode 0)      ;; turn off auto-fill
-  (visual-line-mode 1)    ;; turn on visual-line-mode
-  (show-paren-mode 1)     ;; show parentheses
-  )
 
-(use-package org
-  :straight (:type built-in)
-  :preface
-  ;; Set my default org-export backends. This variable needs to be set before
-  ;; org.el is loaded.
-  (setq org-export-backends '(ascii html latex md))
-  ;; Do not open links of mouse left clicks.
-  ;; Default behavior caused inline images in Org buffers to pop up in their
-  ;; own buffers when left clicked on by mistake. I can still intentionally
-  ;; open links and such images in new buffers by doing C-c C-o.
-  (setq org-mouse-1-follows-link nil)
-  :mode ("\\.org\\'" . org-mode)
-  :hook ((org-mode . visual-line-mode)
-         (org-mode . adaptive-wrap-prefix-mode)
-         ;; oh, how much I hate it in Org mode buffers
-         (org-mode . editor-disable-electric-indent))
-  :hook  ((org-capture-mode org-src-mode) . discard-history)
-  :commands (org-check-agenda-file
-             org-link-set-parameters)
-  :custom-face
-  (org-block ((t (:extend t))))
-  (org-block-begin-line ((t ( :slant unspecified
-                              :weight normal
-                              :background unspecified
-                              :inherit org-block
-                              :extend t))))
-  (org-block-end-line ((t ( :slant unspecified
-                            :weight normal
-                            :background unspecified
-                            :inherit org-block-begin-line
-                            :extend t))))
-  (org-drawer ((t (:foreground nil :inherit shadow))))
-  :custom
-  (org-ellipsis "…")
-  :init
-  ;; This is where my ~heart~ org files are.
-  (setq org-directory
-        (if ENV-IS-TERMUX?
-            "~/storage/shared/org"
-          vulpea-directory))
-
-  (defun /org-path (path)
-    (expand-file-name path org-directory))
-
-  :config
-  ;;;; general settings
+Org mode defaults for consistency
+#+begin_src emacs-lisp
+;;; org-defaults.el --- Org Defaults  -*- lexical-binding: t -*-
+ ;;;; general settings
   (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
   ;; Prevent auto insertion of blank lines before headings and list items
   (setq org-blank-before-new-entry '((heading)
@@ -4041,7 +4002,7 @@ The ever changing Org setup part
           ("V" . "verbatim")
           ("c" . "center")
           ("C" . "comment")))
-  (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisble regions : show smart, error
+  (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
   (setq org-return-follows-link t)
   (setq org-loop-over-headlines-in-active-region 'start-level)
   ;; Setup list of Org modules that should always be loaded together
@@ -4139,90 +4100,72 @@ The ever changing Org setup part
 
   ;; open files in the same window
   (add-to-list 'org-link-frame-setup '(file . find-file))
-  (setq org-indirect-buffer-display 'current-window))
+  (setq org-indirect-buffer-display 'current-window)
 
-;; setup of org-mode keybindings
-(setup (:straight org)
-  (:also-load org-tempo)
-  ;; (:hook gas/org-mode-setup)
-  (:global "C-c a"  org-agenda
-           "C-c c"  org-capture
-           "C-c l"  org-store-link)
-  (:bind   "C-'"  nil
-           "C-,"  nil
-           "<C-return>"    nil
-           "<C-S-return>"  nil
-           "C-M-S-<right>" nil
-           "C-M-S-<left>"  nil
-           "C-c S-l"       org-toggle-link-display
-           "C-c C-S-l"     org-insert-last-stored-link)
+(defun gas/org-mode-setup ()
+  (org-indent-mode)       ;; turn on org indent
+  (variable-pitch-mode 1) ;; turn on variable-pitch
+  (auto-fill-mode 0)      ;; turn off auto-fill
+  (visual-line-mode 1)    ;; turn on visual-line-mode
+  (show-paren-mode 1)     ;; show parentheses
+  )
 
-  (push '("conf-unix" . conf-unix) org-src-lang-modes)
-  (:load-after hl-fill-column
-    (:hook gas/org-mode-setup)))
-
+(provide 'org-defaults)
+;;; org-defaults.el ends here
 #+end_src
 
-*** Fonts, Bullets & Links
-   :PROPERTIES:
-   :header-args:    :tangle no
-   :ID:                     df41daa7-1a79-4a38-9700-4a2a60676302
+** Org Use-package
+:PROPERTIES:
+   :header-args:    :tangle lisp/org-usepackage.el :noweb yes
    :END:
-Use bullet characters instead of asterisks, plus set the header font sizes to something more palatable.  A fair amount of inspiration has been taken from [[https://zzamboni.org/post/beautifying-org-mode-in-emacs/][this blog post]].
+#+begin_src elisp
+;;; org-usepackage.el --- Org Use-package setup  -*- lexical-binding: t -*-
+(use-package org
+  :straight (:type built-in)
+  :preface
+  ;; Set my default org-export backends. This variable needs to be set before
+  ;; org.el is loaded.
+  (setq org-export-backends '(ascii html latex md))
+  ;; Do not open links of mouse left clicks.
+  ;; Default behavior caused inline images in Org buffers to pop up in their
+  ;; own buffers when left clicked on by mistake. I can still intentionally
+  ;; open links and such images in new buffers by doing C-c C-o.
+  (setq org-mouse-1-follows-link nil)
+  :mode ("\\.org\\'" . org-mode)
+  :hook ((org-mode . visual-line-mode)
+         (org-mode . adaptive-wrap-prefix-mode)
+         ;; oh, how much I hate it in Org mode buffers
+         (org-mode . editor-disable-electric-indent))
+  :hook  ((org-capture-mode org-src-mode) . discard-history)
+  :commands (org-check-agenda-file
+             org-link-set-parameters)
+  :custom-face
+  (org-block ((t (:extend t))))
+  (org-block-begin-line ((t ( :slant unspecified
+                              :weight normal
+                              :background unspecified
+                              :inherit org-block
+                              :extend t))))
+  (org-block-end-line ((t ( :slant unspecified
+                            :weight normal
+                            :background unspecified
+                            :inherit org-block-begin-line
+                            :extend t))))
+  (org-drawer ((t (:foreground nil :inherit shadow))))
+  :custom
+  (org-ellipsis "…")
+  :init
+  ;; This is where my ~heart~ org files are.
+  (setq org-directory
+        (if *is-termux?*
+            "~/storage/shared/org"
+          *notes/*))
 
-#+begin_src emacs-lisp :tangle no
-(setup (:require org-indent)
-  (:load-after org
-    (org-indent-mode 1)
-    (:hide-mode)))
+  (defun add-path-to-org/ (path)
+    (expand-file-name path org-directory))
 
-(setup (:straight org-appear)
-  (:load-after org
-    (:option org-appear-autoemphasis t
-             org-appear-autoentities t
-             org-appear-autokeywords t
-             org-appear-autolinks nil
-             org-appear-autosubmarkers t
-             org-appear-delay 0)
-    (:hook-into org-mode)))
-
-  ;; Replace list hyphen with dot
-  ;; (font-lock-add-keywords 'org-mode
-  ;;                         '(("^ *\\([-]\\) "
-  ;;                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
-
-  (setup org-faces
-    (:load-after org-indent
-      (dolist (face-cons '((org-document-title . 1.75)
-                           (org-level-1 . 1.5)
-                           (org-level-2 . 1.25)
-                           (org-level-3 . 1.12)
-                           (org-level-4 . 1.05)
-                           (org-level-5 . 1.0)
-                           (org-level-6 . 1.0)
-                           (org-level-7 . 1.0)
-                           (org-level-8 . 1.0)))
-        (cl-destructuring-bind (face . height) face-cons
-          (set-face-attribute face
-                              nil
-                              :weight 'bold
-                              :font "Iosevka Aile"
-                              :height height)))))
-
-  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
-  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
-  (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
-  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
-  (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
-  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
-
-  ;; Get rid of the background on column views
-  (set-face-attribute 'org-column nil :background nil)
-  (set-face-attribute 'org-column-title nil :background nil))
+  :config
+ )
 
 (use-package org-modern
 :straight t
@@ -4239,8 +4182,9 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
           (?* . "◦")))
   (:hook org-mode))
 
+(provide 'org-usepackage)
+;;; org-usepackage.el ends here
 #+end_src
-
 *** Org clock
 #+begin_src emacs-lisp
   (use-package org-clock
@@ -4249,7 +4193,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
     :commands (org-clock-save)
     :init
     (setq
-     org-clock-persist-file (expand-file-name "org-clock-save.el" emacs-etc/ )
+     org-clock-persist-file (expand-file-name "org-clock-save.el" *emacs-etc/* )
      ;; remove clocked tasks with 0:00 duration
      org-clock-out-remove-zero-time-clocks t
      org-clock-persist 'history
@@ -4312,7 +4256,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
      (list (expand-file-name ".archive/archive" org-directory)
            (expand-file-name ".archive/archive.org" org-directory))
      org-id-link-to-org-use-id t
-     org-id-locations-file (expand-file-name "org-id-locations" emacs-cache/)))
+     org-id-locations-file (expand-file-name "org-id-locations" *xdg-cache/*)))
 
   
 #+end_src
@@ -4330,6 +4274,92 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 
   
 #+end_src
+** Org Setup
+   :PROPERTIES:
+   :header-args:    :tangle lisp/org-setup.el :noweb yes
+   :ID:                     df41daa7-1a79-4a38-9700-4a2a60676302
+   :END:
+
+use Setup to setup Org Mode
+
+#+begin_src emacs-lisp
+;;; org-setup.el --- Orgmode Setup  -*- lexical-binding: t -*-
+;; setup of org-mode keybindings
+(setup (:straight org)
+  (:also-load org-tempo)
+  (:hook gas/org-mode-setup)
+  (:global "C-c a"  org-agenda
+           "C-c c"  org-capture
+           "C-c l"  org-store-link)
+  (:bind   "C-'"  nil
+           "C-,"  nil
+           "<C-return>"    nil
+           "<C-S-return>"  nil
+           "C-M-S-<right>" nil
+           "C-M-S-<left>"  nil
+           "C-c S-l"       org-toggle-link-display
+           "C-c C-S-l"     org-insert-last-stored-link)
+
+  (push '("conf-unix" . conf-unix) org-src-lang-modes)
+  (:load-after hl-fill-column
+    (:hook gas/org-mode-setup)))
+
+(setup (:require org-indent)
+  (:load-after org
+    (setq evil-auto-indent nil)
+    (org-indent-mode 1)
+    (:hide-mode)))
+
+(setup (:straight org-appear)
+  (:load-after org
+    (:option org-appear-autoemphasis t
+             org-appear-autoentities t
+             org-appear-autokeywords t
+             org-appear-autolinks nil
+             org-appear-autosubmarkers t
+             org-appear-delay 0)
+    (:hook-into org-mode)))
+
+  (setup org-faces
+    (:load-after org-indent
+      (dolist (face-cons '((org-document-title . 1.75)
+                           (org-level-1 . 1.5)
+                           (org-level-2 . 1.25)
+                           (org-level-3 . 1.12)
+                           (org-level-4 . 1.05)
+                           (org-level-5 . 1.0)
+                           (org-level-6 . 1.0)
+                           (org-level-7 . 1.0)
+                           (org-level-8 . 1.0)))
+        (cl-destructuring-bind (face . height) face-cons
+          (set-face-attribute face
+                              nil
+                              :weight 'bold
+                              :font "Iosevka Aile"
+                              :height height))))
+
+  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
+  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
+
+  ;; Get rid of the background on column views
+  (set-face-attribute 'org-column nil :background nil)
+  (set-face-attribute 'org-column-title nil :background nil))
+
+<<org-tempo>>
+
+
+
+#+end_src
+
+
 ** Org Capture
 #+begin_src emacs-lisp
   (use-package org-capture
@@ -4369,7 +4399,7 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
    org-roam-directory vulpea-directory
    org-roam-dailies-directory (expand-file-name
                                "journal/" org-roam-directory)
-   org-roam-db-location (expand-file-name "org-roam.db" emacs-cache/)
+   org-roam-db-location (expand-file-name "org-roam.db" *xdg-cache/*)
    org-roam-completion-everywhere t)
   :config
   ;; For some reason org-roam is loaded on init and twice! Suspect it
@@ -4464,13 +4494,12 @@ Use bullet characters instead of asterisks, plus set the header font sizes to so
 #+end_src
 ** Org Agenda
     :PROPERTIES:
-   :header-args:    :tangle no
+   :header-args:    :noweb-ref agenda-use
     :ID:                     0b03668d-0ae9-4b3f-b55c-652f1896a833
    :END:
 org-capture provides a generic and extensible interface to capturing things into org-mode in
 different formats
 #+begin_src emacs-lisp
-
 (use-package org-agenda
   :straight nil
   :defer t
@@ -4729,7 +4758,7 @@ different formats
     ;;                   ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
     ;;                    (org-agenda-show-log t)
     ;;                    (org-agenda-log-mode-items '(clock state))
-    ;;                    ;; (org-agenda-files '(,(/org-path "inbox.org")))
+    ;;                    ;; (org-agenda-files '(,(add-path-to-org/ "inbox.org")))
     ;;                    (org-agenda-text-search-extra-files nil)
     ;;                    ;;   (org-agenda-span 'day)
     ;;                    ;;   (org-agenda-ndays 3)
@@ -4756,7 +4785,7 @@ different formats
 
 ** OX (Presentation)
 Setup of latex
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :noweb-ref use-latex
 (use-package ox-latex
     :straight nil
     :after org
@@ -4775,7 +4804,7 @@ Setup of latex
     (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
     ;;(add-to-list 'org-latex-packages-alist '("" "color"))
     (setq org-preview-latex-image-directory
-          (expand-file-name "ltximg/" emacs-cache/))
+          (expand-file-name "ltximg/" *xdg-cache/*))
     (setq org-format-latex-options
           (list :foreground 'auto
                 :background 'auto
@@ -4853,7 +4882,7 @@ documentation page.
       (add-to-list 'org-structure-template-alist '("json" . "src json"))))
 
 (defvar file-templates-dir
-  (expand-file-name "templates/" emacs-config/ )
+  (expand-file-name "templates/" *emacs-config/* )
   "The path to yasnippet folders.")
 
 (defvar file-templates-default-trigger "__"
@@ -5012,7 +5041,7 @@ were regular words. This is necessary because in Clojure I want to make function
 name and Org was always insisting on pairing <>. This caused any other paren matching to stop
 working. It sucked.
 
-*** Distraction Free
+** Distraction Free
    :PROPERTIES:
    :header-args:    :tangle no
    :ID:                     ad5dade4-6cb2-4fc0-b942-d3986a172fe5
@@ -5055,7 +5084,7 @@ I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP se
         (setq comint-buffer-maximum-size 4096)
         (setq comint-prompt-read-only t))
 
-  (unless ENV-IS-TERMUX?
+  (unless *is-termux?*
        (setup compile
             (add-hook 'compilation-filter #'ansi-color-compilation-filter)
             (:option compilation-always-kill t
@@ -5295,7 +5324,7 @@ nil."
 ;; See lisp/dash-functional.el for more information. Here we simply
 ;; make sure that our mock is loaded instead of upstream.
 (eval-when-compile
-  (let ((dir (expand-file-name "lisp" emacs-config/ )))
+  (let ((dir (expand-file-name "lisp" *emacs-config/* )))
     (delete dir load-path)
     (add-to-list 'load-path dir)))
 
@@ -5469,7 +5498,7 @@ SLY setup
       (setq sly-enable-evaluate-in-emacs t)
       (setq sly-kill-without-query-p t)
       (setq sly-lisp-implementations mf/cl-implementations)
-      (setq sly-mrepl-history-file-name (/etc-file "sly-repl-history"))
+      (setq sly-mrepl-history-file-name (save-in-etc-file! "sly-repl-history"))
       (setq sly-mrepl-pop-sylvester nil)
       (setq sly-mrepl-prevent-duplicate-history 'move)
       (setq sly-net-coding-system 'utf-8-unix)
@@ -5819,7 +5848,7 @@ Emacs Speaks Statistics
 	  ess-use-flymake 1
 	  ess-nuke-trailing-whitespace-p t
 	  ess-style 'DEFAULT
-	  ess-history-directory (expand-file-name "ess-history/" emacs-cache/))
+	  ess-history-directory (expand-file-name "ess-history/" *xdg-cache/*))
     ;; Make the arrow keys refer to previous commands
     (defun my-ess-mode-hook ()
       (local-set-key '[up] 'comint-previous-input)
@@ -5861,7 +5890,7 @@ Change the Mac modifiers to my liking. I also disable passing Control characters
 
 
 #+begin_src emacs-lisp
-(cond (ENV-IS-MAC?
+(cond (*is-mac?*
        (setq mac-command-modifier      'super
               mac-option-modifier         'meta
               mac-right-option-modifier   'alt
@@ -5963,7 +5992,7 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 :END:
 
 #+begin_src emacs-lisp
-;; Copyright (C) 2021 Gas
+;; Copyright (C) 2001-2022 Gas
 
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
@@ -5977,7 +6006,7 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 ;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
-;; This file is automatically tangled from config.org.
+;; This file maybe automatically tangled from config.org.
 ;; Hand edits will be overwritten!
 ;; Je t'ai prévenu putain!
 
@@ -6165,7 +6194,7 @@ File for my constants, macros and functions
     (setq bidi-inhibit-bpa t)
     (setq command-line-ns-option-alist nil)
     (setq confirm-kill-processes nil)
-   ;; (setq custom-file (/etc-file "custom.el"))
+   ;; (setq custom-file (save-in-etc-file! "custom.el"))
     ;;(setq default-input-method "TeX")
     (setq ffap-machine-p-known 'reject)
     (setq inhibit-compacting-font-caches t)
@@ -6217,50 +6246,39 @@ Setup auto-compile, no littering and GMCH
 Setup Emacs builtins
 
 #+begin_src emacs-lisp
-    ;;; enfer-pkg-builtin.el --- Builtins -*- lexical-binding: t -*-
-    <<disclaimer>>
-    ;;; Code:
+  ;;; enfer-pkg-builtin.el --- Builtins -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
 
-   (+with-message "Builtins"
+  (+with-message "Builtins"
 
-
-
-        (setup auto-fill
-          (:with-feature simple
-            (:with-mode (text-mode org-mode)
-              (:hook turn-on-auto-fill))
-            (:with-mode prog-mode
-              (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                         (auto-fill-mode 1))))
-            (:hide-mode auto-fill-function)))
+    (setup auto-fill
+           (:with-feature simple
+             (:with-mode (text-mode org-mode)
+               (:hook turn-on-auto-fill))
+             (:with-mode prog-mode
+               (:hook (fn (setq-local comment-auto-fill-only-comments t)
+                          (auto-fill-mode 1))))
+             (:hide-mode auto-fill-function)))
 
 
+         (setup (:require goto-addr)
+           (:with-mode prog-mode
+             (:hook goto-address-prog-mode))
+           (:with-mode text-mode
+             (:hook goto-address-mode)))
+
+         (setup (:require help-mode)
+           (setq help-window-select t))
+
+         (setup (:require url)
+           (setq url-cookie-file (save-in-etc-file! "url-cookies")))
 
 
+  ) ;; end of +with-message
 
-
-        (setup (:require goto-addr)
-          (:with-mode prog-mode
-            (:hook goto-address-prog-mode))
-          (:with-mode text-mode
-            (:hook goto-address-mode)))
-
-        (setup (:require help-mode)
-          (setq help-window-select t))
-
-
-
-
-
-
-        (setup (:require url)
-          (setq url-cookie-file (/etc-file "url-cookies")))
-
-
-        ) ;; end of +with-message
-
-   (provide 'enfer-pkg-builtin)
-   ;;; enfer-pkg-builtin.el ends here
+ (provide 'enfer-pkg-builtin)
+;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Emacs Editor Setup
 :PROPERTIES:
@@ -6526,33 +6544,7 @@ Setup Magit & Git
   (provide 'init-vcs)
 ;;; init-vcs.el ends here
 #+end_src
-** Org mode workflow
-:PROPERTIES:
-:header-args: :tangle lisp/init-notes.el :noweb yes
-:ID:       324cd406-d1af-4262-a7e1-8afab24f987c
-:END:
-
-Setup org-mode
-
-#+begin_src emacs-lisp
-  ;;; init-notes.el --- Org/Roam Workflow -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-  (require 'config-path)
-  (require 'init-elpa)
-  (require 'init-env)
-  (require 'init-selection)
-  (require  'config-orgmode)
-
-  (+with-message "Notes/Roam Workflow"
-
-  <<pkg-org>>
-
-  )
-  (provide 'init-notes)
-   ;;; init-notes.el ends here
-#+end_src
-
+** Orgmode Accessory files
 *** Vulpea Setup
 :PROPERTIES:
 :header-args: :tangle lisp/lib-vulpea.el :noweb yes
@@ -7486,7 +7478,7 @@ EXTRA is unknown thing."
 (require 'org-cliplink)
 
 (defvar vulpea-capture-inbox-file
-  "inbox.org"   ;; (format "inbox-%s.org" env-sys-name)
+  "inbox.org"   ;; (format "inbox-%s.org" *hostname*)
   "The path to the inbox file.
 It is relative to `vulpea-directory', unless it is absolute.")
 
@@ -8425,12 +8417,13 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 - Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
 
 #+begin_src emacs-lisp
-    ;;; init.el --- Gas Init -*- lexical-binding: t -*-
-    <<disclaimer>>
-    ;;; Code:
-      (defmacro +with-message (message &rest body)
-	"Execute BODY, with MESSAGE.
-		      If body executes without errors, ** MESSAGE... terminé will be displayed."
+;;; init.el --- Gas Init -*- lexical-binding: t -*-
+
+<<disclaimer>>
+;;; Code:
+(defmacro with-message! (message &rest body)
+"Execute BODY, with MESSAGE.
+      If body executes without errors, ** MESSAGE... terminé will be displayed."
 	(declare (indent 1))
 	(let ((msg (gensym)))
 	  `(let ((,msg ,message))
@@ -8443,11 +8436,11 @@ The goal of this file is to require all init-xxx files. The structure is trivial
     ;;; Set up extra load paths and functionality
     ;; Since we might be running in CI or other environments, stick to
     ;; XDG_CONFIG_HOME value if possible.
-    (let ((emacs-home/ (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
+    (let ((*emacs-config/* (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
 			     (expand-file-name "emacs/" xdg)
 			   user-emacs-directory)))
     ;; Add Lisp directory to `load-path'.
-    (add-to-list 'load-path (expand-file-name "lisp" emacs-home/)))
+    (add-to-list 'load-path (expand-file-name "lisp" *emacs-config/*)))
 
   ;;; Bootstrap
   ;;; ============================================================================
@@ -8466,14 +8459,14 @@ The goal of this file is to require all init-xxx files. The structure is trivial
     <<constants>>
 
   ;; Setup `custom-file`.
-    (setq custom-file (concat emacs-config/ "custom.el"))
+    (setq custom-file (concat *emacs-config/* "custom.el"))
 
     ;; load autoloads file
     (unless elpa-bootstrap-p
-	(unless (file-exists-p path-autoloads-file)
+	(unless (file-exists-p *emacs-autoloads-file*)
 	  (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
 		 "eru install emacs"))
-	(load path-autoloads-file nil 'nomessage))
+	(load *emacs-autoloads-file* nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -8563,40 +8556,6 @@ the needed boolean expression to tangle config.org.  Booleans, yall!
   ;;; init.el ends here
 #+end_src
 
-** Early Init
-:PROPERTIES:
-:header-args: :tangle early-init.el :noweb yes
-:ID:       115da072-e944-4419-a49c-013c2d6368c4
-:END:
-
-Beginning with 27.1, Emacs also loads an =early-init.el= file, before
-the package manager or the UI code.
-
-#+begin_src emacs-lisp
-;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
-<<disclaimer>>
-;;; Code:
-
-(message "Chargement en cours early-init.el...")
-
-(define-advice load (:before (feature &rest _))
-    "Message the user when loading a library."
-    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
-
-;;; ============================================================================
-;;; Emacs startup optimisations
-;;; ============================================================================
-<<garbage-filehandler>>
-
-;;; ============================================================================
-;;; Frame parameters for faster startup
-;;; ============================================================================
-<<early-init-frame>>
-
-(message "Chargement du early-init.el terminé!")
-(provide 'early-init)
-;;; early-init.el ends here
-#+end_src
 
 ** Libraries & Config
 :PROPERTIES:
@@ -8742,8 +8701,11 @@ the package manager or the UI code.
   (require 'config-path)
 
  (defvar vulpea-directory
-  (expand-file-name "org/roam" path-home/)
+  (expand-file-name "org/roam" *user-home/*)
   "Directory containing notes.")
+
+ (defconst *notes/*
+  (file-name-as-directory (expand-file-name "~/org")))
 
   (provide 'config-orgmode)
   ;;; config-orgmode.el ends here
@@ -8946,11 +8908,11 @@ part of format is omitted."
 :ID:       544ee924-beef-403c-b654-6fc255528de9
 :END:
 
-Copyright © 2021 Gas <gas@tuatara.red>
+Copyright © 2021 Gas <gas@somewhere.red>
 
 This work is free.  You can redistribute it and/or modify it under the
 terms of the Do What the Fuck You Want To Public License, Version 2,
-as published by Sam Hocevar.  See the =LICENSE= file, tangled from the
+as published by Gas.  See the =LICENSE= file, tangled from the
 following source block, for details.
 
 #+begin_src text
@@ -8958,7 +8920,7 @@ following source block, for details.
 
   Version 2, December 2004
 
-  Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+  Copyright (C) 2001-2021 Gas <gas@somewhere.red>
 
   Everyone is permitted to copy and distribute verbatim or modified copies of
   this license document, and changing it is allowed as long as the name is changed.
