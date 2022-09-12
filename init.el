@@ -1,6 +1,7 @@
 ;;; init.el --- Gas Init -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2001-2022 Gas
+;; Timestamp: <>
 
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
@@ -10,7 +11,6 @@
 ;; URL: https://github.com/frap/emacs.d
 ;; Package-Requires: ((emacs "27.2"))
 
-;; Timestamp: <>
 ;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
@@ -20,102 +20,77 @@
 
 ;;; Code:
 (defmacro with-message! (message &rest body)
-"Execute BODY, with MESSAGE.
-      If body executes without errors, ** MESSAGE... terminé will be displayed."
-	(declare (indent 1))
-	(let ((msg (gensym)))
-	  `(let ((,msg ,message))
-	     (unwind-protect (progn (message "%s..." ,msg)
-				    ,@body)
-	       (message "** %s... terminé!!" ,msg)))))
+  "Execute BODY, with MESSAGE.
+     If body executes without errors, ** MESSAGE... terminé will be displayed."
+  (declare (indent 1))
+  (let ((msg (gensym)))
+    `(let ((,msg ,message))
+       (unwind-protect (progn (message "%s..." ,msg)
+                              ,@body)
+                   (message "* * %s... terminé!!" ,msg)))))
 
-    ;; load if-let
-    (require 'subr-x)
-    ;;; Set up extra load paths and functionality
-    ;; Since we might be running in CI or other environments, stick to
-    ;; XDG_CONFIG_HOME value if possible.
-    (let ((*emacs-config/* (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-			     (expand-file-name "emacs/" xdg)
-			   user-emacs-directory)))
-    ;; Add Lisp directory to `load-path'.
-    (add-to-list 'load-path (expand-file-name "lisp" *emacs-config/*)))
+;; load if-let
+(require 'subr-x)
+;;; Bootstrap
+;;; Set up extra load paths and functionality
+;; Add Lisp directory to `load-path'.
+;; Add our custom lisp modules to the Emacs load path so they can be discovered.
+(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+;;; ============================================================================
+;;; Specify the directory paths
+;;; ============================================================================
+(require 'config-path)
+;; Since we might be running in CI or other environments, stick to
+;; XDG_CONFIG_HOME value if possible.
 
-  ;;; Bootstrap
-  ;;; ============================================================================
-  ;;; Specify the directory paths
-  ;;; ============================================================================
-    (require 'config-path)
+;;; ============================================================================
+;;; Set up the package manager
+;;; ============================================================================
+(require 'init-elpa)
 
-  ;;; ============================================================================
-  ;;; Set up the package manager
-  ;;; ============================================================================
-    (require 'init-elpa)
+;; Setup `custom-file`.
+(setq custom-file (concat *emacs-config/* "custom.el"))
 
-  ;;; ============================================================================
-  ;;; Specify the directory paths
-  ;;; ============================================================================
-    
-    (setup (:require prot-common))
-    
-    ;;; Initialise Gas Constants
-      (defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
-      (defconst *is-gui?* (display-graphic-p))
-      (defconst *is-mac?*     (eq system-type 'darwin))
-      (defconst *is-linux?*   (eq system-type 'gnu/linux))
-      (defconst *is-termux?*
-        (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
-      (defconst *hostname* (system-name))
-    
-      (defmacro fn (&rest body)
-        `(lambda () ,@body))
-    
-      (defun doom-enlist (exp)
-        "Return EXP wrapped in a list, or as-is if already a list."
-        (declare (pure t) (side-effect-free t))
-        (if (proper-list-p exp) exp (list exp)))
-
-  ;; Setup `custom-file`.
-    (setq custom-file (concat *emacs-config/* "custom.el"))
-
-    ;; load autoloads file
-    (unless elpa-bootstrap-p
-	(unless (file-exists-p *emacs-autoloads-file*)
-	  (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-		 "eru install emacs"))
-	(load *emacs-autoloads-file* nil 'nomessage))
+;; load autoloads file
+(unless elpa-bootstrap-p
+  (unless (file-exists-p *emacs-autoloads-file*)
+          (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+                 "eru install emacs"))
+  (load *emacs-autoloads-file* nil 'nomessage))
 
 ;;; core
-(require 'init-env)
+;;(require 'init-env)
 (require 'init-kbd)
 (require 'init-startup)
-(require 'init-fn-macros)
+;;(require 'init-fn-macros)
 (require 'init-editor)
-(require 'init-ui)
-(require 'init-buffer)
-(require 'init-window)
+;;(require 'init-ui)
+;;(require 'init-buffer)
+;;(require 'init-window)
 ;;; utilities
-(require 'init-selection)
+;;(require 'init-selection)
 (require 'init-project)
 (require 'init-vcs)
 ;;(require 'enfer-pkg-builtin)
 
 ;;; languages
-(require 'init-ide)
-(require 'init-lisp)
-(require 'init-elisp)
-(require 'init-clisp)
-(require 'init-clojure)
+;;(require 'init-ide)
+;;(require 'init-lisp)
+;;(require 'init-elisp)
+;;(require 'init-clisp)
+;;(require 'init-clojure)
 (require 'init-fennel)
-(require 'init-ess)
-(require 'init-utils)
+;;(require 'init-ess)
+;;(require 'init-utils)
 
 ;; Org & Roam
-(require 'init-notes)
+(require 'org-defaults)
+;;(require 'init-notes)
 (require 'init-file-templates)
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-(require 'init-sanity)
+;;(require 'init-sanity)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow

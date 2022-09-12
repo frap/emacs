@@ -1,10 +1,56 @@
 ;;; org-defaults.el --- Org Defaults  -*- lexical-binding: t -*-
- ;;;; general settings
+
+(use-package org
+  :straight (:type built-in)
+  :preface
+  ;; Set my default org-export backends. This variable needs to be set before
+  ;; org.el is loaded.
+  (setq org-export-backends '(ascii html latex md))
+  ;; Do not open links of mouse left clicks.
+  ;; Default behavior caused inline images in Org buffers to pop up in their
+  ;; own buffers when left clicked on by mistake. I can still intentionally
+  ;; open links and such images in new buffers by doing C-c C-o.
+  (setq org-mouse-1-follows-link nil)
+  :mode ("\\.org\\'" . org-mode)
+  :hook ((org-mode . visual-line-mode)
+         (org-mode . adaptive-wrap-prefix-mode)
+         ;; oh, how much I hate it in Org mode buffers
+         (org-mode . editor-disable-electric-indent))
+  :hook  ((org-capture-mode org-src-mode) . discard-history)
+  :commands (org-check-agenda-file
+             org-link-set-parameters)
+  :custom-face
+  (org-block ((t (:extend t))))
+  (org-block-begin-line ((t ( :slant unspecified
+                              :weight normal
+                              :background unspecified
+                              :inherit org-block
+                              :extend t))))
+  (org-block-end-line ((t ( :slant unspecified
+                            :weight normal
+                            :background unspecified
+                            :inherit org-block-begin-line
+                            :extend t))))
+  (org-drawer ((t (:foreground nil :inherit shadow))))
+  :custom
+  (org-ellipsis "…")
+  :init
+  ;; This is where my ~heart~ org files are.
+  (setq org-directory
+        (if *is-termux?*
+            "~/storage/shared/org"
+          "~/org"))
+
+  (defun add-path-to-org/ (path)
+    (expand-file-name path org-directory))
+
+  :config
+  ;;;; general settings
   (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
   ;; Prevent auto insertion of blank lines before headings and list items
   (setq org-blank-before-new-entry '((heading)
-                                     (plain-list-item)))
-   ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
+				     (plain-list-item)))
+  ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
   (setq org-special-ctrl-a/e nil)
   (setq org-special-ctrl-k nil)
   (setq org-M-RET-may-split-line '((default . nil)))
@@ -16,14 +62,14 @@
   (setq org-hide-leading-stars nil)
   (setq org-cycle-separator-lines 0)
   (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
-        '(("s" . "src")
-          ("E" . "src emacs-lisp")
-          ("e" . "example")
-          ("q" . "quote")
-          ("v" . "verse")
-          ("V" . "verbatim")
-          ("c" . "center")
-          ("C" . "comment")))
+	'(("s" . "src")
+	  ("E" . "src emacs-lisp")
+	  ("e" . "example")
+	  ("q" . "quote")
+	  ("v" . "verse")
+	  ("V" . "verbatim")
+	  ("c" . "center")
+	  ("C" . "comment")))
   (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
   (setq org-return-follows-link t)
   (setq org-loop-over-headlines-in-active-region 'start-level)
@@ -41,20 +87,21 @@
   ;;;; code blocks
   (setq org-hide-block-startup nil)
   (setq org-fontify-quote-and-verse-blocks t
-        org-fontify-whole-heading-line t)
+	org-fontify-whole-heading-line t)
   (setq org-confirm-babel-evaluate nil)
   (setq org-src-window-setup 'current-window)
   (setq org-edit-src-persistent-message nil)
   (setq org-src-fontify-natively t) ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
   (setq org-src-preserve-indentation t)
-  (setq org-src-tab-acts-natively t)
-  (setq org-edit-src-content-indentation 0)
+  (setq org-src-tab-acts-natively t) ;; TAB as if code tab settings
+  (setq org-edit-src-content-indentation 0) ;; remove 2 space indent in src code blocks
+  (setq org-use-property-inheritance t) ;; for tangling
 
-;;;; images
-(setq org-startup-with-inline-images t)
-(setq org-image-actual-width '(300))
+  ;;;; images
+  (setq org-startup-with-inline-images t)
+  (setq org-image-actual-width '(300))
 
-;;;; export
+  ;;;; export
   (setq org-export-with-toc t)
   (setq org-export-headline-levels 8)
   (setq org-export-in-background t)     ; run export processes in external emacs process
@@ -83,26 +130,26 @@
     (setq org-indent-indentation-per-level 1)) ;Default = 2
 
   (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (clojure . t)
-     (shell . t)
-     (python . t)
-     (latex . t)
-     ))
-   ;; change CAPITAL Keywords to lowercase
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (clojure . t)
+       (shell . t)
+       (python . t)
+       (latex . t)
+       ))
+  ;; change CAPITAL Keywords to lowercase
   (defun org-syntax-convert-keyword-case-to-lower ()
     "Convert all #+KEYWORDS to #+keywords."
     (interactive)
-    (save-excursion
+    (save-excursiont
       (goto-char (point-min))
       (let ((count 0)
-            (case-fold-search nil))
-        (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-          (unless (s-matches-p "RESULTS" (match-string 0))
-            (replace-match (downcase (match-string 0)) t)
-            (setq count (1+ count))))
-        (message "Remplacement de %d occurrences" count))))
+	    (case-fold-search nil))
+	(while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+	(unless (s-matches-p "RESULTS" (match-string 0))
+	  (replace-match (downcase (match-string 0)) t)
+	  (setq count (1+ count))))
+	(message "Remplacement de %d occurrences" count))))
   (defun discard-history ()
     "Discard undo history of org src and capture blocks."
     (setq buffer-undo-list nil)
@@ -124,13 +171,14 @@
   (add-to-list 'org-link-frame-setup '(file . find-file))
   (setq org-indirect-buffer-display 'current-window)
 
-(defun gas/org-mode-setup ()
-  (org-indent-mode)       ;; turn on org indent
-  (variable-pitch-mode 1) ;; turn on variable-pitch
-  (auto-fill-mode 0)      ;; turn off auto-fill
-  (visual-line-mode 1)    ;; turn on visual-line-mode
-  (show-paren-mode 1)     ;; show parentheses
-  )
-
+  (defun gas/org-mode-setup ()
+    (org-indent-mode)       ;; turn on org indent
+    (variable-pitch-mode 1) ;; turn on variable-pitch
+    (auto-fill-mode 0)      ;; turn off auto-fill
+    (visual-line-mode 1)    ;; turn on visual-line-mode
+    (show-paren-mode 1)     ;; show parentheses
+    )
+ )
+  
 (provide 'org-defaults)
 ;;; org-defaults.el ends here

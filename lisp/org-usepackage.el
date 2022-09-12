@@ -1,82 +1,3 @@
-  (use-package org-clock
-    :straight nil
-    :defer t
-    :commands (org-clock-save)
-    :init
-    (setq
-     org-clock-persist-file (expand-file-name "org-clock-save.el" *emacs-etc/* )
-     ;; remove clocked tasks with 0:00 duration
-     org-clock-out-remove-zero-time-clocks t
-     org-clock-persist 'history
-     ;; Resume when clocking into task with open clock
-     org-clock-in-resume t)
-    :config
-    (add-hook 'kill-emacs-hook #'org-clock-save))
-
-
-
-  (use-package org-refile
-    :straight nil
-    :defer t
-    :init
-   ;;;; refile, todo
-    (setq org-refile-targets
-          '((org-agenda-files . (:maxlevel . 2))
-            (nil . (:maxlevel . 2))))
-    (setq org-refile-use-outline-path t)
-    (setq org-refile-allow-creating-parent-nodes 'confirm)
-    (setq org-refile-use-cache t)
-    (setq org-reverse-note-order nil)
-    (setq org-outline-path-complete-in-steps nil)
-    (setq org-refile-target-verify-function #'vulpea-refile-verify-target))
-
-  
-
-  (use-package org-archive
-    :straight nil
-    :defer t
-    :init
-    (setq-default
-     org-archive-location
-     (concat org-directory ".archive/%s_archive" "::" "datetree/*")
-     org-archive-save-context-info
-     '(time file ltags itags todo category olpath)))
-
-  
-
-  (use-package org-id
-    :straight nil
-    :defer t
-    :hook ((before-save . vulpea-id-auto-assign)
-           (org-capture-prepare-finalize . org-id-get-create))
-    :init
-    (setq org-id-uuid-program
-          "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
-    :config
-    (org-link-set-parameters
-     "id" :activate-func #'vulpea-activate-link)
-    (setq
-     org-id-track-globally t
-     org-id-extra-files
-     (list (expand-file-name ".archive/archive" org-directory)
-           (expand-file-name ".archive/archive.org" org-directory))
-     org-id-link-to-org-use-id t
-     org-id-locations-file (expand-file-name "org-id-locations" *xdg-cache/*)))
-
-  
-
-  (use-package org-attach
-    :straight nil
-    :defer t
-    :config
-    (setq-default
-     org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
-     org-attach-auto-tag nil
-     org-attach-file-list-property nil
-     org-attach-store-link-p 'attached))
-
-  
-
 ;;; org-usepackage.el --- Org Use-package setup  -*- lexical-binding: t -*-
 (use-package org
   :straight (:type built-in)
@@ -142,3 +63,82 @@
 
 (provide 'org-usepackage)
 ;;; org-usepackage.el ends here
+
+(use-package org-clock
+    :straight nil
+    :defer t
+    :commands (org-clock-save)
+    :init
+    (setq
+     org-clock-persist-file (expand-file-name "org-clock-save.el" *emacs-etc/* )
+     ;; remove clocked tasks with 0:00 duration
+     org-clock-out-remove-zero-time-clocks t
+     org-clock-persist 'history
+     ;; Resume when clocking into task with open clock
+     org-clock-in-resume t)
+    :config
+    (add-hook 'kill-emacs-hook #'org-clock-save))
+
+
+
+(use-package org-refile
+  :straight nil
+  :defer t
+  :init
+ ;;;; refile, todo
+  (setq org-refile-targets
+        '((org-agenda-files . (:maxlevel . 2))
+          (nil . (:maxlevel . 2))))
+  (setq org-refile-use-outline-path t)
+  (setq org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-refile-use-cache t)
+  (setq org-reverse-note-order nil)
+  (setq org-outline-path-complete-in-steps nil)
+  (setq org-refile-target-verify-function #'vulpea-refile-verify-target))
+
+
+
+(use-package org-archive
+  :straight nil
+  :defer t
+  :init
+  (setq-default
+   org-archive-location
+   (concat org-directory ".archive/%s_archive" "::" "datetree/*")
+   org-archive-save-context-info
+   '(time file ltags itags todo category olpath)))
+
+
+
+(use-package org-id
+  :straight nil
+  :defer t
+  :hook ((before-save . vulpea-id-auto-assign)
+         (org-capture-prepare-finalize . org-id-get-create))
+  :init
+  (setq org-id-uuid-program
+        "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
+  :config
+  (org-link-set-parameters
+   "id" :activate-func #'vulpea-activate-link)
+  (setq
+   org-id-track-globally t
+   org-id-extra-files
+   (list (expand-file-name ".archive/archive" org-directory)
+         (expand-file-name ".archive/archive.org" org-directory))
+   org-id-link-to-org-use-id t
+   org-id-locations-file (expand-file-name "org-id-locations" *xdg-cache/*)))
+
+
+
+(use-package org-attach
+  :straight nil
+  :defer t
+  :config
+  (setq-default
+   org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
+   org-attach-auto-tag nil
+   org-attach-file-list-property nil
+   org-attach-store-link-p 'attached))
+
+

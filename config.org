@@ -88,16 +88,6 @@ the package manager or the UI code.
 ;;; ============================================================================
 <<early-init-frame>>
 
-;;; ============================================================================
-;;; Specify some directory paths
-;;; ============================================================================
-<<path-config>>
-
-;;; ============================================================================
-;;; Set up the package manager before it is loaded
-;;; ============================================================================
-<<straight-setup>>
-
 (message "Chargement du early-init.el terminé!")
 (provide 'early-init)
 ;;; early-init.el ends here
@@ -217,36 +207,28 @@ Need to setup some constants and try to keep state in a "clean" directory struct
 ;; directory with files that we would then have to ignore with Git.
 (defconst *emacs-config/* user-emacs-directory)
 
-(setq user-emacs-directory
-      (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/")))
+(defconst *xdg-cache/* (or (getenv "XDG_CACHE_HOME") "~/.cache/"))
 
-;; Add our custom lisp modules to the Emacs load path so they can be discovered.
-(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+(defconst *emacs-cache/*
+       (expand-file-name "emacs/" *xdg-cache/* )
+   "Directory for Emacs volatile storage.
+ Use this for files that change often."
+ )
 
 (defconst *emacs-autoloads-file*
     (expand-file-name "lisp/init-autoloads.el" *emacs-config/* )
     "The path to my personal autoloads file.")
 
-(defconst *emacs-etc/* (concat user-emacs-directory "etc/")
+(defconst *emacs-etc/* (concat *emacs-cache/* "etc/")
       "Directory for non-volatile storage.
     Use this for files that don't change much, like servers binaries,
     external dependencies or long-term shared data.")
 
-  (defconst *emacs-cache/* (concat user-emacs-directory "cache/")
-      "Directory for Emacs volatile storage.
-    Use this for files that change often.")
 
-  (defconst *emacs-packages/*
-      (expand-file-name (format "packages/%s.%s/"
-                                emacs-major-version
-                                emacs-minor-version)
-                        ,user-emacs-directory )
-      "Where Emacs packages are stored.")
-
-  ;; For the rest of the Emacs configuration, set this directory to something
-  ;; inside the standard cache directory, so we do not pollute our emacs.d
-  ;; directory with files that we would then have to ignore with Git.
-  (setq user-emacs-directory *xdg-cache/*)
+;; For the rest of the Emacs configuration, set this directory to something
+;; inside the standard cache directory, so we do not pollute our emacs.d
+;; directory with files that we would then have to ignore with Git.
+(setq user-emacs-directory *emacs-cache/*)
 
 #+end_src
 *** native Compilation for >= Emacs28
@@ -269,41 +251,45 @@ setting some default settings on early-init
   (defvar native-comp-async-report-warnings-errors)
   (setq native-comp-async-report-warnings-errors nil))
 #+end_src
-* Emacs Package Management
+* Emacs Straight Bootstrap
 :PROPERTIES:
 :header-args: :noweb-ref straight-setup
-:ID:                     f265e03f-9f75-41ca-924b-dee7d391cb4c
 :END:
 Use Straight for package Management. Also use setup.el for easy config of packages.
 #+begin_src emacs-lisp
-
+;; Install the Straight package manager
 (defvar elpa-bootstrap-p nil)
-
-;; Pre-configure the package manager settings before it is loaded.
-(setq package-enable-at-startup nil)
-(setq package-quickstart nil)
-(setq straight-check-for-modifications '(check-on-save find-when-checking))
-(setq straight-profiles `((nil . ,(expand-file-name "lockfile" *emacs-config/* ))))
-
-;; Bootstrap the straight.el package manager if it is not already installed,
-;; then unconditionally load it. We use this rather than Emacs' built-in package
-;; manager.
 (defvar bootstrap-version)
-(let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el"
-                         user-emacs-directory))
+
+(let ((install-url "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el")
+      (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" *emacs-cache/* ))
       (bootstrap-version 5))
   (unless (file-exists-p bootstrap-file)
-    (with-current-buffer
-        (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
-         'silent 'inhibit-cookies)
+    (with-current-buffer (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
+;; Install the use-package convenience macro
+
+(straight-use-package 'use-package)
+
+;; using use-package to configure straight
+(use-package straight
+  :custom
+  (straight-use-package-by-default t)
+  (straight-base-dir *emacs-cache/* ))
+
+(setq straight-use-package-by-default t)
+
+;; Pre-configure the package manager settings before it is loaded.
+(setq package-enable-at-startup nil)
+(setq package-quickstart nil)
+;;(setq straight-check-for-modifications '(check-on-save find-when-checking))
+;;(setq straight-profiles `((nil . ,(expand-file-name "lockfile" *emacs-config/* ))))
+
 ;; Additional post-setup of straight.el.
-(require 'straight-x)
+;;(require 'straight-x)
 
 ;;; Appendix
 ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
@@ -311,167 +297,256 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 ;; alias anyway, I just define it back to nil.  By the way, the alias
 ;; is `straight-package-neutering-mode'.
 (defalias 'straight-ಠ_ಠ-mode nil)
-  #+end_src
-** Emacs Package Manager Setup
+
+#+end_src
+* Corgi setup
 :PROPERTIES:
-:header-args: :noweb-ref setup-pkgmgr
-:ID:                     5ff57b26-2da9-4f1a-91db-de7ea0f0c001
+:header-args: :noweb-ref corgi-setup
+:END:
+#+begin_src emacs-lisp
+  (when (not (file-exists-p
+	      (expand-file-name "straight/versions/default.el" straight-base-dir )))
+    (straight-freeze-versions))
+
+  ;; Enable the corgi-packages repository so we can install our packages with
+  ;; Straight. This also runs some Corgi initialization code, notably copying over
+  ;; Corgi's version file, so you get the same versions of packages that Corgi was
+  ;; tested with.
+
+  (use-package corgi-packages
+    :straight (corgi-packages
+	       :type git
+	       :host github
+	       :repo "corgi-emacs/corgi-packages"))
+
+  (add-to-list 'straight-recipe-repositories 'corgi-packages)
+
+  (let ((straight-current-profile 'corgi))
+    ;; Change a bunch of Emacs defaults, from disabling the menubar and toolbar,
+    ;; to fixing modifier keys on Mac and disabling the system bell.
+    ;;(use-package corgi-defaults)
+    ;;(require 'mf-settings)
+
+    ;; UI configuration for that Corgi-feel. This sets up a bunch of packages like
+    ;; Evil, Smartparens, Ivy (minibuffer completion), Swiper (fuzzy search),
+    ;; Projectile (project-aware commands), Aggressive indent, Company
+    ;; (completion).
+    (use-package corgi-editor)
+
+    ;; The few custom commands that we ship with. This includes a few things we
+    ;; emulate from Spacemacs, and commands for jumping to the user's init.el
+    ;; (this file, with `SPC f e i'), or opening the user's key binding or signals
+    ;; file.
+    (use-package corgi-commands)
+
+    ;; Extensive setup for a good Clojure experience, including clojure-mode,
+    ;; CIDER, and a modeline indicator that shows which REPLs your evaluations go
+    ;; to.
+    ;; Also contains `corgi/cider-pprint-eval-register', bound to `,,', see
+    ;; `set-register' calls below.
+    (use-package corgi-clojure)
+
+    ;; Emacs Lisp config, mainly to have a development experience that feels
+    ;; similar to using CIDER and Clojure. (show results in overlay, threading
+    ;; refactorings)
+    (use-package corgi-emacs-lisp)
+
+    ;; Change the color of the modeline based on the Evil state (e.g. green when
+    ;; in insert state)
+    (use-package corgi-stateline
+      :config
+      (global-corgi-stateline-mode))
+
+    ;; Package which provides corgi-keys and corgi-signals, the two files that
+    ;; define all Corgi bindings, and the default files that Corkey will look for.
+    (use-package corgi-bindings)
+
+    ;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
+    ;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
+    ;; f e s' `SPC f e S')
+    ;; Put this last here, otherwise keybindings for commands that aren't loaded
+    ;; yet won't be active.
+
+    (use-package corkey
+       :config
+        (corkey-mode 1)
+	;; Automatically pick up keybinding changes
+	(let ((user-emacs-directory *emacs-config/*))
+	  (corkey/load-and-watch)))
+    )
+
+#+end_src
+* Setup (no pun intended) the Emacs Package Manager
+:PROPERTIES:
+:header-args: :noweb-ref setup-setup
 :END:
 Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage packages as well as use-package for copied config
 #+begin_src emacs-lisp
-;; Setup `setup'
+;; install setup
+(straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
 
-  (straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
-  ;;use-package - for copied configs
-  (straight-use-package 'use-package)
+(require 'setup)
 
-  (require 'setup)
-  (eval-when-compile
-    (require 'use-package))
-  (add-to-list 'setup-modifier-list 'setup-wrap-to-demote-errors)
-    ;; Uncomment this for debugging purposes
-     (defun dw/log-require (&rest args)
-       (with-current-buffer (get-buffer-create "*require-log*")
-	 (insert (format "%s\n"
-			 (file-name-nondirectory (car args))))))
-     (add-to-list 'after-load-functions #'dw/log-require)
-    ;; added from  https://github.com/daviwil/dotfiles/blob/master/Emacs.org#org-mode
+(defmacro define-setup-macro (name signature &rest body)
+ "Shorthand for 'setup-define'. NAME is the name of the local macro. SIGNATURE
+   is used as the argument list for FN. If BODY starts with a string, use this as
+   the value for :documentation. Any following keywords are passed as OPTS to
+     'setup-define'."
+  (declare (debug defun))
+  (let (opts)
+    (when (stringp (car body))
+      (setq opts (nconc (list :documentation (pop body)) opts)))
+    (while (keywordp (car body))
+      (let ((prop (pop body))
+            (val `',(pop body)))
+        (setq opts (nconc (list prop val) opts))))
+    `(setup-define ,name
+       (cl-function (lambda ,signature ,@body))
+       ,@opts)))
 
-    (defmacro define-setup-macro (name signature &rest body)
-      "Shorthand for 'setup-define'. NAME is the name of the local macro. SIGNATURE
-	  is used as the argument list for FN. If BODY starts with a string, use this as
-	  the value for :documentation. Any following keywords are passed as OPTS to
-	  'setup-define'."
-      (declare (debug defun))
-      (let (opts)
-	(when (stringp (car body))
-	  (setq opts (nconc (list :documentation (pop body)) opts)))
-	(while (keywordp (car body))
-	  (let ((prop (pop body))
-		(val `',(pop body)))
-	    (setq opts (nconc (list prop val) opts))))
-	`(setup-define ,name
-	   (cl-function (lambda ,signature ,@body))
-	   ,@opts)))
+(define-setup-macro :pkg (recipe)
+  "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
+      and will replace itself with the first RECIPE's package."
+  :repeatable t
+  :shorthand (lambda (sexp)
+               (let ((recipe (cadr sexp)))
+                 (if (consp recipe)
+                     (car recipe)
+                   recipe)))
+  `(straight-use-package ',recipe))
 
-  #+end_src
-*** Setup local macros
-  :PROPERTIES:
-:header-args: :noweb-ref setup-macros
-  :ID:                     41dbce54-3e02-42f3-aaba-21dc7801c19e
-:END:
- local-macros for setup.el
- #+begin_src emacs-lisp
-   (define-setup-macro :straight (recipe)
-     "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
-                          and will replace itself with the first RECIPE's package."
-     :repeatable t
-     :shorthand (lambda (sexp)
-                  (let ((recipe (cadr sexp)))
-                    (if (consp recipe)
-                        (car recipe)
-                      recipe)))
-     `(straight-use-package ',recipe))
+(defun +setup-warn (message &rest args)
+  "Warn the user that something bad happened in `setup'."
+  (display-warning 'setup (format message args)))
 
-   (defun +setup-warn (message &rest args)
-     "Warn the user that something bad happened in `setup'."
-     (display-warning 'setup (format message args)))
+(setup-define :face
+  (lambda (face spec)
+    `(custom-set-faces '(,face ,spec 'now "Customised by `setup'.")))
+  :documentation "Customise FACE with SPEC using `custom-set-faces'."
+  :repeatable t)
 
-   (setup-define :face
-     (lambda (face spec)
-       `(custom-set-faces '(,face ,spec 'now "Customised by `setup'.")))
-     :documentation "Customise FACE with SPEC using `custom-set-faces'."
-     :repeatable t)
+(setup-define :pkg-when
+  (lambda (recipe condition)
+    `(if ,condition
+         (straight-use-package ',recipe)
+       ,(setup-quit)))
+  :documentation
+  "Install RECIPE with `straight-use-package' when CONDITION is met.
+    If CONDITION is false, stop evaluating the body.  This macro can
+    be used as HEAD, and will replace itself with the RECIPE's
+    package.  This macro is not repeatable."
+  :repeatable nil
+  :indent 1
+  :shorthand (lambda (sexp)
+               (let ((recipe (cadr sexp)))
+                 (if (consp recipe) (car recipe) recipe))))
 
-   (setup-define :straight-when
-     (lambda (recipe condition)
-       `(if ,condition
-            (straight-use-package ',recipe)
-          ,(setup-quit)))
-     :documentation
-     "Install RECIPE with `straight-use-package' when CONDITION is met.
-         If CONDITION is false, stop evaluating the body.  This macro can
-         be used as HEAD, and will replace itself with the RECIPE's
-         package.  This macro is not repeatable."
-     :repeatable nil
-     :indent 1
-     :shorthand (lambda (sexp)
-                  (let ((recipe (cadr sexp)))
-                    (if (consp recipe) (car recipe) recipe))))
+(define-setup-macro :hide-mode (&optional mode)
+  "Hide the mode-line lighter of the current mode. Alternatively, MODE can be
+      specified manually, and override the current mode."
+  :after-loaded t
+  (let ((mode (or mode (setup-get 'mode))))
+    `(progn
+       (setq minor-mode-alist
+             (remq (assq ',(intern (format "%s-mode" mode)) minor-mode-alist)
+                   minor-mode-alist))
+       (setq minor-mode-alist
+             (remq (assq ',mode minor-mode-alist)
+                   minor-mode-alist)))))
 
-   (define-setup-macro :hide-mode (&optional mode)
-     "Hide the mode-line lighter of the current mode. Alternatively, MODE can be
-                      specified manually, and override the current mode."
-     :after-loaded t
-     (let ((mode (or mode (setup-get 'mode))))
-       `(progn
-          (setq minor-mode-alist
-                (remq (assq ',(intern (format "%s-mode" mode)) minor-mode-alist)
-                      minor-mode-alist))
-          (setq minor-mode-alist
-                (remq (assq ',mode minor-mode-alist)
-                      minor-mode-alist)))))
+(define-setup-macro :load-after (features &rest body)
+  "Load the current feature after FEATURES."
+  :indent 1
+  (let ((body `(progn
+                 (require ',(setup-get 'feature))
+                 ,@body)))
+    (dolist (feature (nreverse (doom-enlist features)))
+      (setq body `(with-eval-after-load ',feature ,body)))
+    body))
 
-   (define-setup-macro :load-after (features &rest body)
-     "Load the current feature after FEATURES."
-     :indent 1
-     (let ((body `(progn
-                    (require ',(setup-get 'feature))
-                    ,@body)))
-       (dolist (feature (nreverse (doom-enlist features)))
-         (setq body `(with-eval-after-load ',feature ,body)))
-       body))
+(define-setup-macro :with-after (features &rest body)
+  "Evaluate BODY after FEATURES are loaded."
+  :indent 1
+  (let ((body `(progn ,@body)))
+    (dolist (feature (nreverse (ensure-list features)))
+      (setq body `(with-eval-after-load ',feature ,body)))
+    body))
 
-   (define-setup-macro :disable ()
-     "Unconditionally abort the evaluation of the current body."
-     (setup-quit))
+(define-setup-macro :with-state (state &rest body)
+  "Change the evil STATE that BODY will bind to. If STATE is a list, apply BODY
+     to all elements of STATE. This is intended to be used with ':bind'."
+  :indent 1
+  :debug '(sexp setup)
+  (let (bodies)
+    (dolist (state (ensure-list state))
+      (push (let ((setup-opts (cons `(state . ,state) setup-opts)))
+              (setup-expand body))
+            bodies))
+    (macroexp-progn (nreverse bodies))))
 
-   (define-setup-macro :delay (seconds)
-     "Require the current FEATURE after SECONDS of idle time."
-     :indent 1
-     `(run-with-idle-timer ,seconds nil #'require ',(setup-get 'feature) nil t))
+(define-setup-macro :bind (key command)
+  "Bind KEY to COMMAND in current map, and optionally for current evil states."
+  :after-loaded t
+  :debug '(form sexp)
+  :repeatable t
+  (let* ((state (cdr (assq 'state setup-opts)))
+         (map (setup-get 'map))
+         (map (if (eq map 'global-mode-map) 'global-map map))
+         (key (setup-ensure-kbd key))
+         (command (setup-ensure-function command)))
+    (if state
+        `(with-eval-after-load 'evil
+           (evil-define-key* ',state ,map ,key ,command))
+      `(define-key ,map ,key ,command))))
 
-   (define-setup-macro :with-idle-delay (seconds &rest body)
-     "Evaluate BODY after SECONDS of idle time."
-     :indent 1
-     `(run-with-idle-timer ,seconds nil (lambda () ,@body)))
+(define-setup-macro :disable ()
+  "Unconditionally abort the evaluation of the current body."
+  (setup-quit))
 
-   (define-setup-macro :advise (symbol where arglist &rest body)
-     "Add a piece of advice on a function. See 'advice-add' for more details."
-     :after-loaded t
-     :debug '(sexp sexp function-form)
-     :indent 3
-     (let ((name (gensym "setup-advice-")))
-       `(progn
-          (defun ,name ,arglist ,@body)
-          (advice-add ',symbol ,where #',name))))
+(define-setup-macro :delay (seconds)
+  "Require the current FEATURE after SECONDS of idle time."
+  :indent 1
+  `(run-with-idle-timer ,seconds nil #'require ',(setup-get 'feature) nil t))
 
-   (setup-define :needs
-     (lambda (executable)
-       `(unless (executable-find ,executable)
-          ,(setup-quit)))
-     :documentation "If EXECUTABLE is not in the path, stop here."
-     :repeatable 1)
+(define-setup-macro :with-idle-delay (seconds &rest body)
+  "Evaluate BODY after SECONDS of idle time."
+  :indent 1
+  `(run-with-idle-timer ,seconds nil (lambda () ,@body)))
 
+(define-setup-macro :advise (symbol where arglist &rest body)
+  "Add a piece of advice on a function. See 'advice-add' for more details."
+  :after-loaded t
+  :debug '(sexp sexp function-form)
+  :indent 3
+  (let ((name (gensym "setup-advice-")))
+    `(progn
+       (defun ,name ,arglist ,@body)
+       (advice-add ',symbol ,where #',name))))
 
+(setup-define :needs
+  (lambda (executable)
+    `(unless (executable-find ,executable)
+       ,(setup-quit)))
+  :documentation "If EXECUTABLE is not in the path, stop here."
+  :repeatable 1)
 #+end_src
 Sometimes it's good to clean up unused repositories if I've removed packages from my configuration.
 Use =straight-remove-unused-repos= for this purpose.
 
 Setup some popular packages
-#+begin_src emacs-lisp
- ;; popular packages
- (setup (:straight el-patch))
- (setup (:straight s))
- (setup (:straight dash))
- (setup (:straight async))
- (setup (:straight request))
- (setup (:straight delight))
+#+begin_src emacs-lisp :tangle no
+;; popular packages
+(setup (:pkg el-patch))
+(setup (:pkg s))
+(setup (:pkg dash))
+(setup (:pkg async))
+(setup (:pkg request))
+(setup (:pkg delight))
 
 
 
 ;; profiler
-(setup (:straight esup)
+(setup (:pkg esup)
        (:delay 5)) ;; :defer t)
 
 #+end_src
@@ -529,7 +604,7 @@ Show startup time
 :END:
 Configure grabage collection
 #+begin_src emacs-lisp
-(setup (:straight gcmh)
+(setup (:pkg gcmh)
   (setq gcmh-auto-idle-delay-factor 10)
   (setq gcmh-high-cons-threshold (* 128 1024 1024))
   (setq gcmh-idle-delay 'auto)
@@ -541,37 +616,10 @@ Configure grabage collection
 *** local UI config
 setup local config and personal functions
 #+begin_src
-(use-package local-config
-  :straight nil
-  :preface
-  (defgroup local-config ()
-    "Customisation group for local settings."
-    :prefix "local-config-"
-    :group 'emacs)
-  (defcustom local-config-title-show-bufname t
-    "Whether to include bufname in the title bar.
-Bufname is not necessary on GNOME but may be useful in other DEs."
-    :type 'boolean
-    :tag "Title bufname"
-    :group 'local-config)
-  (defcustom local-config-dark-theme 'modus-vivendi
-    "Dark theme to use."
-    :tag "Dark theme"
-    :type 'symbol
-    :group 'local-config)
-  (defcustom local-config-light-theme 'modus-operandi
-    "Light theme to use."
-    :tag "Light theme"
-    :type 'symbol
-    :group 'local-config)
-  (defvar local-config-line-pixel-height (line-pixel-height)
-    "Line height in pixels.
-Used in various places to avoid getting wrong line height when
-`text-scale-mode' is active.")
-  (provide 'local-config))
+
 
 (use-package functions
-  :straight nil
+  :pkg nil
   :preface
   (defun split-pararagraph-into-lines ()
     "Split the current paragraph into lines with one sentence each."
@@ -639,7 +687,7 @@ Used in various places to avoid getting wrong line height when
 :END:
 #+begin_src emacs-lisp
 
-(setup (:straight benchmark-init)
+(setup (:pkg benchmark-init)
   (:disable) ; Disabled when not benchmarking.
   (define-advice define-obsolete-function-alias (:filter-args (ll))
       (let ((obsolete-name (pop ll))
@@ -654,7 +702,7 @@ Used in various places to avoid getting wrong line height when
     (:with-hook after-init-hook
       (:hook benchmark-init/deactivate)))
 
-(setup (:straight auto-compile)
+(setup (:pkg auto-compile)
   (auto-compile-on-load-mode 1)
   (auto-compile-on-save-mode 1)
   (:hide-mode)
@@ -667,7 +715,7 @@ Used in various places to avoid getting wrong line height when
 :END:
 Use no-littering to automatically set common paths to the new user-emacs-directory
 #+begin_src emacs-lisp
-;;(setup (:straight no-littering)
+;;(setup (:pkg no-littering)
 ;;  (require 'no-littering))
 
 #+end_src
@@ -683,23 +731,23 @@ Use no-littering to automatically set common paths to the new user-emacs-directo
 Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a  few utilities that heI keeps re-using in various parts of my Emacs code base. To keep things modular, I place them all in a dedicated prot-common.el file, which can then be marked as a dependency by other libraries of mine. As such, all we do here is load the file.
 #+begin_src emacs-lisp :noweb-ref constants
 
-(setup (:require prot-common))
+;;(setup (:require prot-common))
 
 ;;; Initialise Gas Constants
-  (defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
-  (defconst *is-gui?* (display-graphic-p))
-  (defconst *is-mac?*     (eq system-type 'darwin))
-  (defconst *is-linux?*   (eq system-type 'gnu/linux))
-  (defconst *is-termux?*
+(defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
+(defconst *is-gui?*        (display-graphic-p))
+(defconst *is-mac?*        (eq system-type 'darwin))
+(defconst *is-linux?*      (eq system-type 'gnu/linux))
+(defconst *is-termux?*
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
-  (defconst *hostname* (system-name))
+(defconst *hostname* (system-name))
 
-  (defmacro fn (&rest body)
-    `(lambda () ,@body))
+(defmacro fn (&rest body)
+   `(lambda () ,@body))
 
-  (defun doom-enlist (exp)
-    "Return EXP wrapped in a list, or as-is if already a list."
-    (declare (pure t) (side-effect-free t))
+(defun doom-enlist (exp)
+  "Return EXP wrapped in a list, or as-is if already a list."
+  (declare (pure t) (side-effect-free t))
     (if (proper-list-p exp) exp (list exp)))
 #+end_src
 
@@ -789,7 +837,7 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
     (define-key map (kbd "M-s b") #'prot-simple-buffers-major-mode)
     (define-key map (kbd "M-s v") #'prot-simple-buffers-vc-root)))
 )
-  (setup
+(setup
   (use-package general
       :commands (general-define-key))
 
@@ -812,7 +860,7 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
       "o" '(nil :which-key "open...")
       )
 
-  (use-package bind-key)
+    (use-package bind-key)
   (require 'bind-key)
   (require 'delight)
 
@@ -863,7 +911,7 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
 ;;                   executing-kbd-macro)
 ;;         (funcall-interactively quit)))))
 
-  (setup (:straight which-key)
+  (setup (:pkg which-key)
       ;;    (which-key-mode 1)
       ;;   (setq which-key-add-column-padding 2)
       ;;   (setq which-key-idle-delay 0.5)
@@ -875,7 +923,7 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
       ;;       (("right") . ("🡺"))
       ;;       (("up") . ("🡹"))
       ;;       (("down") . ("🡻"))
-      ;;       (("delete") . ("DEL"))
+    ;;       (("delete") . ("DEL"))
       ;;       (("\\`DEL\\'") . ("BKSP"))
       ;;       (("RET") . ("⏎"))
       ;;       (("next") . ("PgDn"))
@@ -1277,20 +1325,20 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 :END:
 ripgrep and gist
 #+begin_src emacs-lisp :noweb-ref pkg-utils
-  (+with-message "pkg-util"
-    (setup (:straight rg)
+  (with-message! "pkg-util"
+    (setup (:pkg rg)
       (:when-loaded
 	(setq rg-group-result t)
 	(setq rg-ignore-case 'smart)))
 
-    (setup (:straight gist)
+    (setup (:pkg gist)
       (setq gist-view-gist t)
       (:hide-mode))
 
-    (setup (:straight link-hint)
+    (setup (:pkg link-hint)
       (:require link-hint))
 
-    ) ;; end of pkg-utils +with-message
+    ) ;; end of pkg-utils with-message!
 #+end_src
 ** MAC PATH specific
 :PROPERTIES:
@@ -1300,7 +1348,7 @@ ripgrep and gist
   ;;(cua-mode 1)
   ;; load doom-path
 
-  ;;    (setup (:straight-when exec-path-from-shell *is-mac?*)
+  ;;    (setup (:pkg-when exec-path-from-shell *is-mac?*)
   ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
   ;;        (add-to-list 'exec-path-from-shell-variables var))
   ;;      (exec-path-from-shell-initialize)
@@ -1310,164 +1358,180 @@ ripgrep and gist
 
 #+end_src
 * Emacs UI Appearance
-:PROPERTIES:
-:header-args: :noweb-ref pkg-ui
-:ID:                     3b410e52-29cb-42e3-aade-decf4bc46fd1
-:END:
-*** Default Appearance setting
-:PROPERTIES:
-:ID:                     328a3836-2d52-443e-a443-1a39ba555d3e
-:END:
+** Default Appearance setting
 Some Defaults for my preferred appearance
-#+begin_src emacs-lisp
-  (setup appearance
-    ;; be quiet at startup; don't load or display anything unnecessary
-    (setq-default
-     inhibit-startup-message t
-     inhibit-startup-screen t
-     inhibit-startup-echo-area-message user-login-name
-     inhibit-default-init t
-     initial-major-mode 'fundamental-mode
-     initial-scratch-message nil
-     use-file-dialog nil
-     use-dialog-box nil)
+#+begin_src emacs-lisp :noweb-ref pkg-ui
+(use-package local-config
+  :straight nil
+  :preface
+  (defgroup local-config ()
+    "Customisation group for local settings."
+    :prefix "local-config-"
+    :group 'emacs)
+  (defcustom local-config-title-show-bufname t
+    "Whether to include bufname in the title bar.
+  Bufname is not necessary on GNOME but may be useful in other DEs."
+    :type 'boolean
+    :tag "Title bufname"
+    :group 'local-config)
+  (defcustom local-config-dark-theme 'modus-vivendi
+    "Dark theme to use."
+    :tag "Dark theme"
+    :type 'symbol
+    :group 'local-config)
+  (defcustom local-config-light-theme 'modus-operandi
+    "Light theme to use."
+    :tag "Light theme"
+    :type 'symbol
+    :group 'local-config)
+  (defvar local-config-line-pixel-height (line-pixel-height)
+    "Line height in pixels.
+  Used in various places to avoid getting wrong line height when
+  `text-scale-mode' is active.")
+  (provide 'local-config)
+  :config
+  (setq-default
+   inhibit-startup-message t
+   inhibit-startup-screen t
+   inhibit-startup-echo-area-message user-login-name
+   inhibit-default-init t
+   initial-major-mode 'fundamental-mode
+   initial-scratch-message nil
+   use-file-dialog nil
+   use-dialog-box nil)
 
-    (setq display-time-default-load-average nil)
-    (setq echo-keystrokes 0.1)
-    (setq highlight-nonselected-windows nil)
-    (setq visible-bell nil)
-    (setq x-gtk-use-system-tooltips nil)
-    (setq x-stretch-cursor nil)
+  (setq display-time-default-load-average nil)
+  (setq echo-keystrokes 0.1)
+  (setq highlight-nonselected-windows nil)
+  (setq visible-bell nil)
+  (setq x-gtk-use-system-tooltips nil)
+  (setq x-stretch-cursor nil)
 
-    ;; update
-    (setq idle-update-delay 1.0)
+  ;; update
+  (setq idle-update-delay 1.0)
 
-    ;; disable cursor blinking
-    (blink-cursor-mode -1)
-    (setq blink-matching-paren nil)
-    ;; hide cursors in other windose
-    (setq-default cursor-in-non-selected-windows nil)
-    (setq-default cursor-type 'hbar)
+  ;; disable cursor blinking
+  (blink-cursor-mode -1)
+  (setq blink-matching-paren nil)
+  ;; hide cursors in other windose
+  (setq-default cursor-in-non-selected-windows nil)
+  (setq-default cursor-type 'hbar)
 
-    ;; play around with frame title (which I rarely see)
-    (setq frame-title-format
-          '("%b@"
-            (:eval (or (file-remote-p default-directory 'host)
-                       system-name))
-            " — Emacs"))
+  ;; play around with frame title (which I rarely see)
+  (setq frame-title-format
+	'("%b@"
+	  (:eval (or (file-remote-p default-directory 'host)
+		     system-name))
+	  " — Emacs"))
 
-    ;; for some reason only this removes the clutter with xmonad
-    (setup  scroll-bar
-      (scroll-bar-mode -1))
+  ;; y/n instead of yes/no
+  (fset #'yes-or-no-p #'y-or-n-p)
 
-    ;; y/n instead of yes/no
-    (fset #'yes-or-no-p #'y-or-n-p)
+  ;; mode line
+  (column-number-mode)
+  (size-indication-mode)
+  ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
+  (setq-default mode-line-format nil)
 
-    ;; mode line
-    (column-number-mode)
-    (size-indication-mode)
-    ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
-    (setq-default mode-line-format nil)
+  ;; line numbers
+  (setq-default display-line-numbers-widen t)
+  (setq-default display-line-numbers-width 3)
 
-    ;; line numbers
-    (setq-default display-line-numbers-widen t)
-    (setq-default display-line-numbers-width 3)
+  (setq-default
+   ;; no beeping and no blinking please
+   ring-bell-function #'ignore
+   visible-bell nil
 
-    (setq-default
-     ;; no beeping and no blinking please
-     ring-bell-function #'ignore
-     visible-bell nil
+   ;; make sure that trash is not drawn
+   indicate-buffer-boundaries nil
+   indicate-empty-lines nil
 
-     ;; make sure that trash is not drawn
-     indicate-buffer-boundaries nil
-     indicate-empty-lines nil
+   ;; don't resize emacs in steps, it looks weird and plays bad with
+   ;; window manager.
+   window-resize-pixelwise t
+   frame-resize-pixelwise t
 
-     ;; don't resize emacs in steps, it looks weird and plays bad with
-     ;; window manager.
-     window-resize-pixelwise t
-     frame-resize-pixelwise t
+   ;; disable bidirectional text for tiny performance boost
+   bidi-display-reordering 'left-to-right
+   bidi-paragraph-direction 'left-to-right
 
-     ;; disable bidirectional text for tiny performance boost
-     bidi-display-reordering 'left-to-right
-     bidi-paragraph-direction 'left-to-right
+   ;; truncate lines
+   truncate-lines t))
 
-     ;; truncate lines
-     truncate-lines t)
+;;  (setup appearance
+;; be quiet at startup; don't load or display anything unnecessary
 
-     (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
-       (:hook display-line-numbers-mode))
-       (:with-hook text-mode-hook
-         (:hook visual-line-mode)))
+;;    (:with-hook (prog-mode-hook text-mode-hook conf-mode-hook)
+;;      (:hook display-line-numbers-mode))
+;;      (:with-hook text-mode-hook
+;;	 (:hook visual-line-mode)))
 
-   
+
 
-    (use-package formfeed
-      :straight nil
-      :preface
-      (defun formfeed-make-display-line ()
-        "Display the formfeed ^L char as a comment or as a continuous line."
-        (unless buffer-display-table
-          (setq buffer-display-table (make-display-table)))
-        (aset buffer-display-table ?\^L
-              (vconcat (make-list (or fill-column 70)
-                                  (make-glyph-code
-                                   (string-to-char (or comment-start "-"))
-                                   'shadow)))))
-      (provide 'formfeed)
-      :init
-      (dolist (mode-hook '(help-mode-hook
-                           org-mode-hook
-                           outline-mode-hook
-                           prog-mode-hook))
-        (add-hook mode-hook #'formfeed-make-display-line)
-        ))
+(use-package formfeed
+  :straight nil
+  :preface
+  (defun formfeed-make-display-line ()
+    "Display the formfeed ^L char as a comment or as a continuous line."
+    (unless buffer-display-table
+      (setq buffer-display-table (make-display-table)))
+    (aset buffer-display-table ?\^L
+	  (vconcat (make-list (or fill-column 70)
+			      (make-glyph-code
+			       (string-to-char (or comment-start "-"))
+			       'shadow)))))
+  (provide 'formfeed)
+  :init
+  (dolist (mode-hook '(help-mode-hook
+		       org-mode-hook
+		       outline-mode-hook
+		       prog-mode-hook))
+    (add-hook mode-hook #'formfeed-make-display-line)
+    ))
 
-    
+
 
 #+end_src
-*** Menu bar & fringe on
+** Menu bar & fringe on
 :PROPERTIES:
-:ID:                     29668972-915f-4b30-b610-8eb235bee74c
+:header-args :tangle no  
 :END:
-#+begin_src elisp
-  (menu-bar-mode -1)            ; Disable the menu bar
-  (unless *is-termux?*
-    (set-fringe-mode 10)        ; Give some breathing room
-    (menu-bar-mode 1))          ; I like menu whilst learning
+#+begin_src elisp :noweb-ref pkg-uis :tangle no
+(menu-bar-mode -1)            ; Disable the menu bar
+(unless *is-termux?*
+  (set-fringe-mode 10)        ; Give some breathing room
+  (menu-bar-mode 1))          ; I like menu whilst learning
 
-   
+
 
 #+end_src
-*** Fonts, Emojis & Icons
-:PROPERTIES:
-:ID:                     e70dbb98-1d6f-4837-8b45-ffc730e45e99
-:END:
+** Fonts, Emojis & Icons
 
 On Linux, I have a custom build of Iosevka that I like.
 
-#+begin_src emacs-lisp :noweb-ref pkg-ui
-  (setup (:straight all-the-icons)
-    (:load-after marginalia
-      (:straight all-the-icons-completion)
-      (all-the-icons-completion-mode 1)
-      (:with-mode marginalia-mode
-        (:hook all-the-icons-completion-marginalia-setup)))
-    (:load-after dired
-      (:straight all-the-icons-dired)
-      (:with-mode dired-mode
-        (:hook all-the-icons-dired-mode))))
+#+begin_src emacs-lisp :noweb-ref pkg-uis :tangle no
+(setup (:pkg all-the-icons)
+  (:load-after marginalia
+               (:pkg all-the-icons-completion)
+               (all-the-icons-completion-mode 1)
+               (:with-mode marginalia-mode
+                 (:hook all-the-icons-completion-marginalia-setup)))
+  (:load-after dired
+               (:pkg all-the-icons-dired)
+               (:with-mode dired-mode
+                 (:hook all-the-icons-dired-mode))))
 
-  (setup (:straight emojify)
-    (setq emojify-emoji-styles '(unicode))
-    (global-emojify-mode 1))
+(setup (:pkg emojify)
+  (setq emojify-emoji-styles '(unicode))
+  (global-emojify-mode 1))
 
-  (setup (:straight unicode-fonts)
-    (unicode-fonts-setup))
+(setup (:pkg unicode-fonts)
+  (unicode-fonts-setup))
 
-  ;;(setup (:straight mixed-pitch)
-  ;;   (:hook-into text-mode)
+;;(setup (:pkg mixed-pitch)
+;;   (:hook-into text-mode)
 
-  ;;; Font configurations (prot-fonts.el)
+;;; Font configurations (prot-fonts.el)
 (setup (:require prot-fonts)
   ;; This is defined in Emacs C code: it belongs to font settings.
   (setq x-underline-at-descent-line t)
@@ -1527,15 +1591,15 @@ On Linux, I have a custom build of Iosevka that I like.
                          :variable-pitch-height 1.05
                          :variable-pitch-regular-weight normal))))
 
-  ;; TODO 2021-08-27: I no longer have a laptop.  Those configurations
-  ;; are not relevant, but I keep them around as the idea is still good.
+;; TODO 2021-08-27: I no longer have a laptop.  Those configurations
+;; are not relevant, but I keep them around as the idea is still good.
 
-  ;; The value of `prot-fonts--laptop-desktop-keys-list' becomes '(small
-  ;; regular) based on the car of the first two cons cells found in
-  ;; `prot-fonts-typeface-sets-alist'.  The assumption is that those
-  ;; contain sets from smaller to larger display types.
-  (setq prot-fonts--laptop-desktop-keys-list
-        (prot-fonts--laptop-desktop-keys))
+;; The value of `prot-fonts--laptop-desktop-keys-list' becomes '(small
+;; regular) based on the car of the first two cons cells found in
+;; `prot-fonts-typeface-sets-alist'.  The assumption is that those
+;; contain sets from smaller to larger display types.
+(setq prot-fonts--laptop-desktop-keys-list
+      (prot-fonts--laptop-desktop-keys))
 
   ;; This is the breakpoint, in pixels, for determining whether we are
   ;; on the small or large screen layout.  The number here is my
@@ -1555,368 +1619,363 @@ On Linux, I have a custom build of Iosevka that I like.
     (define-key map (kbd "C-c f") #'prot-fonts-set-fonts)
     (define-key map (kbd "C-c F") #'prot-fonts-set-default-font)))
 
-  ;; Required for proportional font in posframe
-  (setup (:straight company-posframe)
-    (company-posframe-mode 1))
+;; Required for proportional font in posframe
+(setup (:pkg company-posframe)
+  (company-posframe-mode 1))
 
-  (setup (:straight default-text-scale)
-    (:bind
-     "M--" default-text-scale-decrease
-     "M-+" default-text-scale-increase
-     "M-=" default-text-scale-reset)
-    (default-text-scale-mode 1))
+(setup (:pkg default-text-scale)
+  (:bind
+   "M--" default-text-scale-decrease
+   "M-+" default-text-scale-increase
+   "M-=" default-text-scale-reset)
+  (default-text-scale-mode 1))
 
 ;; dimm the colours of inactive windows
-  (setup (:straight dimmer)
-    (setq dimmer-fraction 0.3)
-    (setq dimmer-adjustment-mode :foreground)
-    (setq dimmer-use-colorsapce :rgb)
-    (dimmer-mode 1))
+(setup (:pkg dimmer)
+  (setq dimmer-fraction 0.3)
+  (setq dimmer-adjustment-mode :foreground)
+  (setq dimmer-use-colorsapce :rgb)
+  (dimmer-mode 1))
 
-  ;; Install it from sources, because ELPA version has invalid
+;; Install it from sources, because ELPA version has invalid
 ;; signature.
-(setup (:straight (spinner
+(setup (:pkg (spinner
              :type git
              :host github
              :repo "Malabarba/spinner.el")))
 #+end_src
 
-***  Mouse & scrolling setup and initial framesize
-:PROPERTIES:
-:ID:                     8d16458c-e38a-4060-91e8-40a3a034e639
-:END:
+**  Mouse & scrolling setup and initial framesize
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :noweb-ref pkg-uis :tangle no
 
-  (unless *is-termux?*
-    (setup mouse
-      (setq focus-follows-mouse t)
-      (setq make-pointer-invisible t)
-      (setq mouse-1-click-follows-link t)
-      (setq mouse-autoselect-window t)
-      (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-      (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-      ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-      (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-      (setq mouse-wheel-scroll-amount-horizontal 2)
-      (setq mouse-yank-at-point t)
-      (setq scroll-step 1) ;; keyboard scroll one line at a time
-      (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
+(unless *is-termux?*
+  (setup mouse
+	 (setq focus-follows-mouse t)
+	 (setq make-pointer-invisible t)
+	 (setq mouse-1-click-follows-link t)
+	 (setq mouse-autoselect-window t)
+	 (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+	 (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+	 ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+	 (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+	 (setq mouse-wheel-scroll-amount-horizontal 2)
+	 (setq mouse-yank-at-point t)
+	 (setq scroll-step 1) ;; keyboard scroll one line at a time
+	 (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
 
 
-  (unless *is-termux?*
-    (setup scrolling
-      (setq auto-hscroll-mode 'current-line)
-      (setq auto-window-vscroll nil)
-      (setq fast-but-imprecise-scrolling t)
-      (setq hscroll-margin 16)
-      (setq hscroll-step 1)
-      (setq scroll-conservatively 101)
-      (setq scroll-margin 8)
-      (setq scroll-preserve-screen-position t)
-      (setq scroll-step 1)))
+(unless *is-termux?*
+  (setup scrolling
+	 (setq auto-hscroll-mode 'current-line)
+	 (setq auto-window-vscroll nil)
+	 (setq fast-but-imprecise-scrolling t)
+	 (setq hscroll-margin 16)
+	 (setq hscroll-step 1)
+	 (setq scroll-conservatively 101)
+	 (setq scroll-margin 8)
+	 (setq scroll-preserve-screen-position t)
+	 (setq scroll-step 1)))
 
-  (unless *is-termux?*
-    (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-    (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-    (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-    (add-to-list 'default-frame-alist '(fullscreen . maximized)))
+(unless *is-termux?*
+  (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
+  (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
+  (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+  (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 
- 
+
 
 #+end_src
 
-*** Themes & Modeline
-:PROPERTIES:
-:ID:                     86d008a2-d188-496b-a6c8-564b6a68a88a
-:END:
+** Themes & Modeline
 
-#+begin_src emacs-lisp
-  ;;; Modus themes (Prositelaus highly accessible themes)
-  (setup (:require modus-themes)
-  ;; Add all your customisations prior to loading the themes
-  ;;
-    (setq modus-themes-italic-constructs t
-          modus-themes-bold-constructs t
-          modus-themes-mixed-fonts nil
-          modus-themes-subtle-line-numbers nil
-          modus-themes-intense-mouseovers nil
-          modus-themes-deuteranopia t
-          modus-themes-tabs-accented nil
-          modus-themes-variable-pitch-ui t
-          modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
+#+begin_src emacs-lisp :noweb-ref pkg-uis :tangle no
+;;; Modus themes (Prositelaus highly accessible themes)
+(setup
+ (:require modus-themes)
+ ;; Add all your customisations prior to loading the themes
+ ;;
+ (setq modus-themes-italic-constructs t
+       modus-themes-bold-constructs t
+       modus-themes-mixed-fonts nil
+       modus-themes-subtle-line-numbers nil
+       modus-themes-intense-mouseovers nil
+       modus-themes-deuteranopia t
+       modus-themes-tabs-accented nil
+       modus-themes-variable-pitch-ui t
+       modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
 
-          modus-themes-fringes nil ; {nil,'subtle,'intense}
+       modus-themes-fringes nil ; {nil,'subtle,'intense}
 
-     ;; Options for `modus-themes-lang-checkers' are either nil (the
-     ;; default), or a list of properties that may include any of those
-     ;; symbols: `straight-underline', `text-also', `background',
-     ;; `intense' OR `faint'.
-          modus-themes-lang-checkers nil
+       ;; Options for `modus-themes-lang-checkers' are either nil (the
+       ;; default), or a list of properties that may include any of those
+       ;; symbols: `straight-underline', `text-also', `background',
+       ;; `intense' OR `faint'.
+       modus-themes-lang-checkers nil
 
-     ;; Options for `modus-themes-mode-line' are either nil, or a list
-     ;; that can combine any of `3d' OR `moody', `borderless',
-     ;; `accented', a natural number for extra padding (or a cons cell
-     ;; of padding and NATNUM), and a floating point for the height of
-     ;; the text relative to the base font size (or a cons cell of
-     ;; height and FLOAT)
-          modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
+       ;; Options for `modus-themes-mode-line' are either nil, or a list
+       ;; that can combine any of `3d' OR `moody', `borderless',
+       ;; `accented', a natural number for extra padding (or a cons cell
+       ;; of padding and NATNUM), and a floating point for the height of
+       ;; the text relative to the base font size (or a cons cell of
+       ;; height and FLOAT)
+       modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
 
-     ;; Options for `modus-themes-markup' are either nil, or a list
-     ;; that can combine any of `bold', `italic', `background',
-     ;; `intense'.
-          modus-themes-markup nil
+       ;; Options for `modus-themes-markup' are either nil, or a list
+       ;; that can combine any of `bold', `italic', `background',
+       ;; `intense'.
+       modus-themes-markup nil
 
-     ;; Options for `modus-themes-syntax' are either nil (the default),
-     ;; or a list of properties that may include any of those symbols:
-     ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
-          modus-themes-syntax nil
+       ;; Options for `modus-themes-syntax' are either nil (the default),
+       ;; or a list of properties that may include any of those symbols:
+       ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
+       modus-themes-syntax nil
 
-     ;; Options for `modus-themes-hl-line' are either nil (the default),
-     ;; or a list of properties that may include any of those symbols:
-     ;; `accented', `underline', `intense'
-          modus-themes-hl-line '(intense)
+       ;; Options for `modus-themes-hl-line' are either nil (the default),
+       ;; or a list of properties that may include any of those symbols:
+       ;; `accented', `underline', `intense'
+       modus-themes-hl-line '(intense)
 
-     ;; Options for `modus-themes-paren-match' are either nil (the
-     ;; default), or a list of properties that may include any of those
-     ;; symbols: `bold', `intense', `underline'
-          modus-themes-paren-match '(intense)
+       ;; Options for `modus-themes-paren-match' are either nil (the
+       ;; default), or a list of properties that may include any of those
+       ;; symbols: `bold', `intense', `underline'
+       modus-themes-paren-match '(intense)
 
-     ;; Options for `modus-themes-links' are either nil (the default),
-     ;; or a list of properties that may include any of those symbols:
-     ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
-     ;; `bold', `italic', `background'
-          modus-themes-links nil
+       ;; Options for `modus-themes-links' are either nil (the default),
+       ;; or a list of properties that may include any of those symbols:
+       ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
+       ;; `bold', `italic', `background'
+       modus-themes-links nil
 
-     ;; Options for `modus-themes-box-buttons' are either nil (the
-     ;; default), or a list that can combine any of `flat',
-     ;; `accented', `faint', `variable-pitch', `underline', the
-     ;; symbol of any font weight as listed in
-     ;; `modus-themes-weights', and a floating point number
-     ;; (e.g. 0.9) for the height of the button's text.
-          modus-themes-box-buttons '(variable-pitch flat faint 0.9)
+       ;; Options for `modus-themes-box-buttons' are either nil (the
+       ;; default), or a list that can combine any of `flat',
+       ;; `accented', `faint', `variable-pitch', `underline', the
+       ;; symbol of any font weight as listed in
+       ;; `modus-themes-weights', and a floating point number
+       ;; (e.g. 0.9) for the height of the button's text.
+       modus-themes-box-buttons '(variable-pitch flat faint 0.9)
 
-     ;; Options for `modus-themes-prompts' are either nil (the
-     ;; default), or a list of properties that may include any of those
-     ;; symbols: `background', `bold', `gray', `intense', `italic'
-          modus-themes-prompts '(background subtle)
+       ;; Options for `modus-themes-prompts' are either nil (the
+       ;; default), or a list of properties that may include any of those
+       ;; symbols: `background', `bold', `gray', `intense', `italic'
+       modus-themes-prompts '(background subtle)
 
-     ;; The `modus-themes-completions' is an alist that reads three
-     ;; keys: `matches', `selection', `popup'.  Each accepts a nil
-     ;; value (or empty list) or a list of properties that can include
-     ;; any of the following (for WEIGHT read further below):
-     ;;
-     ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
-     ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
-     ;; `popup' - same as `selected'
-     ;; `t' - applies to any key not explicitly referenced (check docs)
-     ;;
-     ;; WEIGHT is a symbol such as `semibold', `light', or anything
-     ;; covered in `modus-themes-weights'.  Bold is used in the absence
-     ;; of an explicit WEIGHT.
-          modus-themes-completions
-          '((matches . (extrabold background))
-            (selection . (semibold intense accented text-also))
-            (popup . (accented intense)))
+       ;; The `modus-themes-completions' is an alist that reads three
+       ;; keys: `matches', `selection', `popup'.  Each accepts a nil
+       ;; value (or empty list) or a list of properties that can include
+       ;; any of the following (for WEIGHT read further below):
+       ;;
+       ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
+       ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
+       ;; `popup' - same as `selected'
+       ;; `t' - applies to any key not explicitly referenced (check docs)
+       ;;
+       ;; WEIGHT is a symbol such as `semibold', `light', or anything
+       ;; covered in `modus-themes-weights'.  Bold is used in the absence
+       ;; of an explicit WEIGHT.
+       modus-themes-completions
+       '((matches . (extrabold background))
+         (selection . (semibold intense accented text-also))
+         (popup . (accented intense)))
 
-          modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
+       modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
 
-     ;; Options for `modus-themes-region' are either nil (the default),
-     ;; or a list of properties that may include any of those symbols:
-     ;; `no-extend', `bg-only', `accented'
-          modus-themes-region '(no-extend bg-only)
+       ;; Options for `modus-themes-region' are either nil (the default),
+       ;; or a list of properties that may include any of those symbols:
+       ;; `no-extend', `bg-only', `accented'
+       modus-themes-region '(no-extend bg-only)
 
-     ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
-          modus-themes-diffs 'desaturated
+       ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
+       modus-themes-diffs 'desaturated
 
-          modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
+       modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
 
-          modus-themes-org-agenda ; this is an alist: read the manual or its doc string
-          '((header-block . (variable-pitch regular 1.4))
-            (header-date . (bold-today grayscale underline-today 1.2))
-            (event . (accented varied))
-            (scheduled . uniform)
-            (habit . nil))
+       modus-themes-org-agenda ; this is an alist: read the manual or its doc string
+       '((header-block . (variable-pitch regular 1.4))
+         (header-date . (bold-today grayscale underline-today 1.2))
+         (event . (accented varied))
+         (scheduled . uniform)
+         (habit . nil))
 
-          modus-themes-headings ; this is an alist: read the manual or its doc string
-          '((1 . (variable-pitch light 1.6))
-            (2 . (variable-pitch regular 1.4))
-            (3 . (variable-pitch regular 1.3))
-            (4 . (1.2))
-            (5 . (1.1))
-            (t . (monochrome 1.05)))
+       modus-themes-headings ; this is an alist: read the manual or its doc string
+       '((1 . (variable-pitch light 1.6))
+         (2 . (variable-pitch regular 1.4))
+         (3 . (variable-pitch regular 1.3))
+         (4 . (1.2))
+         (5 . (1.1))
+         (t . (monochrome 1.05)))
 
-          ;; Sample for headings:
-          ;; ;; '((1 . (variable-pitch light 1.6))
+       ;; Sample for headings:
+       ;; ;; '((1 . (variable-pitch light 1.6))
 
-          ;; modus-themes-headings
-          ;; '((1 . (variable-pitch light 1.6))
-          ;;   (2 . (variable-pitch regular 1.4))
-          ;;   (3 . (variable-pitch regular 1.3))
-          ;;   (4 . (1.2))
-          ;;   (5 . (1.1))
-          ;;   (t . (monochrome 1.05)))
-          )
+       ;; modus-themes-headings
+       ;; '((1 . (variable-pitch light 1.6))
+       ;;   (2 . (variable-pitch regular 1.4))
+       ;;   (3 . (variable-pitch regular 1.3))
+       ;;   (4 . (1.2))
+       ;;   (5 . (1.1))
+       ;;   (t . (monochrome 1.05)))
+       )
 
-    ;; Load the theme files before enabling a theme (else you get an error).
-    (modus-themes-load-themes)
+ ;; Load the theme files before enabling a theme (else you get an error).
+ (modus-themes-load-themes)
 
-    ;; Configurations for `highlight-parentheses':
-    (require 'highlight-parentheses)
+ ;; Configurations for `highlight-parentheses':
+ (require 'highlight-parentheses)
 
-    (defvar my-highlight-parentheses-use-background t
-      "Prefer `highlight-parentheses-background-colors'.")
+ (defvar my-highlight-parentheses-use-background t
+   "Prefer `highlight-parentheses-background-colors'.")
 
-    ;;(setq my-highlight-parentheses-use-background nil) ; Set to nil to disable backgrounds
+ ;;(setq my-highlight-parentheses-use-background nil) ; Set to nil to disable backgrounds
 
-    (defun my-modus-themes-highlight-parentheses ()
-      (modus-themes-with-colors
+ (defun my-modus-themes-highlight-parentheses ()
+   (modus-themes-with-colors
     ;; Our preference for setting either background or foreground
     ;; styles, depending on `my-highlight-parentheses-use-background'.
-       (if my-highlight-parentheses-use-background
+    (if my-highlight-parentheses-use-background
 
-    ;; Here we set color combinations that involve both a background
-    ;; and a foreground value.
-       (setq highlight-parentheses-background-colors
-             (list cyan-refine-bg
-                   magenta-refine-bg
-                   green-refine-bg
-                   yellow-refine-bg)
-             highlight-parentheses-colors (list cyan-refine-fg
-                                                magenta-refine-fg
-                                                green-refine-fg
-                                                yellow-refine-fg))
+	;; Here we set color combinations that involve both a background
+	;; and a foreground value.
+	(setq highlight-parentheses-background-colors
+	      (list cyan-refine-bg
+		    magenta-refine-bg
+		    green-refine-bg
+		    yellow-refine-bg)
+	      highlight-parentheses-colors (list cyan-refine-fg
+                                                 magenta-refine-fg
+                                                 green-refine-fg
+                                                 yellow-refine-fg))
 
-       ;; And here we pass only foreground colors while disabling any
-       ;; backgrounds.
-       (setq highlight-parentheses-colors (list green-intense
-                                                magenta-intense
-                                                blue-intense
-                                                red-intense)
-             highlight-parentheses-background-colors nil)))
+      ;; And here we pass only foreground colors while disabling any
+      ;; backgrounds.
+      (setq highlight-parentheses-colors (list green-intense
+                                               magenta-intense
+                                               blue-intense
+                                               red-intense)
+	    highlight-parentheses-background-colors nil)))
 
-      ;; Include this if you also want to make the parentheses bold:
-      (set-face-attribute 'highlight-parentheses-highlight nil :inherit 'bold)
+   ;; Include this if you also want to make the parentheses bold:
+   (set-face-attribute 'highlight-parentheses-highlight nil :inherit 'bold)
 
-      ;; Our changes must be evaluated before enabling the relevant mode, so
-      ;; this comes last.
-      (global-highlight-parentheses-mode 1))
+   ;; Our changes must be evaluated before enabling the relevant mode, so
+   ;; this comes last.
+   (global-highlight-parentheses-mode 1))
 
-    (add-hook 'modus-themes-after-load-theme-hook #'my-modus-themes-highlight-parentheses)
+ (add-hook 'modus-themes-after-load-theme-hook #'my-modus-themes-highlight-parentheses)
 
-    ;; (defun prot/modus-themes-custom-faces ()
-    ;;   (modus-themes-with-colors
-    ;;    (custom-set-faces
-    ;;     `(cursor ((,class :background ,magenta-intense)))
-    ;;     `(fill-column-indicator ((,class :background ,bg-inactive
-    ;;                                      :foreground ,bg-inactive))))))
+ ;; (defun prot/modus-themes-custom-faces ()
+ ;;   (modus-themes-with-colors
+ ;;    (custom-set-faces
+ ;;     `(cursor ((,class :background ,magenta-intense)))
+ ;;     `(fill-column-indicator ((,class :background ,bg-inactive
+ ;;                                      :foreground ,bg-inactive))))))
 
-    ;; (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
+ ;; (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
 
-    ;; Enable the theme at startup.  This is done after loading the files.
-    ;; You only need `modus-themes-load-operandi' for the light theme or
-    ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
-    ;; a simple test to load a light/dark theme based on some general time
-    ;; ranges (just accounting for the hour and without checking for the
-    ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
-    ;; to switch themes at will.
-    (let ((time (string-to-number (format-time-string "%H"))))
-      (if (and (> time 7) (< time 18))
-          (modus-themes-load-operandi)
-        (modus-themes-load-vivendi)))
+ ;; Enable the theme at startup.  This is done after loading the files.
+ ;; You only need `modus-themes-load-operandi' for the light theme or
+ ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
+ ;; a simple test to load a light/dark theme based on some general time
+ ;; ranges (just accounting for the hour and without checking for the
+ ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
+ ;; to switch themes at will.
+ (let ((time (string-to-number (format-time-string "%H"))))
+   (if (and (> time 7) (< time 18))
+       (modus-themes-load-operandi)
+     (modus-themes-load-vivendi)))
 
-    ;; Also check my package configurations for `prot-fonts' because I use
-    ;; the `modus-themes-after-load-theme-hook' for some typeface-related
-    ;; tweaks (as those are made at the "face" level).
-    (define-key global-map (kbd "<f5>") #'modus-themes-toggle))
+ ;; Also check my package configurations for `prot-fonts' because I use
+ ;; the `modus-themes-after-load-theme-hook' for some typeface-related
+ ;; tweaks (as those are made at the "face" level).
+ (define-key global-map (kbd "<f5>") #'modus-themes-toggle))
 
-  (setup (:straight doom-themes)
-    (setq doom-themes-enable-bold t)
-    (setq doom-themes-enable-italic t)
-    (doom-themes-org-config))
+(setup (:pkg doom-themes)
+       (setq doom-themes-enable-bold t)
+       (setq doom-themes-enable-italic t)
+       (doom-themes-org-config))
 
-  (unless *is-termux?*
-    ;; (modus-themes-load-vivendi)
-    ;;(load-theme 'doom-one-light t)
-    (doom-themes-visual-bell-config))
+(unless *is-termux?*
+  ;; (modus-themes-load-vivendi)
+  ;;(load-theme 'doom-one-light t)
+  (doom-themes-visual-bell-config))
 
-  ;; Mode-line
-  ;;Basic Customisation
-  (setq display-time-format "%l:%M %p %b %y"
-        display-time-default-load-average nil)
+;; Mode-line
+;;Basic Customisation
+(setq display-time-format "%l:%M %p %b %y"
+      display-time-default-load-average nil)
 
-  ;; Doom Modeline
+;; Doom Modeline
 
-  (setup (:straight minions)
-    (:hook-into doom-modeline-mode))
+(setup (:pkg minions)
+       (:hook-into doom-modeline-mode))
 
-  (setup (:straight doom-modeline)
-    ;; (setq doom-modeline-bar-width 4)
-    (setq doom-modeline-buffer-encoding nil)
-    (setq doom-modeline-buffer-file-name-style 'relative-from-project)
-    (setq doom-modeline-height 30)
-    (setq doom-modeline-major-mode-icon t)
-    (setq doom-modeline-minor-modes t)
-    (:with-hook window-setup-hook
-      (:hook (fn (set-face-attribute
-                  'mode-line nil :family "Iosevka Slab" :height 130))))
-    (:hook-into window-setup)
-    (:option doom-modeline-height 15
-             doom-modeline-bar-width 6
-             doom-modeline-lsp t
-             doom-modeline-github nil
-             doom-modeline-mu4e nil
-             doom-modeline-irc t
-             doom-modeline-minor-modes t
-             doom-modeline-persp-name nil
-             doom-modeline-buffer-file-name-style 'truncate-except-project
-             doom-modeline-major-mode-icon nil)
-    (custom-set-faces '(mode-line ((t (:height 0.85))))
-                      '(mode-line-inactive ((t (:height 0.85))))))
+(setup (:pkg doom-modeline)
+       ;; (setq doom-modeline-bar-width 4)
+       (setq doom-modeline-buffer-encoding nil)
+       (setq doom-modeline-buffer-file-name-style 'relative-from-project)
+       (setq doom-modeline-height 30)
+       (setq doom-modeline-major-mode-icon t)
+       (setq doom-modeline-minor-modes t)
+       (:with-hook window-setup-hook
+		   (:hook (fn (set-face-attribute
+			       'mode-line nil :family "Iosevka Slab" :height 130))))
+       (:hook-into window-setup)
+       (:option doom-modeline-height 15
+		doom-modeline-bar-width 6
+		doom-modeline-lsp t
+		doom-modeline-github nil
+		doom-modeline-mu4e nil
+		doom-modeline-irc t
+		doom-modeline-minor-modes t
+		doom-modeline-persp-name nil
+		doom-modeline-buffer-file-name-style 'truncate-except-project
+		doom-modeline-major-mode-icon nil)
+       (custom-set-faces '(mode-line ((t (:height 0.85))))
+			 '(mode-line-inactive ((t (:height 0.85))))))
 
-  (use-package bui
-    :defer t)
+(use-package bui
+  :defer t)
 
-  ;; what does this TODO?
-  (use-package lister
-    :straight (lister
-               :type git
-               :host github
-               :repo "publicimageltd/lister"
-               :branch "archive-version-0.7.2")
-    :defer t)
+;; what does this TODO?
+(use-package lister
+  :pkg (lister
+        :type git
+        :host github
+        :repo "publicimageltd/lister"
+        :branch "archive-version-0.7.2")
+  :defer t)
 
 
 #+end_src
-*** highlights and diff
+** highlights and diff
 :PROPERTIES:
 :ID:                     6d744ef7-add5-408d-8f5f-e7112027ce62
 :END:
 setup diff and highlights
-#+begin_src emacs-lisp
-  (setup (:straight highlight-numbers)
-      (:hook-into prog-mode)
-      (:hide-mode))
+#+begin_src emacs-lisp :noweb-ref pkg-uis :tangle no
+(setup (:pkg highlight-numbers)
+       (:hook-into prog-mode)
+       (:hide-mode))
 
-  (setup (:straight hl-fill-column)
-      (:require hl-fill-column)
-      (:hook-into prog-mode text-mode conf-mode))
+(setup (:pkg hl-fill-column)
+       (:require hl-fill-column)
+       (:hook-into prog-mode text-mode conf-mode))
 
-  (setup (:straight hl-line)
-      (global-hl-line-mode 1))
+(setup (:pkg hl-line)
+       (global-hl-line-mode 1))
 
-  (setup (:straight hl-todo)
-      (global-hl-todo-mode 1))
+(setup (:pkg hl-todo)
+       (global-hl-todo-mode 1))
 
-  (setup (:straight diff-hl)
-    (global-diff-hl-mode 1)
-    (:with-mode dired-mode
-      (:hook diff-hl-dired-mode))
-    (:load-after magit
-      (:with-hook magit-pre-refresh-hook
-        (:hook diff-hl-magit-pre-refresh))
-      (:with-hook magit-post-refresh-hook
-        (:hook diff-hl-magit-post-refresh))))
+(setup (:pkg diff-hl)
+       (global-diff-hl-mode 1)
+       (:with-mode dired-mode
+		   (:hook diff-hl-dired-mode))
+       (:load-after magit
+		    (:with-hook magit-pre-refresh-hook
+				(:hook diff-hl-magit-pre-refresh))
+		    (:with-hook magit-post-refresh-hook
+				(:hook diff-hl-magit-post-refresh))))
 
 #+end_src
 * Window Setup
@@ -2025,13 +2084,13 @@ setup diff and highlights
 
 #+end_src
 #+begin_src emacs-lisp
-  ;; (setup (:straight ace-window)
+  ;; (setup (:pkg ace-window)
   ;;   (setq aw-background t)
   ;;   (setq aw-scope 'frame)
   ;;   (ace-window-display-mode 1)
   ;;   (:hide-mode))
 
-(setup (:straight windmove)
+(setup (:pkg windmove)
     (setq windmove-create-window nil)     ; Emacs 27.1
   (let ((map global-map))
     ;; Those override some commands that are already available with
@@ -2045,14 +2104,14 @@ setup diff and highlights
     (define-key map (kbd "C-M-S-<down>") #'windmove-swap-states-down)
     (define-key map (kbd "C-M-S-<left>") #'windmove-swap-states-left)))
 
-(setup (:straight winner)
+(setup (:pkg winner)
   (winner-mode 1))
   (setq-default window-divider-default-places 'right-only ; only right
                 window-divider-default-bottom-width 2
                 window-divider-default-right-width 2)
 #+end_src
 
-#+begin_src emacs-lisp :noweb-ref pkg-ui
+#+begin_src emacs-lisp :noweb-ref pkg-uis
  ;; (window-divider-mode +1)
 #+end_src
 
@@ -2192,7 +2251,7 @@ and have made a custom fringe bitmap.
 #+begin_src emacs-lisp
   (setup dired
             (:also-load dired-x)
-            (:straight dired-collapse
+            (:pkg dired-collapse
                   dired-git-info
                   dired-single
                   dired-subtree
@@ -2409,7 +2468,7 @@ use ws-butler
      sentence-end-double-space nil
      word-wrap t)
 
-    (setup (:straight (ws-butler
+    (setup (:pkg (ws-butler
                  :type git
                  :host github
                  :repo "hlissner/ws-butler"))
@@ -2456,19 +2515,19 @@ go to the first and last line in the buffer.
 #+begin_src emacs-lisp
   ;; Long lines
 
-  (setup (:straight visual-fill-column)
+  (setup (:pkg visual-fill-column)
     (:option visual-fill-column-center-text t)
 ;;             (append reading-modes) '(visual-fill-column-mode . +1))
     (:hook #'visual-line-mode)
     (:hook-into org-mode)
     (advice-add #'text-scale-adjust :after #'visual-fill-column-adjust))
 
-  (setup (:straight adaptive-wrap)
+  (setup (:pkg adaptive-wrap)
     (:with-mode adaptive-wrap-prefix-mode
       (:hook-into visual-column-mode)))
 
 
-  (setup (:straight unfill)
+  (setup (:pkg unfill)
     ;;:commands (unfill-toggle)
     (:global "M-q"  #'unfill-toggle))
 
@@ -2483,7 +2542,7 @@ go to the first and last line in the buffer.
 Undo is a key function of an editor - bind to Ctrl-Z - disabled
 #+begin_src emacs-lisp :tangle no
  ;;undo
-  (setup (:straight undo-tree)
+  (setup (:pkg undo-tree)
     (:hide-mode)
     (:global "C-z"   undo-tree-undo
            "C-S-z" undo-tree-redo)
@@ -2496,7 +2555,7 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 :ID:                     e876dc83-2902-46e7-8c1c-69e371a03b56
 :END:
 #+begin_src emacs-lisp
-  (setup (:straight move-text)
+  (setup (:pkg move-text)
    ;; :commands (move-text-up
    ;;            move-text-down)
     (:global [M-S-down]  #'move-text-down
@@ -2508,7 +2567,7 @@ Undo is a key function of an editor - bind to Ctrl-Z - disabled
 :ID:                     0afacc7c-7b32-4047-842c-ade5637483c4
 :END:
 #+begin_src emacs-lisp
-(setup  (:straight mwim)
+(setup  (:pkg mwim)
   (:delay 1)
   (:global "C-a"  mwim-beginning))
 
@@ -2526,7 +2585,7 @@ Avy has the ability to act on the candidate rather than simply jump to it. Karth
 
 Finally, we can use Avy to select a candidate from the *Completions* buffer (see Minibuffer configurations and my extras (mct.el)).Setup avy in filter, select, act mode
 #+begin_src emacs-lisp
- (setup (:straight avy)
+ (setup (:pkg avy)
   (setq avy-all-windows nil) ; only the current window
   (setq avy-all-windows-alt t) ; all windows with C-u
   (setq avy-single-candidate-jump t)
@@ -2536,7 +2595,7 @@ Finally, we can use Avy to select a candidate from the *Completions* buffer (see
   (setq avy-style 'pre) ; prefixes candidate; otherwise use `at-full'
   (define-key global-map (kbd "C-.") #'avy-goto-char-timer))
 
- (setup (:straight avy)
+ (setup (:pkg avy)
      (:disable)
       (:global  "M-j"  'avy-goto-char-timer
                 "C-M-s" 'isearch-forward-other-window
@@ -2647,7 +2706,7 @@ Finally, we can use Avy to select a candidate from the *Completions* buffer (see
 
       (setq avy-all-windows t))
 
-    ;; (setup (:straight avy-zap)
+    ;; (setup (:pkg avy-zap)
     ;;   ;; : my-laptop-p
     ;;   (setq avy-zap-forward-only t)
     ;;   ;; (setq avy-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
@@ -2798,7 +2857,7 @@ A more productive method is to use the C-; function. This function provides the 
 
 I use the dictionary package for Emacs, and I’m lazy about it:
 #+begin_src emacs-lisp
-  (setup (:straight dictionary)
+  (setup (:pkg dictionary)
     (:load-after avy
       (defun dictionary-search-dwim (&optional arg)
         "Search for definition of word at point. If region is active,
@@ -2835,7 +2894,7 @@ I use the dictionary package for Emacs, and I’m lazy about it:
 ** Colour previewing
 The following package reads a colour value, such as hexadecimal RGB, and sets the background for the value in that colour. Quite useful when reviewing my themes (rainbow-mode is activated manually).
 #+begin_src emacs-lisp
-    (setup (:straight rainbow-mode)
+(setup (:pkg rainbow-mode)
     (setq rainbow-ansi-colors nil)
     (setq rainbow-x-colors nil))
 
@@ -2915,40 +2974,42 @@ I bind the former to M-z as I use it more often and leave its counterpart on M-Z
 Setup encodings
 #+begin_src emacs-lisp :noweb-ref sanity
 
-  (setup encoding
-  (setq coding-system-for-read 'utf-8-unix)
-  (setq coding-system-for-write 'utf-8-unix)
-  (setq default-process-coding-system '(utf-8-unix utf-8-unix))
-  (setq locale-coding-system 'utf-8-unix)
-  (setq selection-coding-system 'utf-8)
-  (setq x-select-request-type nil)
-  (setq-default buffer-file-coding-system 'utf-8-unix)
-  (prefer-coding-system 'utf-8-unix)
-  (set-clipboard-coding-system 'utf-8)
-  (set-default-coding-systems 'utf-8-unix)
-  (set-keyboard-coding-system 'utf-8-unix)
-  (set-language-environment "UTF-8")
-  (set-selection-coding-system 'utf-8)
-  (set-terminal-coding-system 'utf-8-unix))
+(use-package encoding
+  :straight nil
+  :config
+      (setq coding-system-for-read 'utf-8-unix)
+      (setq coding-system-for-write 'utf-8-unix)
+      (setq default-process-coding-system '(utf-8-unix utf-8-unix))
+      (setq locale-coding-system 'utf-8-unix)
+      (setq selection-coding-system 'utf-8)
+      (setq x-select-request-type nil)
+      (setq-default buffer-file-coding-system 'utf-8-unix)
+      (prefer-coding-system 'utf-8-unix)
+      (set-clipboard-coding-system 'utf-8)
+      (set-default-coding-systems 'utf-8-unix)
+      (set-keyboard-coding-system 'utf-8-unix)
+      (set-language-environment "UTF-8")
+      (set-selection-coding-system 'utf-8)
+      (set-terminal-coding-system 'utf-8-unix))
 
 #+end_src
 Setup undo , whitespace, expand, indentation
 #+begin_src emacs-lisp
-  ;; (setup (:straight aggressive-indent)
+  ;; (setup (:pkg aggressive-indent)
   ;;   (:hook-into prog-mode)
   ;;   (:hide-mode))
 
-  ;; (setup (:straight hungry-delete)
+  ;; (setup (:pkg hungry-delete)
   ;;   (:load-after smartparens
   ;;     (setq hungry-delete-join-reluctantly t)
   ;;     (global-hungry-delete-mode 1)
   ;;     (:hook-into smartparens-enabled)
   ;;     (:hide-mode)))
 
-   (setup (:straight expand-region)
+   (setup (:pkg expand-region)
     (:require expand-region))
 
-  ;; (setup (:straight undo-fu undo-fu-session)
+  ;; (setup (:pkg undo-fu undo-fu-session)
   ;;   (:with-map (prog-mode-map text-mode-map)
   ;;     (:bind
   ;;      "u" undo-fu-only-undo
@@ -3280,19 +3341,46 @@ Setup Scratch and minibuffer
   :init
   (fset 'yes-or-no-p 'y-or-n-p))
 
-(setup files
-    (setq auto-mode-case-fold nil)
-    (setq auto-save-default nil)
-    (setq auto-save-list-file-prefix nil)
-    (setq backup-inhibited t)
-    (setq create-lockfiles nil)
-    (setq delete-by-moving-to-trash nil)
-    (setq find-file-suppress-same-file-warnings t)
-    (setq find-file-visit-truename t)
-    (setq load-prefer-newer t)
-    (setq make-backup-files nil)
-    (setq require-final-newline t)
-    (setq vc-follow-symlinks t))
+(defun save-in-etc-file! (file-name)
+  (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
+
+(use-package sanity
+  :straight nil
+  :config
+  (setq ad-redefinition-action 'accept)
+  (setq bidi-inhibit-bpa t)
+  (setq command-line-ns-option-alist nil)
+  (setq confirm-kill-processes nil)
+  (setq custom-file (save-in-etc-file! "custom.el"))
+  (setq default-input-method "TeX")
+  (setq ffap-machine-p-known 'reject)
+  (setq inhibit-compacting-font-caches t)
+  (setq inhibit-default-init t)
+  (setq jit-lock-defer-time nil)
+  (setq jka-compr-verbose nil)
+  (setq native-comp-async-report-warnings-errors nil)
+  (setq read-file-name-completion-ignore-case t)
+  (setq read-process-output-max (* 64 1024))
+  (setq redisplay-skip-fontification-on-input t)
+  (setq ring-bell-function 'ignore)
+  (setq-default fill-column 100)
+  (setq-default lexical-binding t))
+
+(use-package files
+  :straight nil
+  :config 
+  (setq auto-mode-case-fold nil)
+  (setq auto-save-default nil)
+  (setq auto-save-list-file-prefix nil)
+  (setq backup-inhibited t)
+  (setq create-lockfiles nil)
+  (setq delete-by-moving-to-trash nil)
+  (setq find-file-suppress-same-file-warnings t)
+  (setq find-file-visit-truename t)
+  (setq load-prefer-newer t)
+  (setq make-backup-files nil)
+  (setq require-final-newline t)
+  (setq vc-follow-symlinks t))
 
 #+end_src
 
@@ -3352,12 +3440,12 @@ setup of emacs project
 :END:
 Setup of magit for cool git
 #+begin_src emacs-lisp
-    (setq-default vc-follow-symlinks t)
+(setq-default vc-follow-symlinks t)
 
-    ;; (remove-hook 'find-file-hook #'vc-refrqesh-state)
-    ;; (hook-with-delay 'find-file-hook 1 #'vc-refresh-state)
+;; (remove-hook 'find-file-hook #'vc-refrqesh-state)
+;; (hook-with-delay 'find-file-hook 1 #'vc-refresh-state)
 
-    (use-package magit
+(use-package magit
       :defer t
       :defines (magit-status-mode-map
                 magit-revision-show-gravatars
@@ -3381,35 +3469,35 @@ Setup of magit for cool git
             ;; show word-granularity on selected hunk
             magit-diff-refine-hunk t))
 
-    (use-package forge
-      :commands forge-create-pullreq forge-create-issue
-      :init
-      (setq-default forge-database-file
-                    (expand-file-name "forge/forge-database.sqlite"
-                                      *emacs-etc/*)))
+;;(use-package forge
+;;      :commands forge-create-pullreq forge-create-issue
+;;      :init
+;;      (setq-default forge-database-file
+;;                    (expand-file-name "forge/forge-database.sqlite"
+;;                                      *emacs-etc/*)))
 
-      (setup (:straight git-timemachine)
-          (:bind
-           "[" git-timemachine-show-previous-revision
-           "]" git-timemachine-show-next-revision
-           "b" git-timemachine-blame))
+;;(setup (:pkg git-timemachine)
+;;          (:bind
+;;           "[" git-timemachine-show-previous-revision
+;;           "]" git-timemachine-show-next-revision
+;;           "b" git-timemachine-blame))
 
-  (use-package ediff-wind
+(use-package ediff-wind
     :straight nil
     :defer t
     :init
     (setq ediff-window-setup-function 'ediff-setup-windows-plain
           ediff-split-window-function 'split-window-horizontally))
 
-  (use-package diff-hl
+(use-package diff-hl
     :defer t
     :hook ((prog-mode . turn-on-diff-hl-mode)
            (text-mode . turn-on-diff-hl-mode)
            (vc-dir-mode . turn-on-diff-hl-mode)
            (dired-mode . diff-hl-dired-mode)))
 
-  (defun vcs-quit (&optional _kill-buffer)
-    "Clean up magit buffers after quitting `magit-status'.
+(defun vcs-quit (&optional _kill-buffer)
+  "Clean up magit buffers after quitting `magit-status'.
   And don't forget to refresh version control in all buffers of
   current workspace."
     (interactive)
@@ -3423,8 +3511,8 @@ Setup of magit for cool git
       (when (fboundp 'magit-mode-get-buffers)
         (mapc #'vcs--kill-buffer (magit-mode-get-buffers)))))
 
-  (defun vcs--kill-buffer (buffer)
-    "Gracefully kill `magit' BUFFER.
+(defun vcs--kill-buffer (buffer)
+  "Gracefully kill `magit' BUFFER.
   If any alive process is related to this BUFFER, wait for 5
   seconds before nuking BUFFER and the process. If it's dead -
   don't wait at all."
@@ -3438,7 +3526,7 @@ Setup of magit for cool git
               (kill-process process)
               (kill-buffer buffer)))))))
 
-      ;; (setup (:straight magit)
+;; (setup (:pkg magit)
       ;;   (setq git-commit-summary-max-length 120)
       ;;   (setq magit-commit-show-diff nil)
       ;;   (setq magit-delete-by-moving-to-trash nil)
@@ -3454,14 +3542,14 @@ Setup of magit for cool git
       ;;   (setq transient-values
       ;;         '((magit-log:magit-log-mode "--graph" "--color" "--decorate"))))
 
-      (setup magit-wip
-        (:load-after magit
-          (magit-wip-mode 1)
-          (:hide-mode)))
+;;(setup magit-wip
+;;        (:load-after magit
+;;          (magit-wip-mode 1)
+;;          (:hide-mode)))
 
-      (setup (:straight magit-todos)
-        (:load-after magit
-          (magit-todos-mode 1)))
+;;(setup (:pkg magit-todos)
+;;        (:load-after magit
+;;          (magit-todos-mode 1)))
 #+end_src
 * Emacs *Help* functions
 :PROPERTIES:
@@ -3470,9 +3558,9 @@ Setup of magit for cool git
 
  Help and which functions
 
-#+begin_src emacs-lisp :noweb-ref pkg-ui
+#+begin_src emacs-lisp :noweb-ref pkg-uis
 
-  (setup (:straight helpful)
+  (setup (:pkg helpful)
     (:when-loaded
       (:global-bind
        "C-h f" helpful-callable
@@ -3518,7 +3606,7 @@ My prot-orderless.el contains the few minor tweaks I introduce (full code furthe
 
 #+begin_src emacs-lisp :noweb-ref orderless
 ;;; Orderless completion style (and prot-orderless.el)
-(setup (:straight orderless)
+(setup (:pkg orderless)
   (:require prot-orderless)
   (setq orderless-component-separator " +")
   ;; NOTE 2022-02-06: I made some major changes and this list may need
@@ -3543,7 +3631,7 @@ My prot-orderless.el contains the few minor tweaks I introduce (full code furthe
 This is a utility jointly developed by Daniel Mendler and Omar Antolín Camarena that provides annotations to completion candidates. It is meant to be framework-agnostic
 #+begin_src emacs-lisp :noweb-ref annotations
 ;;; Completion annotations (marginalia)
- (setup (:straight marginalia)
+ (setup (:pkg marginalia)
     (:load-after vertico
       (setq marginalia-max-relative-age 0)  ; time is absolute here!
 		 (marginalia-mode 1))
@@ -3873,7 +3961,7 @@ Other nice extensions of Consult are (i) its ability to work as a generic front-
     :config
     (setq completion-at-point-functions '(cape-file cape-dabbrev)))
 
-  (setup (:straight ripgrep)
+  (setup (:pkg ripgrep)
       (:needs "rg")
       (setq ripgrep-arguments "--ignore-case"))
 
@@ -3898,35 +3986,33 @@ Couched in those terms, Org is at once a distribution of well integrated librari
 Setup org-mode
 
 #+begin_src emacs-lisp
-  ;;; init-notes.el --- Org/Roam Workflow -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-  (require 'config-path)
-  (require 'init-elpa)
-  (require 'init-env)
-  (require 'init-selection)
-  (require  'config-orgmode)
+;;; init-notes.el --- Org/Roam Workflow -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+(require 'config-path)
+(require 'init-elpa)
+(require 'init-env)
+(require 'init-selection)
+(require  'config-orgmode)
 
-  (+with-message "Notes/Roam Workflow"
 
- (defconst *notes/*
+(defconst *notes/*
   (file-name-as-directory (expand-file-name "~/org")))
 
-  <<vulpea>>
+<<vulpea>>
 
-  )
 (provide 'init-notes)
 ;;; init-notes.el ends here
 #+end_src
 
 ** Vulpea
 :PROPERTIES:
-:header-args: :noweb-ref vulpea
+:header-args: :noweb-ref vulpea :tangle no
 :ID:                     b8538a46-829b-43a2-af58-3123de1cf852
 :END:
 Setup d12frosted's vulpea's helper for org-roam
 #+begin_src emacs-lisp
-  (setup (:straight org-cliplink))
+  (setup (:pkg org-cliplink))
 
   (use-package vulpea
     :straight (vulpea
@@ -3968,158 +4054,15 @@ Setup d12frosted's vulpea's helper for org-roam
   
 
 #+end_src
-** Org mode Defaults
+** Org mode Use-package Defaults
 :PROPERTIES:
-   :header-args:    :tangle lisp/org-defaults.el :noweb yes
-   :ID:                     7dbbb031-83de-45c1-a743-69bd6cd700cb
-   :END:
+:header-args: :tangle lisp/org-defaults.el :noweb yes
+:END:
 
 Org mode defaults for consistency
 #+begin_src emacs-lisp
 ;;; org-defaults.el --- Org Defaults  -*- lexical-binding: t -*-
- ;;;; general settings
-  (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
-  ;; Prevent auto insertion of blank lines before headings and list items
-  (setq org-blank-before-new-entry '((heading)
-                                     (plain-list-item)))
-   ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
-  (setq org-special-ctrl-a/e nil)
-  (setq org-special-ctrl-k nil)
-  (setq org-M-RET-may-split-line '((default . nil)))
-  ;; Single key command execution when at beginning of a headline
-  (setq org-use-speed-commands t)     ;? speed-key opens Speed Keys help
-  (setq org-speed-commands-user '(("m" . org-mark-subtree)))
-  (setq org-hide-emphasis-markers nil)  ;; so dont see text markers aka bold italic
-  (setq org-hide-macro-markers nil)
-  (setq org-hide-leading-stars nil)
-  (setq org-cycle-separator-lines 0)
-  (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
-        '(("s" . "src")
-          ("E" . "src emacs-lisp")
-          ("e" . "example")
-          ("q" . "quote")
-          ("v" . "verse")
-          ("V" . "verbatim")
-          ("c" . "center")
-          ("C" . "comment")))
-  (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
-  (setq org-return-follows-link t)
-  (setq org-loop-over-headlines-in-active-region 'start-level)
-  ;; Setup list of Org modules that should always be loaded together
-  ;; with Org.
-  (setq org-modules '(org-id org-attach ol-info))
-  ;; Allow _ and ^ characters to sub/super-script strings but only when
-  ;; string is wrapped in braces
-  (setq org-use-sub-superscripts '{}) ; In-buffer rendering
-  (setq org-pretty-entities t)        ; special symbols, latex
-  ;; Render subscripts and superscripts in Org buffers
-  (setq org-pretty-entities-include-sub-superscripts t)
-  (setq org-insert-heading-respect-content t)
 
-  ;;;; code blocks
-  (setq org-hide-block-startup nil)
-  (setq org-fontify-quote-and-verse-blocks t
-        org-fontify-whole-heading-line t)
-  (setq org-confirm-babel-evaluate nil)
-  (setq org-src-window-setup 'current-window)
-  (setq org-edit-src-persistent-message nil)
-  (setq org-src-fontify-natively t) ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
-  (setq org-src-preserve-indentation t)
-  (setq org-src-tab-acts-natively t)
-  (setq org-edit-src-content-indentation 0)
-
-;;;; images
-(setq org-startup-with-inline-images t)
-(setq org-image-actual-width '(300))
-
-;;;; export
-  (setq org-export-with-toc t)
-  (setq org-export-headline-levels 8)
-  (setq org-export-in-background t)     ; run export processes in external emacs process
-  (setq org-export-with-section-numbers nil)
-  (setq org-export-with-smart-quotes t)
-  (setq org-export-with-sub-superscripts '{}) ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
-  (setq org-export-dispatch-use-expert-ui nil)
-  (setq org-html-coding-system 'utf-8-unix)
-  (setq org-html-todo-kwd-class-prefix "keyword ")
-  (setq org-html-htmlize-output-type nil)
-  (setq org-html-head-include-default-style nil)
-  (setq org-html-head-include-scripts nil)
-  (require 'ox-texinfo)
-  (require 'ox-md)
-
-  ;; fold / overview  - collapse everything, show only level 1 headlines
-  ;; content          - show only headlines
-  ;; nofold / showall - expand all headlines except the ones with :archive:
-  ;;                    tag and property drawers
-  ;; showeverything   - same as above but without exceptions
-  (setq org-startup-folded 'content)
-
-  ;; https://orgmode.org/manual/Clean-view.html
-  (setq org-startup-indented t)       ;;; removed leading * for nicer view
-  (with-eval-after-load 'org-indent
-    (setq org-indent-indentation-per-level 1)) ;Default = 2
-
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (clojure . t)
-     (shell . t)
-     (python . t)
-     (latex . t)
-     ))
-   ;; change CAPITAL Keywords to lowercase
-  (defun org-syntax-convert-keyword-case-to-lower ()
-    "Convert all #+KEYWORDS to #+keywords."
-    (interactive)
-    (save-excursion
-      (goto-char (point-min))
-      (let ((count 0)
-            (case-fold-search nil))
-        (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-          (unless (s-matches-p "RESULTS" (match-string 0))
-            (replace-match (downcase (match-string 0)) t)
-            (setq count (1+ count))))
-        (message "Remplacement de %d occurrences" count))))
-  (defun discard-history ()
-    "Discard undo history of org src and capture blocks."
-    (setq buffer-undo-list nil)
-    (set-buffer-modified-p nil))
-  (define-advice org-return (:around (f &rest args))
-    (let ((org-src-preserve-indentation t))
-      (apply f args)))
-  (define-advice org-cycle (:around (f &rest args))
-    (let ((org-src-preserve-indentation t))
-      (apply f args)))
-  (defun org-babel-edit-prep:emacs-lisp (_)
-    "Setup Emacs Lisp buffer for Org Babel."
-    (setq lexical-binding t)
-    (setq-local flycheck-disabled-checkers '(emacs-lisp-checkdoc)))
-  ;; open directory links in `dired'
-  (add-to-list 'org-file-apps '(directory . emacs))
-
-  ;; open files in the same window
-  (add-to-list 'org-link-frame-setup '(file . find-file))
-  (setq org-indirect-buffer-display 'current-window)
-
-(defun gas/org-mode-setup ()
-  (org-indent-mode)       ;; turn on org indent
-  (variable-pitch-mode 1) ;; turn on variable-pitch
-  (auto-fill-mode 0)      ;; turn off auto-fill
-  (visual-line-mode 1)    ;; turn on visual-line-mode
-  (show-paren-mode 1)     ;; show parentheses
-  )
-
-(provide 'org-defaults)
-;;; org-defaults.el ends here
-#+end_src
-
-** Org Use-package
-:PROPERTIES:
-   :header-args:    :tangle lisp/org-usepackage.el :noweb yes
-   :END:
-#+begin_src elisp
-;;; org-usepackage.el --- Org Use-package setup  -*- lexical-binding: t -*-
 (use-package org
   :straight (:type built-in)
   :preface
@@ -4159,120 +4102,398 @@ Org mode defaults for consistency
   (setq org-directory
         (if *is-termux?*
             "~/storage/shared/org"
-          *notes/*))
+          "~/org"))
 
   (defun add-path-to-org/ (path)
     (expand-file-name path org-directory))
 
   :config
+  ;;;; general settings
+  (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
+  ;; Prevent auto insertion of blank lines before headings and list items
+  (setq org-blank-before-new-entry '((heading)
+				     (plain-list-item)))
+  ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
+  (setq org-special-ctrl-a/e nil)
+  (setq org-special-ctrl-k nil)
+  (setq org-M-RET-may-split-line '((default . nil)))
+  ;; Single key command execution when at beginning of a headline
+  (setq org-use-speed-commands t)     ;? speed-key opens Speed Keys help
+  (setq org-speed-commands-user '(("m" . org-mark-subtree)))
+  (setq org-hide-emphasis-markers nil)  ;; so dont see text markers aka bold italic
+  (setq org-hide-macro-markers nil)
+  (setq org-hide-leading-stars nil)
+  (setq org-cycle-separator-lines 0)
+  (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
+	'(("s" . "src")
+	  ("E" . "src emacs-lisp")
+	  ("e" . "example")
+	  ("q" . "quote")
+	  ("v" . "verse")
+	  ("V" . "verbatim")
+	  ("c" . "center")
+	  ("C" . "comment")))
+  (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
+  (setq org-return-follows-link t)
+  (setq org-loop-over-headlines-in-active-region 'start-level)
+  ;; Setup list of Org modules that should always be loaded together
+  ;; with Org.
+  (setq org-modules '(org-id org-attach ol-info))
+  ;; Allow _ and ^ characters to sub/super-script strings but only when
+  ;; string is wrapped in braces
+  (setq org-use-sub-superscripts '{}) ; In-buffer rendering
+  (setq org-pretty-entities t)        ; special symbols, latex
+  ;; Render subscripts and superscripts in Org buffers
+  (setq org-pretty-entities-include-sub-superscripts t)
+  (setq org-insert-heading-respect-content t)
+
+  ;;;; code blocks
+  (setq org-hide-block-startup nil)
+  (setq org-fontify-quote-and-verse-blocks t
+	org-fontify-whole-heading-line t)
+  (setq org-confirm-babel-evaluate nil)
+  (setq org-src-window-setup 'current-window)
+  (setq org-edit-src-persistent-message nil)
+  (setq org-src-fontify-natively t) ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
+  (setq org-src-preserve-indentation t)
+  (setq org-src-tab-acts-natively t) ;; TAB as if code tab settings
+  (setq org-edit-src-content-indentation 0) ;; remove 2 space indent in src code blocks
+  (setq org-use-property-inheritance t) ;; for tangling
+
+  ;;;; images
+  (setq org-startup-with-inline-images t)
+  (setq org-image-actual-width '(300))
+
+  ;;;; export
+  (setq org-export-with-toc t)
+  (setq org-export-headline-levels 8)
+  (setq org-export-in-background t)     ; run export processes in external emacs process
+  (setq org-export-with-section-numbers nil)
+  (setq org-export-with-smart-quotes t)
+  (setq org-export-with-sub-superscripts '{}) ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+  (setq org-export-dispatch-use-expert-ui nil)
+  (setq org-html-coding-system 'utf-8-unix)
+  (setq org-html-todo-kwd-class-prefix "keyword ")
+  (setq org-html-htmlize-output-type nil)
+  (setq org-html-head-include-default-style nil)
+  (setq org-html-head-include-scripts nil)
+  (require 'ox-texinfo)
+  (require 'ox-md)
+
+  ;; fold / overview  - collapse everything, show only level 1 headlines
+  ;; content          - show only headlines
+  ;; nofold / showall - expand all headlines except the ones with :archive:
+  ;;                    tag and property drawers
+  ;; showeverything   - same as above but without exceptions
+  (setq org-startup-folded 'content)
+
+  ;; https://orgmode.org/manual/Clean-view.html
+  (setq org-startup-indented t)       ;;; removed leading * for nicer view
+  (with-eval-after-load 'org-indent
+    (setq org-indent-indentation-per-level 1)) ;Default = 2
+
+  (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (clojure . t)
+       (shell . t)
+       (python . t)
+       (latex . t)
+       ))
+  ;; change CAPITAL Keywords to lowercase
+  (defun org-syntax-convert-keyword-case-to-lower ()
+    "Convert all #+KEYWORDS to #+keywords."
+    (interactive)
+    (save-excursiont
+      (goto-char (point-min))
+      (let ((count 0)
+	    (case-fold-search nil))
+	(while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+	(unless (s-matches-p "RESULTS" (match-string 0))
+	  (replace-match (downcase (match-string 0)) t)
+	  (setq count (1+ count))))
+	(message "Remplacement de %d occurrences" count))))
+  (defun discard-history ()
+    "Discard undo history of org src and capture blocks."
+    (setq buffer-undo-list nil)
+    (set-buffer-modified-p nil))
+  (define-advice org-return (:around (f &rest args))
+    (let ((org-src-preserve-indentation t))
+      (apply f args)))
+  (define-advice org-cycle (:around (f &rest args))
+    (let ((org-src-preserve-indentation t))
+      (apply f args)))
+  (defun org-babel-edit-prep:emacs-lisp (_)
+    "Setup Emacs Lisp buffer for Org Babel."
+    (setq lexical-binding t)
+    (setq-local flycheck-disabled-checkers '(emacs-lisp-checkdoc)))
+  ;; open directory links in `dired'
+  (add-to-list 'org-file-apps '(directory . emacs))
+
+  ;; open files in the same window
+  (add-to-list 'org-link-frame-setup '(file . find-file))
+  (setq org-indirect-buffer-display 'current-window)
+
+  (defun gas/org-mode-setup ()
+    (org-indent-mode)       ;; turn on org indent
+    (variable-pitch-mode 1) ;; turn on variable-pitch
+    (auto-fill-mode 0)      ;; turn off auto-fill
+    (visual-line-mode 1)    ;; turn on visual-line-mode
+    (show-paren-mode 1)     ;; show parentheses
+    )
  )
+  
+(provide 'org-defaults)
+;;; org-defaults.el ends here
+#+end_src
 
-(use-package org-modern
-:straight t
-:config
-  (setq org-modern-label-border 1)
-  (setq org-modern-variable-pitch nil)
-  (setq org-modern-timestamp t)
-  (setq org-modern-table t)
-  (setq org-modern-table-vertical 1)
-  (setq org-modern-table-horizontal 0)
-  (setq org-modern-list ; I swap the defaults for + and *
-        '((?+ . "•")
-          (?- . "–")
-          (?* . "◦")))
-  (:hook org-mode))
+** Org Use-package agenda
+:PROPERTIES:
+   :header-args:    :tangle lisp/org-agenda-defaults.el :noweb yes
+   :END:
+#+begin_src elisp
+;;; org-agenda-defaults.el --- Org Agenda setup  -*- lexical-binding: t -*-
 
-(provide 'org-usepackage)
-;;; org-usepackage.el ends here
+(use-package org-agenda
+  :straight nil
+  :defer t
+  :config      ;; formatting for properties
+  (setq org-property-format "%-24s %s")
+  ;; setup todo keywords
+  (setq
+   org-todo-keywords
+   '((sequence "TODO(t)" "EN_COURS(n)" "|" "FINI(d!)")
+     (sequence "ATTENDRE(w@/!)"
+	       "ENATTENTE(h@/!)"
+	       "|"
+	       "ANNULÉ(c@/!)"
+	       "RÉUNION(m)")))
+  (setq org-todo-keyword-faces
+	'(("TODO"     . org-todo)
+	  ("ENATTENTE"  . (:foreground "black" :background "#FFEF9F"))
+	  ("ANNULÉ" . (:foreground "#94BFF3" :weight bold :strike-through t))
+	  ("FINI"     . (:foreground "black" :background "#91ba31"))
+	  ("RÉUNION" . '(bold org-todo))
+	  ("ATTENDRE" . '(bold shadow))))
+  (setq org-use-fast-todo-selection 'expert)
+  (setq org-priority-faces
+	'((?A . '(bold org-priority))
+	  (?B . org-priority)
+	  (?C . '(shadow org-priority))))
+  (setq org-fontify-done-headline nil)
+  (setq org-fontify-todo-headline nil)
+  (setq org-fontify-quote-and-verse-blocks t)
+  (setq org-fontify-whole-heading-line nil)
+  (setq org-fontify-whole-block-delimiter-line nil)
+  (setq org-highlight-latex-and-related nil) ; other options affect elisp regexp in src blocks
+  (setq org-enforce-todo-dependencies t)
+  (setq org-enforce-todo-checkbox-dependencies t)
+  (setq org-track-ordered-property-with-tag t)
+  (setq org-highest-priority ?A)
+  (setq org-lowest-priority ?C)
+  (setq org-default-priority ?A)
+
+  (setq org-todo-keywords
+	'((sequence
+	   "TODO(t)"  ; A task that needs doing & is ready to do
+	   ;;  "PROJ(p)"  ; A project, which usually contains other tasks
+	   "EN_COURS(s)"  ; A task that is in progress
+	   "ATTE(w)"  ; Something external is holding up this task
+	   "SUSP(h)"  ; This task is paused/on hold because of me
+	   "|"
+	   "FINI(d)"  ; Task successfully completed
+	   "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
+	  (sequence
+	   "[ ](T)"   ; A task that needs doing
+	   "[-](S)"   ; Task is in progress
+	   "[?](W)"   ; Task is being held up or paused
+	   "|"
+	   "[X](D)")  ; Task was completed
+	  (sequence
+	   "|"
+	   "OKAY(o)"
+	   "YES(y)"
+	   "NO(n)"))
+	org-todo-keyword-faces
+	'(("[ ]"   . org-todo-keyword-todo)
+	  ("SUIV" .  org-todo-keyword-next)
+	  ("[-]"  .  org-todo-keyword-next)
+	  ("[?]"  .  org-todo-keyword-wait)
+	  ("ATTE" .  org-todo-keyword-wait)
+	  ("SUSP" .  org-todo-keyword-wait)
+	  ("PROJ" .  org-todo-keyword-proj)
+	  ("KILL" .  org-todo-keyword-kill)
+	  ("FINI" .  org-todo-keyword-done)
+	  ("[X]"  .  org-todo-keyword-done)
+	  ))
+
+  (setq org-agenda-custom-commands
+	(quote
+         (
+          ("n" "Prochaines Tâches"
+	   ((agenda "" ((org-deadline-warning-days 7)))
+	    (todo "SUIV"
+		  ((org-agenda-overriding-header "Prochaines Tâches")))))
+
+	  ;; Low-effort next actions
+	  ("l" tags-todo "+TODO=\"EN_COURS\"+Effort<15&+Effort>0"
+	   ((org-agenda-overriding-header "Tâches à faible Effort")
+	    (org-agenda-max-todos 20)
+	    (org-agenda-files org-agenda-files)))
+	  ("h" "Habitudes" tags-todo "STYLE=\"habit\""
+	   ((org-agenda-overriding-header "Habitudes")
+	    (org-agenda-sorting-strategy
+	     '(todo-state-down priority-down category-keep))))
+	  ("e" "Eisenhower Matrix"
+	   ((agenda
+	     ""
+	     ((org-agenda-overriding-header "Calendrier Eisenhower:")
+	      (org-agenda-show-log t)
+	      (org-agenda-log-mode-items '(clock state))
+	      (org-agenda-category-filter-preset '("-Habitudes"))
+	      (org-agenda-span 5)
+	      (org-agenda-start-on-weekday t)
+	      ;;            (org-agenda-ndays 5)
+	      ;;            (org-agenda-start-day "-2d")
+	      (org-deadline-warning-days 30)))
+	    (tags-todo
+	     "+important+urgent/!FINI"
+	     ((org-agenda-overriding-header "Tâches importantes et urgentes")
+	      (org-tags-match-list-sublevels nil)))
+	    (tags-todo  "+important-urgent"
+			((org-agenda-overriding-header "Tâches importantes mais non urgentes")
+			 (org-tags-match-list-sublevels nil)))
+	    (tags-todo "-important+urgent"
+		       ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+			(org-tags-match-list-sublevels nil)))
+	    (tags-todo "-important-urgent/!TODO"
+		       ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
+			(org-agenda-category-filter-preset '("-Habitudes"))
+			(org-tags-match-list-sublevels nil)))
+	    (tags-todo "values"
+		       ((org-agenda-overriding-header "Valeurs")
+			(org-tags-match-list-sublevels nil)))
+	    ))
+	  (" " "Agenda"
+	   ((agenda ""
+		    ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
+		     (org-agenda-show-log t)
+		     (org-agenda-log-mode-items '(clock state))
+		     ;; (org-agenda-files '(,(add-path-to-org/ "inbox.org")))
+		     (org-agenda-text-search-extra-files nil)
+		     ;;   (org-agenda-span 'day)
+		     ;;   (org-agenda-ndays 3)
+		     (org-agenda-start-on-weekday nil)
+		     (org-agenda-start-day "-d")
+		     (org-agenda-todo-ignore-deadlines nil)))
+	    (tags-todo "+important"
+		       ((org-agenda-overriding-header "Tâches Importantes à Venir")
+			(org-tags-match-list-sublevels nil)))
+	    (tags-todo "-important/TODO"
+		       ((org-agenda-overriding-header "Tâches de Travail")
+			(org-agenda-category-filter-preset '("-Habitudes"))
+			(org-agenda-sorting-strategy
+			 '(todo-state-down priority-down))))
+	    (tags-todo "-important-urgent/TODO"
+		       ((org-agenda-overriding-header "Habitudes")
+			(org-agenda-sorting-strategy
+			 '(todo-state-down priority-down))))
+	    (tags "FINI"
+		  ((org-agenda-overriding-header "Tâches à la Représenter")
+		   (org-tags-match-list-sublevels nil)))))
+	  ))))
+
 #+end_src
 *** Org clock
 #+begin_src emacs-lisp
-  (use-package org-clock
-    :straight nil
-    :defer t
-    :commands (org-clock-save)
-    :init
-    (setq
-     org-clock-persist-file (expand-file-name "org-clock-save.el" *emacs-etc/* )
-     ;; remove clocked tasks with 0:00 duration
-     org-clock-out-remove-zero-time-clocks t
-     org-clock-persist 'history
-     ;; Resume when clocking into task with open clock
-     org-clock-in-resume t)
-    :config
-    (add-hook 'kill-emacs-hook #'org-clock-save))
+(use-package org-clock
+  :straight nil
+  :defer t
+  :commands (org-clock-save)
+  :init
+  (setq
+   org-clock-persist-file (expand-file-name "org-clock-save.el" *emacs-etc/* )
+   ;; remove clocked tasks with 0:00 duration
+   org-clock-out-remove-zero-time-clocks t
+   org-clock-persist 'history
+   ;; Resume when clocking into task with open clock
+   org-clock-in-resume t)
+  :config
+  (add-hook 'kill-emacs-hook #'org-clock-save))
 
 
 #+end_src
 *** Org refile
 #+begin_src emacs-lisp
-  (use-package org-refile
-    :straight nil
-    :defer t
-    :init
-   ;;;; refile, todo
-    (setq org-refile-targets
-          '((org-agenda-files . (:maxlevel . 2))
-            (nil . (:maxlevel . 2))))
-    (setq org-refile-use-outline-path t)
-    (setq org-refile-allow-creating-parent-nodes 'confirm)
-    (setq org-refile-use-cache t)
-    (setq org-reverse-note-order nil)
-    (setq org-outline-path-complete-in-steps nil)
-    (setq org-refile-target-verify-function #'vulpea-refile-verify-target))
+(use-package org-refile
+  :straight nil
+  :defer t
+  :init
+       ;;;; refile, todo
+  (setq org-refile-targets
+	'((org-agenda-files . (:maxlevel . 2))
+	  (nil . (:maxlevel . 2))))
+  (setq org-refile-use-outline-path t)
+  (setq org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-refile-use-cache t)
+  (setq org-reverse-note-order nil)
+  (setq org-outline-path-complete-in-steps nil)
+  ;;	(setq org-refile-target-verify-function #'vulpea-refile-verify-target)
+  )
 
-  
+
 #+end_src
 *** Org Archive
 #+begin_src emacs-lisp
-  (use-package org-archive
-    :straight nil
-    :defer t
-    :init
-    (setq-default
-     org-archive-location
-     (concat org-directory ".archive/%s_archive" "::" "datetree/*")
-     org-archive-save-context-info
-     '(time file ltags itags todo category olpath)))
+(use-package org-archive
+  :straight nil
+  :defer t
+  :init
+  (setq-default
+   org-archive-location
+   (concat org-directory ".archive/%s_archive" "::" "datetree/*")
+   org-archive-save-context-info
+   '(time file ltags itags todo category olpath)))
 
-  
+
 #+end_src
 *** Org ID
 #+begin_src emacs-lisp
-  (use-package org-id
-    :straight nil
-    :defer t
-    :hook ((before-save . vulpea-id-auto-assign)
-           (org-capture-prepare-finalize . org-id-get-create))
-    :init
-    (setq org-id-uuid-program
-          "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
-    :config
-    (org-link-set-parameters
-     "id" :activate-func #'vulpea-activate-link)
-    (setq
-     org-id-track-globally t
-     org-id-extra-files
-     (list (expand-file-name ".archive/archive" org-directory)
-           (expand-file-name ".archive/archive.org" org-directory))
-     org-id-link-to-org-use-id t
-     org-id-locations-file (expand-file-name "org-id-locations" *xdg-cache/*)))
+(use-package org-id
+  :straight nil
+  :defer t
+  :hook ( ;;(before-save . vulpea-id-auto-assign)
+         (org-capture-prepare-finalize . org-id-get-create))
+  :init
+  (setq org-id-uuid-program
+        "uuidgen | tr \"[:upper:]\" \"[:lower:]\"")
+  :config
+  ;;(org-link-set-parameters
+  ;; "id" :activate-func #'vulpea-activate-link)
+  (setq
+   org-id-track-globally t
+   org-id-extra-files
+   (list (expand-file-name ".archive/archive" org-directory)
+         (expand-file-name ".archive/archive.org" org-directory))
+   org-id-link-to-org-use-id t
+   org-id-locations-file (expand-file-name "org-id-locations" *xdg-cache/*)))
 
-  
+
 #+end_src
 *** Org attach
 #+begin_src emacs-lisp
-  (use-package org-attach
-    :straight nil
-    :defer t
-    :config
-    (setq-default
-     org-attach-id-dir (expand-file-name ".data/" vulpea-directory)
-     org-attach-auto-tag nil
-     org-attach-file-list-property nil
-     org-attach-store-link-p 'attached))
+(use-package org-attach
+  :straight nil
+  :defer t
+  :config
+  (setq-default
+   org-attach-id-dir (expand-file-name ".data/" org-directory)
+   org-attach-auto-tag nil
+   org-attach-file-list-property nil
+   org-attach-store-link-p 'attached))
 
-  
+(provide 'org-agenda-defaults)
+;;; org-agenda-defaults.el ends here
 #+end_src
 ** Org Setup
    :PROPERTIES:
@@ -4285,7 +4506,7 @@ use Setup to setup Org Mode
 #+begin_src emacs-lisp
 ;;; org-setup.el --- Orgmode Setup  -*- lexical-binding: t -*-
 ;; setup of org-mode keybindings
-(setup (:straight org)
+(setup (:pkg org)
   (:also-load org-tempo)
   (:hook gas/org-mode-setup)
   (:global "C-c a"  org-agenda
@@ -4310,7 +4531,7 @@ use Setup to setup Org Mode
     (org-indent-mode 1)
     (:hide-mode)))
 
-(setup (:straight org-appear)
+(setup (:pkg org-appear)
   (:load-after org
     (:option org-appear-autoemphasis t
              org-appear-autoentities t
@@ -4443,7 +4664,7 @@ use Setup to setup Org Mode
 ;;                                                           "#+title: %<%Y>\n#+filetags:projet\n")
 ;;                                        :unnarrowed t))))
 
-;;   (setup (:straight org-roam)
+;;   (setup (:pkg org-roam)
 ;;     (setq org-roam-v2-ack t)
 ;;     (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
 ;;           dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
@@ -4492,9 +4713,9 @@ use Setup to setup Org Mode
 
 
 #+end_src
-** Org Agenda
+** Org Vulpea Agenda
     :PROPERTIES:
-   :header-args:    :noweb-ref agenda-use
+   :header-args:    :noweb-ref agenda-vulpea
     :ID:                     0b03668d-0ae9-4b3f-b55c-652f1896a833
    :END:
 org-capture provides a generic and extensible interface to capturing things into org-mode in
@@ -4630,157 +4851,7 @@ different formats
   ;;   (custom-declare-face 'org-todo-keyword-kill  '((t (:inherit (bold error org-todo)))) ""))
 )
 
-(setup org-agenda
-  (:load-after org
-    ;; avoid noisy `org-check-agenda-file'
-    (advice-add #'org-check-agenda-file
-                :around
-                #'vulpea-check-agenda-file)
 
-    ;; formatting for properties
-    (setq org-property-format "%-24s %s")
-    ;; setup todo keywords
-    (setq
-     org-todo-keywords
-     '((sequence "TODO(t)" "EN_COURS(n)" "|" "FINI(d!)")
-       (sequence "ATTENDRE(w@/!)"
-                 "ENATTENTE(h@/!)"
-                 "|"
-                 "ANNULÉ(c@/!)"
-                 "RÉUNION(m)")))
-    (setq org-todo-keyword-faces
-          '(("TODO"     . org-todo)
-            ("ENATTENTE"  . (:foreground "black" :background "#FFEF9F"))
-            ("ANNULÉ" . (:foreground "#94BFF3" :weight bold :strike-through t))
-            ("FINI"     . (:foreground "black" :background "#91ba31"))
-            ("RÉUNION" . '(bold org-todo))
-            ("ATTENDRE" . '(bold shadow))))
-    (setq org-use-fast-todo-selection 'expert)
-    (setq org-priority-faces
-          '((?A . '(bold org-priority))
-            (?B . org-priority)
-            (?C . '(shadow org-priority))))
-    (setq org-fontify-done-headline nil)
-    (setq org-fontify-todo-headline nil)
-    (setq org-fontify-quote-and-verse-blocks t)
-    (setq org-fontify-whole-heading-line nil)
-    (setq org-fontify-whole-block-delimiter-line nil)
-    (setq org-highlight-latex-and-related nil) ; other options affect elisp regexp in src blocks
-    (setq org-enforce-todo-dependencies t)
-    (setq org-enforce-todo-checkbox-dependencies t)
-    (setq org-track-ordered-property-with-tag t)
-    (setq org-highest-priority ?A)
-    (setq org-lowest-priority ?C)
-    (setq org-default-priority ?A)
-
-    (setq org-todo-keywords
-          '((sequence
-             "TODO(t)"  ; A task that needs doing & is ready to do
-             ;;  "PROJ(p)"  ; A project, which usually contains other tasks
-             "EN_COURS(s)"  ; A task that is in progress
-             "ATTE(w)"  ; Something external is holding up this task
-             "SUSP(h)"  ; This task is paused/on hold because of me
-             "|"
-             "FINI(d)"  ; Task successfully completed
-             "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
-            (sequence
-             "[ ](T)"   ; A task that needs doing
-             "[-](S)"   ; Task is in progress
-             "[?](W)"   ; Task is being held up or paused
-             "|"
-             "[X](D)")  ; Task was completed
-            (sequence
-             "|"
-             "OKAY(o)"
-             "YES(y)"
-             "NO(n)"))
-          org-todo-keyword-faces
-          '(("[ ]"   . org-todo-keyword-todo)
-            ("SUIV" .  org-todo-keyword-next)
-            ("[-]"  .  org-todo-keyword-next)
-            ("[?]"  .  org-todo-keyword-wait)
-            ("ATTE" .  org-todo-keyword-wait)
-            ("SUSP" .  org-todo-keyword-wait)
-            ("PROJ" .  org-todo-keyword-proj)
-            ("KILL" .  org-todo-keyword-kill)
-            ("FINI" .  org-todo-keyword-done)
-            ("[X]"  .  org-todo-keyword-done)
-            ))
-
-    ;; (setq org-agenda-custom-commands
-    ;;       (quote
-    ;;        (("n" "Prochaines Tâches"
-    ;;          ((agenda "" ((org-deadline-warning-days 7)))
-    ;;           (todo "SUIV"
-    ;;                 ((org-agenda-overriding-header "Prochaines Tâches")))))
-
-    ;;         ;; Low-effort next actions
-    ;;         ("l" tags-todo "+TODO=\"EN_COURS\"+Effort<15&+Effort>0"
-    ;;          ((org-agenda-overriding-header "Tâches à faible Effort")
-    ;;           (org-agenda-max-todos 20)
-    ;;           (org-agenda-files org-agenda-files)))
-    ;;         ("h" "Habitudes" tags-todo "STYLE=\"habit\""
-    ;;          ((org-agenda-overriding-header "Habitudes")
-    ;;           (org-agenda-sorting-strategy
-    ;;            '(todo-state-down priority-down category-keep))))
-    ;;         ("e" "Eisenhower Matrix"
-    ;;          ((agenda
-    ;;            ""
-    ;;            ((org-agenda-overriding-header "Calendrier Eisenhower:")
-    ;;             (org-agenda-show-log t)
-    ;;             (org-agenda-log-mode-items '(clock state))
-    ;;             (org-agenda-category-filter-preset '("-Habitudes"))
-    ;;             (org-agenda-span 5)
-    ;;             (org-agenda-start-on-weekday t)
-    ;;             ;;            (org-agenda-ndays 5)
-    ;;             ;;            (org-agenda-start-day "-2d")
-    ;;             (org-deadline-warning-days 30)))
-    ;;           (tags-todo
-    ;;            "+important+urgent/!FINI"
-    ;;            ((org-agenda-overriding-header "Tâches importantes et urgentes")
-    ;;             (org-tags-match-list-sublevels nil)))
-    ;;           (tags-todo  "+important-urgent"
-    ;;                       ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
-    ;;                        (org-tags-match-list-sublevels nil)))
-    ;;           (tags-todo "-important+urgent"
-    ;;                      ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
-    ;;                       (org-tags-match-list-sublevels nil)))
-    ;;           (tags-todo "-important-urgent/!TODO"
-    ;;                      ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
-    ;;                       (org-agenda-category-filter-preset '("-Habitudes"))
-    ;;                       (org-tags-match-list-sublevels nil)))
-    ;;           (tags-todo "values"
-    ;;                      ((org-agenda-overriding-header "Valeurs")
-    ;;                       (org-tags-match-list-sublevels nil)))
-    ;;           ))
-    ;;         (" " "Agenda"
-    ;;          ((agenda ""
-    ;;                   ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
-    ;;                    (org-agenda-show-log t)
-    ;;                    (org-agenda-log-mode-items '(clock state))
-    ;;                    ;; (org-agenda-files '(,(add-path-to-org/ "inbox.org")))
-    ;;                    (org-agenda-text-search-extra-files nil)
-    ;;                    ;;   (org-agenda-span 'day)
-    ;;                    ;;   (org-agenda-ndays 3)
-    ;;                    (org-agenda-start-on-weekday nil)
-    ;;                    (org-agenda-start-day "-d")
-    ;;                    (org-agenda-todo-ignore-deadlines nil)))
-    ;;           (tags-todo "+important"
-    ;;                      ((org-agenda-overriding-header "Tâches Importantes à Venir")
-    ;;                       (org-tags-match-list-sublevels nil)))
-    ;;           (tags-todo "-important/TODO"
-    ;;                      ((org-agenda-overriding-header "Tâches de Travail")
-    ;;                       (org-agenda-category-filter-preset '("-Habitudes"))
-    ;;                       (org-agenda-sorting-strategy
-    ;;                        '(todo-state-down priority-down))))
-    ;;           (tags-todo "-important-urgent/TODO"
-    ;;                      ((org-agenda-overriding-header "Habitudes")
-    ;;                       (org-agenda-sorting-strategy
-    ;;                        '(todo-state-down priority-down))))
-    ;;           (tags "FINI"
-    ;;                 ((org-agenda-overriding-header "Tâches à la Représenter")
-    ;;                  (org-tags-match-list-sublevels nil))))))))
-))
 #+end_src
 
 ** OX (Presentation)
@@ -5049,7 +5120,7 @@ working. It sucked.
 setup olivetti to have a distraction free editing mode
 #+begin_src emacs-lisp :tangle no
   ;; Distraction-free screen
-    (setup (:straight olivetti)
+    (setup (:pkg olivetti)
       (setq olivetti-body-width .67)
       (defun distraction-free ()
         "Distraction-free writing environment"
@@ -5176,7 +5247,7 @@ Summary of what these do:
 
 
     ;; dimm parenthesis
-    ;; (setup (:straight paren-face)
+    ;; (setup (:pkg paren-face)
     ;;   (:hook-into emacs-lisp-mode
     ;;       ielm-mode sly-repl-mode
     ;;       lisp-mode
@@ -5223,7 +5294,7 @@ Summary of what these do:
         (:bind "C-<tab>"   #'+hs-cycle
            "C-S-<tab>" #'+hs-global-cycle)))
 
-    (setup (:straight rainbow-delimiters)
+    (setup (:pkg rainbow-delimiters)
       ;;(setq rainbow-delimiters-max-face-count 2)
       (:hook-into emacs-lisp-mode-hook
           eval-expression-minibuffer-setup-hook
@@ -5435,19 +5506,19 @@ ielm setup
              "C-c C-z" #'ielm )
     (advice-add #'eval-region :around #'+eval-region@pulse)))
 
-  (setup (:straight elisp-slime-nav)
+  (setup (:pkg elisp-slime-nav)
     (:load-after ielm
       (:hook-into emacs-lisp-mode ielm-mode)
       (:hide-mode)))
 
-  (setup (:straight ielm)
+  (setup (:pkg ielm)
     (:load-after comint
       (:with-map ielm-map
         (:bind
          [up] comint-previous-input
          [down] comint-next-input))))
 
-  (setup (:straight macrostep)
+  (setup (:pkg macrostep)
     (:with-map macrostep-keymap
       (:bind
        [tab] macrostep-next-macro
@@ -5458,7 +5529,7 @@ ielm setup
     (:hide-mode))
 
 ;; Evaluation Result Overlay
-;; (setup (:straight eros)
+;; (setup (:pkg eros)
 ;;   (:hook-into emacs-lisp-mode eros-mode))
 #+end_src
 ** Common LISP
@@ -5489,7 +5560,7 @@ SLY setup
       (let ((current-prefix-arg '-))
         (sly nil nil t)))
 
-    (setup (:straight sly)
+    (setup (:pkg sly)
       (:when-loaded
         (sly-setup '(sly-fancy))
         (:require 'sly-autoloads))
@@ -5677,15 +5748,15 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
   (cljr-suppress-middleware-warnings t)
   (cljr-warn-on-eval nil))
 
-  (setup (:straight async))
-  ;;(setup (:straight ob-async))
-  ;;(setup (:straight ob-clojurescript))
-  ;;(setup (:straight ob-babel-eval-in-repl))
+  (setup (:pkg async))
+  ;;(setup (:pkg ob-async))
+  ;;(setup (:pkg ob-clojurescript))
+  ;;(setup (:pkg ob-babel-eval-in-repl))
 
-  (setup (:straight flycheck-clj-kondo)
+  (setup (:pkg flycheck-clj-kondo)
     :only-if (executable-find "clj-kondo"))
 
-  ;;(setup (:straight eval-in-repl))
+  ;;(setup (:pkg eval-in-repl))
 
 #+end_src
 
@@ -5808,7 +5879,7 @@ for the module name."
     (when fennel-mode-switch-to-repl-after-reload
       (switch-to-lisp t))))
 
-  (setup (:straight ssh-config-mode)
+  (setup (:pkg ssh-config-mode)
   (:file-match (rx "/.ssh/config" eos)
                (rx "/ssh" (? "d") "_config" eos))
   (:with-mode ssh-known-hosts-mode
@@ -5822,7 +5893,7 @@ for the module name."
 :END:
 Emacs Speaks Statistics
 #+begin_src emacs-lisp :noweb-ref ess
-  (setup (:straight ess)
+  (setup (:pkg ess)
     ;;(:require ess-r-mode)
     (setq ess-ask-for-ess-directory nil)
     (setq ess-local-process-name "R")
@@ -5907,7 +5978,7 @@ When at the beginning of the line, make Ctrl-K remove the whole line, instead of
 One of the few things I missed in Emacs from vi was the % key, which jumps to the parenthesis, bracket or brace which matches the one below the cursor. This function implements this functionality, bound to the same key. Inspired by NavigatingParentheses, but modified to use smartparens instead of the default commands, and to work on brackets and braces.
 #+begin_src emacs-lisp
   (setup
-      (:straight smartparens)
+      (:pkg smartparens)
     (defun zz/goto-match-paren (arg)
       "Go to the matching paren/bracket, otherwise (or if ARG is not
       nil) insert %.  vi style of % jumping to matching brace."
@@ -5982,9 +6053,6 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 
 
 * Tangling config noweb
-:PROPERTIES:
-:ID:                     65bbc8e3-5a87-434f-b70b-f920af75b954
-:END:
 ** Header & disclaimer
 :PROPERTIES:
 :header-args: :noweb-ref disclaimer
@@ -5993,6 +6061,7 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 
 #+begin_src emacs-lisp
 ;; Copyright (C) 2001-2022 Gas
+;; Timestamp: <>
 
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
@@ -6002,7 +6071,6 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 ;; URL: https://github.com/frap/emacs.d
 ;; Package-Requires: ((emacs "27.2"))
 
-;; Timestamp: <>
 ;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
@@ -6028,6 +6096,7 @@ Setup emacs paths and directory constants
 ;; This module defines path constants used across other modules.
 ;;
 ;;; Code:
+<<constants>>
 
 <<path-config>>
 
@@ -6067,24 +6136,22 @@ load environment for Emacs from shell
 Setup keyboard
 
 #+begin_src emacs-lisp
-  ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
+;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
 
-  <<disclaimer>>
-  ;;
-  ;; This module sets up keyboard
-  ;;
-  ;;; Code:
+<<disclaimer>>
+;;
+;; This module sets up keyboard
+;;
+;;; Code:
 
-  (require 'init-elpa)
-  (require 'init-env)
-  (+with-message "KeyBoard Setup"
-   <<keyboard>>
+(require 'init-elpa)
+;;(require 'init-env)
+<<keyboard>>
 
-   <<keybindings>>
-   )
+<<keybindings>>
 
-  (provide 'init-kbd)
-  ;;; init-kbd.el ends here
+(provide 'init-kbd)
+;;; init-kbd.el ends here
 #+end_src
 ** My Utility fns and macros
 :PROPERTIES:
@@ -6098,7 +6165,7 @@ File for my constants, macros and functions
 
 <<disclaimer>>
 
-(+with-message "Util Fns & macros"
+(with-message! "Util Fns & macros"
 ;;; Code:
 
 ;;; ============================================================================
@@ -6119,7 +6186,7 @@ File for my constants, macros and functions
 
 <<functions>>
 
-) ;; end of +with-message
+) ;; end of with-message!
 
 (provide 'init-fn-macros)
 ;;; init-fn-macros.el ends here
@@ -6135,29 +6202,81 @@ File for my constants, macros and functions
 
 
 #+begin_src emacs-lisp
-   ;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
-   <<disclaimer>>
-   ;;
-   ;; Setup Emacs for installing packages from MELPA and Git
-   ;; repositories. Enable configuration via `setup'.
-   ;;; Code:
+;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
+<<disclaimer>>
+;;
+;; Setup Emacs for installing packages from MELPA and Git
+;; repositories. Enable configuration via `setup'.
+;;; Code:
 
-   (require 'config-path)
-   ;;(+with-message "setup ELPA"
+(require 'config-path)
 
-     <<straight-setup>>
-     ;; Install setup.el. We use this to concisely perform repetitive tasks, such as
-     ;; installing and loading packages.
-     <<setup-pkgmgr>>
-   ;;;============================================================================
-   ;;; Custom setup.el local macros
-   ;;; ============================================================================
+<<straight-setup>>
 
-     <<setup-macros>>
-   ;;) ;; end of +with-message
+(provide 'init-elpa)
+;;; init-elpa.el ends here
+#+end_src
 
-   (provide 'init-elpa)
-   ;;; init-elpa.el ends here
+** Emacs Package management
+*** Straight and use-package
+:properties:
+:header-args: :tangle lisp/init-straight.el :noweb yes
+:end:
+
+#+begin_src emacs-lisp
+;;; init-straight.el --- Initialise Straight & use package -*- lexical-binding: t -*-
+<<disclaimer>>
+;;
+;;; Code:
+
+(require 'config-path)
+
+<<straight-setup>>
+
+(provide 'init-straight)
+;;; init-straight.el ends here
+#+end_src
+*** Corgi setup
+:PROPERTIES:
+:header-args: :tangle lisp/init-corgi.el :noweb yes
+:END:
+
+Setup default corgi
+#+begin_src emacs-lisp
+;;; init-corgi.el --- Initialise Corgi -*- lexical-binding: t -*-
+<<disclaimer>>
+;;
+
+;;; Code:
+
+(require 'config-path)
+
+<<corgi-setup>>
+
+(provide 'init-corgi)
+;;; init-corgi.el ends here
+#+end_src
+*** Setup Pkg manager
+:properties:
+:header-args: :tangle lisp/init-setup.el :noweb yes
+:end:
+
+#+begin_src emacs-lisp
+;;; init-setup.el --- Initialise Emacs Pkg Managers -*- lexical-binding: t -*-
+<<disclaimer>>
+;;
+;;; Code:
+
+(require 'config-path)
+
+;;;============================================================================
+;;; Custom setup.el local macros
+;;;============================================================================
+
+<<setup-setup>>
+
+(provide 'init-setup)
+;;; init-setup.el ends here
 #+end_src
 ** User setup
 :PROPERTIES:
@@ -6165,13 +6284,13 @@ File for my constants, macros and functions
 :END:
 
 #+begin_src emacs-lisp
-  ;;; init-usersetup.el --- User Setup -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-usersetup.el --- User Setup -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  <<user-config>>
+<<user-config>>
 
-  (provide 'init-usersetup)
+(provide 'init-usersetup)
 ;;; init-usersetup.el ends here
 #+end_src
 ** Sanity Defaults
@@ -6183,36 +6302,13 @@ File for my constants, macros and functions
 "Setup" of Emacs to some sort of sanity
 
 #+begin_src emacs-lisp
-  ;;; init-sanity.el --- Sanity -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-sanity.el --- Sanity -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-(+with-message "Emacs Sanity settings"
+<<sanity>>
 
-  (setup sanity
-    (setq ad-redefinition-action 'accept)
-    (setq bidi-inhibit-bpa t)
-    (setq command-line-ns-option-alist nil)
-    (setq confirm-kill-processes nil)
-   ;; (setq custom-file (save-in-etc-file! "custom.el"))
-    ;;(setq default-input-method "TeX")
-    (setq ffap-machine-p-known 'reject)
-    (setq inhibit-compacting-font-caches t)
-    (setq inhibit-default-init t)
-    (setq jit-lock-defer-time nil)
-    (setq jka-compr-verbose nil)
-    (setq native-comp-async-report-warnings-errors nil)
-    (setq read-file-name-completion-ignore-case t)
-    (setq read-process-output-max (* 64 1024))
-    (setq redisplay-skip-fontification-on-input t)
-    (setq ring-bell-function 'ignore)
-    (setq-default fill-column 100)
-    (setq-default lexical-binding t))
-
-  <<sanity>>
-
-  ) ;; end of +with-message
-  (provide 'init-sanity)
+(provide 'init-sanity)
 ;;; init-sanity.el ends here
 #+end_src
 
@@ -6229,11 +6325,11 @@ Setup auto-compile, no littering and GMCH
 <<disclaimer>>
 ;;; Code:
 
-(+with-message "Emacs Startup enhancements"
+(with-message! "Emacs Startup enhancements"
 
 <<emacs-startup>>
 
-);;end-of +with-message
+);;end-of with-message!
 (provide 'init-startup)
 ;;; init-startup.el ends here
 #+end_src
@@ -6250,7 +6346,7 @@ Setup Emacs builtins
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message "Builtins"
+  (with-message! "Builtins"
 
     (setup auto-fill
            (:with-feature simple
@@ -6275,7 +6371,7 @@ Setup Emacs builtins
            (setq url-cookie-file (save-in-etc-file! "url-cookies")))
 
 
-  ) ;; end of +with-message
+  ) ;; end of with-message!
 
  (provide 'enfer-pkg-builtin)
 ;;; enfer-pkg-builtin.el ends here
@@ -6289,22 +6385,20 @@ Setup Emacs builtins
 Setup Editor functions
 
 #+begin_src emacs-lisp
-  ;;; init-editor.el --- Editor  -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-editor.el --- Editor  -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  (require 'init-elpa)
-  (require 'init-kbd)
-  (require 'lib-vcs)
-  (require 'lib-string)
+(require 'init-elpa)
+(require 'init-kbd)
+(require 'lib-vcs)
+(require 'lib-string)
 
-  (+with-message  "Editing functions"
 
-    <<pkg-editor>>
+<<pkg-editor>>
 
-    );; end of +with-message
-  (provide 'init-editor)
-   ;;; init-editor.el ends here
+(provide 'init-editor)
+;;; init-editor.el ends here
 #+end_src
 ** Emacs UI Appearance
 :PROPERTIES:
@@ -6315,17 +6409,14 @@ Setup Editor functions
 Setup UI
 
 #+begin_src emacs-lisp
-    ;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
-    <<disclaimer>>
-    ;;; Code:
+;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-    (+with-message  "frap UI!"
+<<pkg-ui>>
 
-    <<pkg-ui>>
-
-    )
-    (provide 'init-ui)
-     ;;; init-ui.el ends here
+(provide 'init-ui)
+;;; init-ui.el ends here
 #+end_src
 ** Buffers
 :PROPERTIES:
@@ -6336,19 +6427,17 @@ Setup UI
 Setup the Emacs buffer
 
 #+begin_src emacs-lisp
-  ;;; init-buffer.el --- Buffer Setup -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-buffer.el --- Buffer Setup -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  (require 'config-path)
-  (require 'init-kbd)
+(require 'config-path)
+(require 'init-kbd)
 
-  (+with-message "Buffer setup"
 
-  <<buffers>>
-  )
-  (provide 'init-buffer)
-   ;;; init-buffer.el ends here
+<<buffers>>
+(provide 'init-buffer)
+;;; init-buffer.el ends here
 #+end_src
 
 *** lib-buffer
@@ -6359,13 +6448,13 @@ Setup the Emacs buffer
 
 Autoloads for buffers
 #+begin_src emacs-lisp
-    ;;; lib-buffer.el --- Utilities for working with Buffers -*- lexical-binding: t -*-
-  <<disclaimer>>
-    ;;; Code:
+;;; lib-buffer.el --- Utilities for working with Buffers -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  ;;;###autoload
-  (defun buffer-content (buffer-or-name)
-    "Return content of BUFFER-OR-NAME.
+;;;###autoload
+(defun buffer-content (buffer-or-name)
+  "Return content of BUFFER-OR-NAME.
   Resulting string is full of properties. Consider using
   `substring-no-properties':
     (substring-no-properties (buffer-content BUFFER-OR-NAME))"
@@ -6373,54 +6462,54 @@ Autoloads for buffers
       (buffer-substring (point-min)
                         (point-max))))
 
-  ;;;###autoload
-  (defun buffer-lines (buffer-or-name)
-    "Return lines of BUFFER-OR-NAME.
+;;;###autoload
+(defun buffer-lines (buffer-or-name)
+  "Return lines of BUFFER-OR-NAME.
   Each line is a string with properties. Trailing newline character
   is not present."
-    (buffer-lines-map buffer-or-name #'identity))
+  (buffer-lines-map buffer-or-name #'identity))
 
-  ;;;###autoload
-  (defun buffer-lines-map (buffer-or-name fn)
-    "Call FN on each line of BUFFER-OR-NAME and return resulting list.
+;;;###autoload
+(defun buffer-lines-map (buffer-or-name fn)
+  "Call FN on each line of BUFFER-OR-NAME and return resulting list.
   As opposed to `buffer-lines-each', this function accumulates
   result.
   Each line is a string with properties. Trailing newline character
   is not present."
-    (declare (indent 1))
-    (with-current-buffer buffer-or-name
-      (goto-char (point-min))
-      (let ((result))
-        (while (not (eobp))
-          (setq
-           result
-           (cons
-            (funcall fn (buffer-substring
-                         (line-beginning-position)
-                         (line-end-position)))
-            result))
-          (forward-line))
-        (reverse result))))
+  (declare (indent 1))
+  (with-current-buffer buffer-or-name
+    (goto-char (point-min))
+    (let ((result))
+      (while (not (eobp))
+        (setq
+         result
+         (cons
+          (funcall fn (buffer-substring
+                       (line-beginning-position)
+                       (line-end-position)))
+          result))
+        (forward-line))
+      (reverse result))))
 
-  ;;;###autoload
-  (defun buffer-lines-each (buffer-or-name fn)
-    "Call FN on each line of BUFFER-OR-NAME.
+;;;###autoload
+(defun buffer-lines-each (buffer-or-name fn)
+  "Call FN on each line of BUFFER-OR-NAME.
   As opposed to `buffer-lines-map', this function does not
   accumulate any result and should used for side-effects.
   Each line is a string with properties. Trailing newline character
   is not present."
-    (declare (indent 1))
-    (with-current-buffer buffer-or-name
-      (goto-char (point-min))
-      (while (not (eobp))
-        (funcall fn (buffer-substring
-                     (line-beginning-position)
-                     (line-end-position)))
-        (forward-line))))
+  (declare (indent 1))
+  (with-current-buffer buffer-or-name
+    (goto-char (point-min))
+    (while (not (eobp))
+      (funcall fn (buffer-substring
+                   (line-beginning-position)
+                   (line-end-position)))
+      (forward-line))))
 
-  ;;;###autoload
-  (defun buffer-lines-each-t (buffer-or-name fn)
-    "Call FN on each line of BUFFER-OR-NAME and replace it by result.
+;;;###autoload
+(defun buffer-lines-each-t (buffer-or-name fn)
+  "Call FN on each line of BUFFER-OR-NAME and replace it by result.
   Each line is a string with properties. Trailing newline character
   is not present."
     (declare (indent 1))
@@ -6434,8 +6523,8 @@ Autoloads for buffers
           (replace-region-contents l0 l1 (lambda () (funcall fn s)))
           (forward-line)))))
 
-  ;;;###autoload
-  (defun buffer-generate (name &optional unique inhibit-buffer-hooks)
+;;;###autoload
+(defun buffer-generate (name &optional unique inhibit-buffer-hooks)
     "Create and return a buffer with a name based on NAME.
   Unless UNIQUE, choose the buffer’s name using
   ‘generate-new-buffer-name’. Otherwise if buffer with NAME already
@@ -6446,8 +6535,8 @@ Autoloads for buffers
         (kill-buffer buffer)))
     (generate-new-buffer name inhibit-buffer-hooks))
 
-  (provide 'lib-buffer)
-  ;;; lib-buffer.el ends here
+(provide 'lib-buffer)
+;;; lib-buffer.el ends here
 
 #+end_src
 ** Emacs Completion Frameworks
@@ -6464,7 +6553,7 @@ Setup embark, vertico and consult
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message "Completion or Selection"
+  (with-message! "Completion or Selection"
 
   <<pkg-completion>>
 
@@ -6485,7 +6574,7 @@ windose
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message "Windose(w)"
+  (with-message! "Windose(w)"
   <<windose>>
   )
   (provide 'init-window)
@@ -6501,23 +6590,21 @@ Setup projects
 
 
 #+begin_src emacs-lisp
-  ;;; init-project.el --- Projects -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-project.el --- Projects -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
 (require 'lib-eval)
 (require 'config-path)
 (require 'init-vcs)
 (require 'init-kbd)
 (require 'project)
-  (+with-message "Projets"
 
-    <<projet>>
+<<projet>>
 
-    )
 
-  (provide 'init-project)
- ;;; init-project.el ends here
+(provide 'init-project)
+;;; init-project.el ends here
 #+end_src
 ** VCS
 :PROPERTIES:
@@ -6528,20 +6615,17 @@ Setup projects
 Setup Magit & Git
 
 #+begin_src emacs-lisp
-  ;;; init-vcs.el --- Magit  -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-vcs.el --- Magit  -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  ;;(require 'lib-hook)
-  (require 'config-path)
-  (require 'init-elpa)
-  (+with-message "Git.."
+;;(require 'lib-hook)
+(require 'config-path)
+(require 'init-elpa)
 
-    <<vcs>>
+<<vcs>>
 
-    )
-
-  (provide 'init-vcs)
+(provide 'init-vcs)
 ;;; init-vcs.el ends here
 #+end_src
 ** Orgmode Accessory files
@@ -8205,7 +8289,7 @@ Emacs Speaks Statisitcs setup here
   <<disclaimer>>
   ;;; Code:
 
-  (+with-message  "stats R baby!"
+  (with-message!  "stats R baby!"
 
   <<ess>>
 
@@ -8422,86 +8506,79 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 <<disclaimer>>
 ;;; Code:
 (defmacro with-message! (message &rest body)
-"Execute BODY, with MESSAGE.
-      If body executes without errors, ** MESSAGE... terminé will be displayed."
-	(declare (indent 1))
-	(let ((msg (gensym)))
-	  `(let ((,msg ,message))
-	     (unwind-protect (progn (message "%s..." ,msg)
-				    ,@body)
-	       (message "** %s... terminé!!" ,msg)))))
+  "Execute BODY, with MESSAGE.
+     If body executes without errors, ** MESSAGE... terminé will be displayed."
+  (declare (indent 1))
+  (let ((msg (gensym)))
+    `(let ((,msg ,message))
+       (unwind-protect (progn (message "%s..." ,msg)
+                              ,@body)
+                   (message "* * %s... terminé!!" ,msg)))))
 
-    ;; load if-let
-    (require 'subr-x)
-    ;;; Set up extra load paths and functionality
-    ;; Since we might be running in CI or other environments, stick to
-    ;; XDG_CONFIG_HOME value if possible.
-    (let ((*emacs-config/* (if-let ((xdg (getenv "XDG_CONFIG_HOME")))
-			     (expand-file-name "emacs/" xdg)
-			   user-emacs-directory)))
-    ;; Add Lisp directory to `load-path'.
-    (add-to-list 'load-path (expand-file-name "lisp" *emacs-config/*)))
+;; load if-let
+(require 'subr-x)
+;;; Bootstrap
+;;; Set up extra load paths and functionality
+;; Add Lisp directory to `load-path'.
+;; Add our custom lisp modules to the Emacs load path so they can be discovered.
+(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+;;; ============================================================================
+;;; Specify the directory paths
+;;; ============================================================================
+(require 'config-path)
+;; Since we might be running in CI or other environments, stick to
+;; XDG_CONFIG_HOME value if possible.
 
-  ;;; Bootstrap
-  ;;; ============================================================================
-  ;;; Specify the directory paths
-  ;;; ============================================================================
-    (require 'config-path)
+;;; ============================================================================
+;;; Set up the package manager
+;;; ============================================================================
+(require 'init-elpa)
 
-  ;;; ============================================================================
-  ;;; Set up the package manager
-  ;;; ============================================================================
-    (require 'init-elpa)
+;; Setup `custom-file`.
+(setq custom-file (concat *emacs-config/* "custom.el"))
 
-  ;;; ============================================================================
-  ;;; Specify the directory paths
-  ;;; ============================================================================
-    <<constants>>
-
-  ;; Setup `custom-file`.
-    (setq custom-file (concat *emacs-config/* "custom.el"))
-
-    ;; load autoloads file
-    (unless elpa-bootstrap-p
-	(unless (file-exists-p *emacs-autoloads-file*)
-	  (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-		 "eru install emacs"))
-	(load *emacs-autoloads-file* nil 'nomessage))
+;; load autoloads file
+(unless elpa-bootstrap-p
+  (unless (file-exists-p *emacs-autoloads-file*)
+          (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+                 "eru install emacs"))
+  (load *emacs-autoloads-file* nil 'nomessage))
 #+end_src
 
 #+begin_src emacs-lisp
 ;;; core
-(require 'init-env)
+;;(require 'init-env)
 (require 'init-kbd)
 (require 'init-startup)
-(require 'init-fn-macros)
+;;(require 'init-fn-macros)
 (require 'init-editor)
-(require 'init-ui)
-(require 'init-buffer)
-(require 'init-window)
+;;(require 'init-ui)
+;;(require 'init-buffer)
+;;(require 'init-window)
 ;;; utilities
-(require 'init-selection)
+;;(require 'init-selection)
 (require 'init-project)
 (require 'init-vcs)
 ;;(require 'enfer-pkg-builtin)
 
 ;;; languages
-(require 'init-ide)
-(require 'init-lisp)
-(require 'init-elisp)
-(require 'init-clisp)
-(require 'init-clojure)
+;;(require 'init-ide)
+;;(require 'init-lisp)
+;;(require 'init-elisp)
+;;(require 'init-clisp)
+;;(require 'init-clojure)
 (require 'init-fennel)
-(require 'init-ess)
-(require 'init-utils)
+;;(require 'init-ess)
+;;(require 'init-utils)
 
 ;; Org & Roam
-(require 'init-notes)
+(require 'org-defaults)
+;;(require 'init-notes)
 (require 'init-file-templates)
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-(require 'init-sanity)
+;;(require 'init-sanity)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow

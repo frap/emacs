@@ -1,6 +1,6 @@
 ;;; org-setup.el --- Orgmode Setup  -*- lexical-binding: t -*-
 ;; setup of org-mode keybindings
-(setup (:straight org)
+(setup (:pkg org)
   (:also-load org-tempo)
   (:hook gas/org-mode-setup)
   (:global "C-c a"  org-agenda
@@ -25,7 +25,7 @@
     (org-indent-mode 1)
     (:hide-mode)))
 
-(setup (:straight org-appear)
+(setup (:pkg org-appear)
   (:load-after org
     (:option org-appear-autoemphasis t
              org-appear-autoentities t
