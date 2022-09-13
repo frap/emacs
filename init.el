@@ -2,13 +2,12 @@
 
 ;; Copyright (C) 2001-2022 Gas
 ;; Timestamp: <>
-
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
-;; Package-Version: 0.1
+;; Package-Version: 0.7
 ;; Created: Sometime during the Covid-19 lockdown
 ;; Keywords: configuration, emacs
-;; URL: https://github.com/frap/emacs.d
+;; URL: https://github.com/frap/emacs
 ;; Package-Requires: ((emacs "27.2"))
 
 ;; This file is not part of GNU Emacs.
@@ -47,7 +46,7 @@
 ;;; Set up the package manager
 ;;; ============================================================================
 (require 'init-elpa)
-
+(require 'init-corgi)
 ;; Setup `custom-file`.
 (setq custom-file (concat *emacs-config/* "custom.el"))
 
@@ -83,9 +82,8 @@
 ;;(require 'init-ess)
 ;;(require 'init-utils)
 
-;; Org & Roam
-(require 'org-defaults)
-;;(require 'init-notes)
+;; Org Note Taking
+(require 'init-notes)
 (require 'init-file-templates)
 
 ;;; user config & some defaults

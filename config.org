@@ -1,207 +1,49 @@
-:PROPERTIES:
-:ID:                     8c17836b-8be8-4254-b03b-0f3b5aa2303c
-:END:
 #+title: Literate Roam Clojure Emacs Config
 #+author: gas
 #+startup: overview
-#+property: header-args :cache yes :results output :mkdirp yes :padline :async
+#+property: header-args :cache yes :results output :mkdirp yes :padline no
 #+auto_tangle: yes
 
 * About me
-:PROPERTIES:
-:ID:                     969aec14-acc9-46c8-9534-8c0857305593
-:END:
-
 Some scripts to setup whether I am on work computer or not
 #+begin_src emacs-lisp :noweb-ref user-config
-   ;; (if (getenv "USER")
-   ;;     (defconst IS-WORK (string-match "810989" (getenv "USER")))
-   ;;     (defconst IS-WORK nil))
+(if (getenv "USER")
+     (defconst IS-WORK (string-match "WindoseUserName" (getenv "USER")))
+     (defconst IS-WORK nil))
 
-   ;; (if IS-WORK
-   ;;     (setq
-   ;;      user-full-name "Gas 810989"
-   ;;      user-mail-address "gas_gasson@bnz.co.nz")
-      (setq
-       user-full-name "Andrés Gasson"
-       user-mail-address "gas@tuatara.red"
-       github-account-name "frap")
-  ;;)
+(if IS-WORK
+    (setq
+     user-full-name "Andrew Gasson"
+     user-mail-address "gasson@somecompany.nz")
+  (setq
+   user-full-name "Andrés Gasson"
+   user-mail-address "gas@tuatara.red"
+   github-account-name "frap")
+  )
 
 #+end_src
-
 ** Where am I?
-:PROPERTIES:
-:ID:                     0e4cd289-1e57-40ab-bdb8-518669112965
-:END:
-
 #+begin_src emacs-lisp :noweb-ref user-config
-  (setq calendar-location-name "Wellington, NZ"
-        calendar-latitude -41.28
-        calendar-longitude 174.78)
+(setq calendar-location-name "Wellington, NZ"
+      calendar-latitude -41.28
+      calendar-longitude 174.78)
 
 #+end_src
 
 ** Auth-sources
-:PROPERTIES:
-:ID:                     edbde090-6fd1-4cd3-9c03-4ad6a0af2919
-:END:
-
 Here feels like as good a place as any to setup =auth-sources=.
 
 #+begin_src emacs-lisp :noweb-ref user-config
-  (setq-default auth-sources '("~/.local/state/authinfo.gpg")
-                auth-source-cache-expiry nil) ; default is 7200 (2h)
+(setq-default auth-sources (expand-file-name "authinfo.gpg" *xdg-state/* )
+              auth-source-cache-expiry nil) ; default is 7200 (2h)
 
 #+end_src
-* Emacs Startup
-:PROPERTIES:
-:ID:                     bb63575d-8ceb-4c7d-8753-3c3b0ae33630
-:END:
-** Early Init
-:PROPERTIES:
-:header-args: :tangle early-init.el :noweb yes
-:ID:       115da072-e944-4419-a49c-013c2d6368c4
-:END:
-
-Beginning with 27.1, Emacs also loads an =early-init.el= file, before
-the package manager or the UI code.
-
-#+begin_src emacs-lisp
-;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
-<<disclaimer>>
-;;; Code:
-
-(message "Chargement en cours early-init.el...")
-
-(define-advice load (:before (feature &rest _))
-    "Message the user when loading a library."
-    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
-
-;;; ============================================================================
-;;; Emacs startup optimisations
-;;; ============================================================================
-<<garbage-filehandler>>
-
-;;; ============================================================================
-;;; Frame parameters for faster startup
-;;; ============================================================================
-<<early-init-frame>>
-
-(message "Chargement du early-init.el terminé!")
-(provide 'early-init)
-;;; early-init.el ends here
-#+end_src
-
-** Garbage Collection & File handlers
-:PROPERTIES:
-:header-args: :noweb-ref garbage-filehandler
-:END:
-Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
-
-#+begin_src emacs-lisp
-  ;; Garbage collection slows down startup time, so we maximise the threshold for
-  ;; it to run, and we will later reset it.
-  (let ((normal-gc-cons-threshold (* 20 1024 1024))  ;; 20mb
-        (init-gc-cons-threshold (* 128 1024 1024)))    ;;128mb
-    (setq gc-cons-threshold init-gc-cons-threshold)
-    (add-hook 'emacs-startup-hook
-              (lambda () (setq gc-cons-threshold
-                               normal-gc-cons-threshold))))
-  ;;(setq gc-cons-threshold most-positive-fixnum)
-
-  ;; file-name-handler-alist is consulted on various I/O functions such as
-  ;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
-  ;; to restore when Emacs is finished starting.
-  (unless (or (daemonp) noninteractive)
-    (let ((file-name-handler-alist/old file-name-handler-alist))
-      (setq file-name-handler-alist nil)
-      (add-hook 'emacs-startup-hook
-                (lambda ()
-                  (let ((value (delete-dups
-                                (append file-name-handler-alist
-                                        file-name-handler-alist/old))))
-                    (setq file-name-handler-alist value))))))
-
-  (unless (daemonp)
-    (advice-add #'tty-run-terminal-initialization :override #'ignore)
-    (add-hook 'window-setup-hook
-              (lambda ()
-                (advice-remove #'tty-run-terminal-initialization #'ignore)
-                (tty-run-terminal-initialization (selected-frame) nil t))))
-
-#+end_src
-** Initial frame setup
-:PROPERTIES:
-:header-args: :noweb-ref early-init-frame
-:ID:                     0ae373ff-ee6b-484d-9d03-99ce56f59dc8
-:END:
-
-I don't want the frame to resize when I change fonts and stuff, and I
-want it to resize by pixels -- we /are/ using a GUI, after all.
-
-*** Frame use pixel resize
-:PROPERTIES:
-:ID:                     d054c73f-121a-4155-964e-c4c3d7f1d2ce
-:END:
-
-#+begin_src emacs-lisp
-(setq-default
- initial-frame-alist '((width . 170)
-                       (height . 56)
-                       (tool-bar-lines . 0)
-                       (bottom-divider-width . 0)
-                       (right-divider-width . 1)
-                       (font . "Iosevka Slab 14"))
- default-frame-alist initial-frame-alist
- frame-inhibit-implied-resize t            ;; dont resize
- frame-resize-pixelwise t                   ;; as GUI use pixels
- x-gtk-resize-child-frames 'resize-mode
- fringe-indicator-alist (assq-delete-all 'truncation fringe-indicator-alist))
-
- (setq truncate-partial-width-windows nil)
-
-#+end_src
- some stuff left off initial-frame-list
-  (blink-cursor-mode 0)
-  (column-number-mode 1)
-  (display-time-mode 0)
-  (fringe-mode '(4 . 0))
-  (tooltip-mode 0)
-  (window-divider-mode 1)
-
-*** Turn off Tool bar
-:PROPERTIES:
-:ID:                     07c28d7c-c8e5-4999-8282-9b25f3ca859f
-:END:
-
-#+begin_src emacs-lisp
-
-(when (fboundp #'tool-bar-mode)
-    (tool-bar-mode -1))
-
-#+end_src
-
-*** Turn off Scroll bars
-:PROPERTIES:
-:ID:                     4c17d471-2aac-4fe0-a242-46d389ed05c1
-:END:
-
-#+begin_src emacs-lisp
- (when (fboundp #'scroll-bar-mode)
-      (scroll-bar-mode -1))
-
-#+end_src
-
-
 * Path & Directories
 :PROPERTIES:
 :header-args: :noweb-ref path-config
-:ID:                     81265071-dc7f-4b25-bfb4-844
 :end:
 Need to setup some constants and try to keep state in a "clean" directory structure
 #+begin_src emacs-lisp
-
 ;; For the rest of the Emacs configuration, set this directory to something
 ;; inside the standard cache directory, so we do not pollute our emacs.d
 ;; directory with files that we would then have to ignore with Git.
@@ -209,11 +51,12 @@ Need to setup some constants and try to keep state in a "clean" directory struct
 
 (defconst *xdg-cache/* (or (getenv "XDG_CACHE_HOME") "~/.cache/"))
 
+(defconst *xdg-state/* (or (getenv "XDG_STATE_HOME") "~/.local/state/"))
+
 (defconst *emacs-cache/*
        (expand-file-name "emacs/" *xdg-cache/* )
    "Directory for Emacs volatile storage.
- Use this for files that change often."
- )
+ Use this for files that change often.")
 
 (defconst *emacs-autoloads-file*
     (expand-file-name "lisp/init-autoloads.el" *emacs-config/* )
@@ -224,14 +67,13 @@ Need to setup some constants and try to keep state in a "clean" directory struct
     Use this for files that don't change much, like servers binaries,
     external dependencies or long-term shared data.")
 
-
 ;; For the rest of the Emacs configuration, set this directory to something
 ;; inside the standard cache directory, so we do not pollute our emacs.d
 ;; directory with files that we would then have to ignore with Git.
 (setq user-emacs-directory *emacs-cache/*)
 
 #+end_src
-*** native Compilation for >= Emacs28
+** native Compilation for >= Emacs28
 :PROPERTIES:
 :ID:                     70398db1-dd55-46da-8ac6-9389debcb75e
 :END:
@@ -251,7 +93,8 @@ setting some default settings on early-init
   (defvar native-comp-async-report-warnings-errors)
   (setq native-comp-async-report-warnings-errors nil))
 #+end_src
-* Emacs Straight Bootstrap
+* Emacs Package Management
+** Straight Bootstrap
 :PROPERTIES:
 :header-args: :noweb-ref straight-setup
 :END:
@@ -271,7 +114,6 @@ Use Straight for package Management. Also use setup.el for easy config of packag
   (load bootstrap-file nil 'nomessage))
 
 ;; Install the use-package convenience macro
-
 (straight-use-package 'use-package)
 
 ;; using use-package to configure straight
@@ -286,7 +128,7 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 (setq package-enable-at-startup nil)
 (setq package-quickstart nil)
 ;;(setq straight-check-for-modifications '(check-on-save find-when-checking))
-;;(setq straight-profiles `((nil . ,(expand-file-name "lockfile" *emacs-config/* ))))
+;;(setq straight-profiles `((nil . ,(expand-file-name "lockfile" *emacs-cache/* ))))
 
 ;; Additional post-setup of straight.el.
 ;;(require 'straight-x)
@@ -299,84 +141,82 @@ Use Straight for package Management. Also use setup.el for easy config of packag
 (defalias 'straight-ಠ_ಠ-mode nil)
 
 #+end_src
-* Corgi setup
+** Corgi setup
 :PROPERTIES:
 :header-args: :noweb-ref corgi-setup
 :END:
 #+begin_src emacs-lisp
-  (when (not (file-exists-p
-	      (expand-file-name "straight/versions/default.el" straight-base-dir )))
-    (straight-freeze-versions))
+(when (not (file-exists-p
+	    (expand-file-name "straight/versions/default.el" straight-base-dir )))
+  (straight-freeze-versions))
 
-  ;; Enable the corgi-packages repository so we can install our packages with
-  ;; Straight. This also runs some Corgi initialization code, notably copying over
-  ;; Corgi's version file, so you get the same versions of packages that Corgi was
-  ;; tested with.
+;; Enable the corgi-packages repository so we can install our packages with
+;; Straight. This also runs some Corgi initialization code, notably copying over
+;; Corgi's version file, so you get the same versions of packages that Corgi was
+;; tested with.
+(use-package corgi-packages
+  :straight (corgi-packages
+	     :type git
+	     :host github
+	     :repo "corgi-emacs/corgi-packages"))
 
-  (use-package corgi-packages
-    :straight (corgi-packages
-	       :type git
-	       :host github
-	       :repo "corgi-emacs/corgi-packages"))
+(add-to-list 'straight-recipe-repositories 'corgi-packages)
 
-  (add-to-list 'straight-recipe-repositories 'corgi-packages)
+(let ((straight-current-profile 'corgi))
+  ;; Change a bunch of Emacs defaults, from disabling the menubar and toolbar,
+  ;; to fixing modifier keys on Mac and disabling the system bell.
+  ;;(use-package corgi-defaults)
+  ;;(require 'mf-settings)
 
-  (let ((straight-current-profile 'corgi))
-    ;; Change a bunch of Emacs defaults, from disabling the menubar and toolbar,
-    ;; to fixing modifier keys on Mac and disabling the system bell.
-    ;;(use-package corgi-defaults)
-    ;;(require 'mf-settings)
+  ;; UI configuration for that Corgi-feel. This sets up a bunch of packages like
+  ;; Evil, Smartparens, Ivy (minibuffer completion), Swiper (fuzzy search),
+  ;; Projectile (project-aware commands), Aggressive indent, Company
+  ;; (completion).
+  (use-package corgi-editor)
 
-    ;; UI configuration for that Corgi-feel. This sets up a bunch of packages like
-    ;; Evil, Smartparens, Ivy (minibuffer completion), Swiper (fuzzy search),
-    ;; Projectile (project-aware commands), Aggressive indent, Company
-    ;; (completion).
-    (use-package corgi-editor)
+  ;; The few custom commands that we ship with. This includes a few things we
+  ;; emulate from Spacemacs, and commands for jumping to the user's init.el
+  ;; (this file, with `SPC f e i'), or opening the user's key binding or signals
+  ;; file.
+  (use-package corgi-commands)
 
-    ;; The few custom commands that we ship with. This includes a few things we
-    ;; emulate from Spacemacs, and commands for jumping to the user's init.el
-    ;; (this file, with `SPC f e i'), or opening the user's key binding or signals
-    ;; file.
-    (use-package corgi-commands)
+  ;; Extensive setup for a good Clojure experience, including clojure-mode,
+  ;; CIDER, and a modeline indicator that shows which REPLs your evaluations go
+  ;; to.
+  ;; Also contains `corgi/cider-pprint-eval-register', bound to `,,', see
+  ;; `set-register' calls below.
+  (use-package corgi-clojure)
 
-    ;; Extensive setup for a good Clojure experience, including clojure-mode,
-    ;; CIDER, and a modeline indicator that shows which REPLs your evaluations go
-    ;; to.
-    ;; Also contains `corgi/cider-pprint-eval-register', bound to `,,', see
-    ;; `set-register' calls below.
-    (use-package corgi-clojure)
+  ;; Emacs Lisp config, mainly to have a development experience that feels
+  ;; similar to using CIDER and Clojure. (show results in overlay, threading
+  ;; refactorings)
+  (use-package corgi-emacs-lisp)
 
-    ;; Emacs Lisp config, mainly to have a development experience that feels
-    ;; similar to using CIDER and Clojure. (show results in overlay, threading
-    ;; refactorings)
-    (use-package corgi-emacs-lisp)
+  ;; Change the color of the modeline based on the Evil state (e.g. green when
+  ;; in insert state)
+  (use-package corgi-stateline
+    :config
+    (global-corgi-stateline-mode))
 
-    ;; Change the color of the modeline based on the Evil state (e.g. green when
-    ;; in insert state)
-    (use-package corgi-stateline
-      :config
-      (global-corgi-stateline-mode))
+  ;; Package which provides corgi-keys and corgi-signals, the two files that
+  ;; define all Corgi bindings, and the default files that Corkey will look for.
+  (use-package corgi-bindings)
 
-    ;; Package which provides corgi-keys and corgi-signals, the two files that
-    ;; define all Corgi bindings, and the default files that Corkey will look for.
-    (use-package corgi-bindings)
-
-    ;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
-    ;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
-    ;; f e s' `SPC f e S')
-    ;; Put this last here, otherwise keybindings for commands that aren't loaded
-    ;; yet won't be active.
-
-    (use-package corkey
-       :config
-        (corkey-mode 1)
-	;; Automatically pick up keybinding changes
-	(let ((user-emacs-directory *emacs-config/*))
-	  (corkey/load-and-watch)))
-    )
+  ;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
+  ;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
+  ;; f e s' `SPC f e S')
+  ;; Put this last here, otherwise keybindings for commands that aren't loaded
+  ;; yet won't be active.
+  (use-package corkey
+    :config
+    (corkey-mode 1)
+    ;; Automatically pick up keybinding changes
+    (let ((user-emacs-directory *emacs-config/*))
+      (corkey/load-and-watch)))
+  )
 
 #+end_src
-* Setup (no pun intended) the Emacs Package Manager
+** Setup (no pun intended) the Emacs Package Manager
 :PROPERTIES:
 :header-args: :noweb-ref setup-setup
 :END:
@@ -550,7 +390,8 @@ Setup some popular packages
        (:delay 5)) ;; :defer t)
 
 #+end_src
-** Environment
+
+* Environment
 :PROPERTIES:
 :header-args: :noweb-ref environment
 :ID:                     08d9a2dc-6b27-4316-9fde-f62d5d52a92a
@@ -615,7 +456,7 @@ Configure grabage collection
 
 *** local UI config
 setup local config and personal functions
-#+begin_src
+#+begin_src emacs-lisp
 
 
 (use-package functions
@@ -720,17 +561,13 @@ Use no-littering to automatically set common paths to the new user-emacs-directo
 
 #+end_src
 
-* Emacs Sane defaults
-:PROPERTIES:
-:ID:                     0b7a23eb-354b-4f88-bdb6-fbf54081e1f3
-:END:
+* Emacs Sane defaults & Constants
 ** Constants
 :PROPERTIES:
 :ID:                     8e5d71f2-1d6b-4a25-843d-980894a67fac
 :END:
 Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a  few utilities that heI keeps re-using in various parts of my Emacs code base. To keep things modular, I place them all in a dedicated prot-common.el file, which can then be marked as a dependency by other libraries of mine. As such, all we do here is load the file.
 #+begin_src emacs-lisp :noweb-ref constants
-
 ;;(setup (:require prot-common))
 
 ;;; Initialise Gas Constants
@@ -750,11 +587,63 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a  few
   (declare (pure t) (side-effect-free t))
     (if (proper-list-p exp) exp (list exp)))
 #+end_src
-
-* Keyboard bindings & custom functions
+** Sanity settings
 :PROPERTIES:
-:ID:                     a218fd94-1b2d-405d-a572-53bf5a382654
+:header-args: :noweb-ref sanity
 :END:
+Setup Scratch and minibuffer
+#+begin_src emacs-lisp
+(use-package subr
+  :straight nil
+  :no-require t
+  :init
+  (fset 'yes-or-no-p 'y-or-n-p))
+
+(defun save-in-etc-file! (file-name)
+  (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
+
+(use-package sanity
+  :straight nil
+  :config
+  (setq ad-redefinition-action 'accept)
+  (setq bidi-inhibit-bpa t)
+  (setq command-line-ns-option-alist nil)
+  (setq confirm-kill-processes nil)
+  (setq custom-file (save-in-etc-file! "custom.el"))
+  (setq default-input-method "TeX")
+  (setq ffap-machine-p-known 'reject)
+  (setq inhibit-compacting-font-caches t)
+  (setq inhibit-default-init t)
+  (setq jit-lock-defer-time nil)
+  (setq jka-compr-verbose nil)
+  (setq native-comp-async-report-warnings-errors nil)
+  (setq read-file-name-completion-ignore-case t)
+  (setq read-process-output-max (* 64 1024))
+  (setq redisplay-skip-fontification-on-input t)
+  (setq ring-bell-function 'ignore)
+  (setq-default fill-column 100)
+  (setq-default lexical-binding t))
+
+(use-package files
+  :straight nil
+  :config 
+  (setq auto-mode-case-fold nil)
+  (setq auto-save-default nil)
+  (setq auto-save-list-file-prefix nil)
+  (setq backup-inhibited t)
+  (setq create-lockfiles nil)
+  (setq delete-by-moving-to-trash nil)
+  (setq find-file-suppress-same-file-warnings t)
+  (setq find-file-visit-truename t)
+  (setq load-prefer-newer t)
+  (setq make-backup-files nil)
+  (setq require-final-newline t)
+  (setq vc-follow-symlinks t))
+
+#+end_src
+
+* Prot keyboard & Hydra
+** Prot simple
 prot-simple.el contains a wide range of commands that are broadly in line with the built-in simple.el and lisp.el libraries. While I could offer an overview of each item in my library, I feel the code and accompanying documentation strings are clear enough for you to peruse the source directly (reproduced further below).
 
 Still, here are some highlights for those who don’t like studying the source code:
@@ -766,7 +655,7 @@ Still, here are some highlights for those who don’t like studying the source c
 All of the other commands are optimisations for common motions or little quality-of-life improvements for oft-required operations (such as transposition of objects or marking of balanced expressions).
 
 Given that this is a foundational piece of my Emacs setup, it is the appropriate place to re-bind or free up some common key combinations for use elsewhere.
-#+begin_src emacs-lisp :noweb-ref keyboard
+#+begin_src emacs-lisp :noweb-ref prot-keyboard
 (setup (:require prot-simple)
   (setq prot-simple-date-specifier "%F")
   (setq prot-simple-time-specifier "%R %z")
@@ -838,31 +727,9 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
     (define-key map (kbd "M-s v") #'prot-simple-buffers-vc-root)))
 )
 (setup
-  (use-package general
-      :commands (general-define-key))
-
-    (general-create-definer leader-def
-      :states nil
-      :keymaps 'override
-      :prefix "M-m"
-      :prefix-command 'prefix-command
-      :prefix-map 'prefix-map)
-
-    (leader-def
-      "/" '(nil :which-key "search...")
-      "[" '(nil :which-key "previous...")
-      "a" '(nil :which-key "align...")
-      "g" '(nil :which-key "git...")
-      "i" '(nil :which-key "insert...")
-      "j" '(nil :which-key "jump...")
-      "l" '(nil :which-key "lisp...")
-      "n" '(nil :which-key "notes...")
-      "o" '(nil :which-key "open...")
-      )
-
     (use-package bind-key)
-  (require 'bind-key)
-  (require 'delight)
+    (require 'bind-key)
+    (require 'delight)
 
   (use-package bindings
   :straight nil
@@ -939,8 +806,9 @@ Given that this is a foundational piece of my Emacs setup, it is the appropriate
       :hook (after-init . which-key-mode))
 
 #+end_src
+** Hydra
 keychords with hydra
-#+begin_src emacs-lisp :noweb-ref keyboard
+#+begin_src emacs-lisp :noweb-ref hydra
 (use-package hydra
   :config
   (progn
@@ -975,6 +843,20 @@ keychords with hydra
 ;; |          | :exit nil (default)         |           |                       | Continue  |
 
 #+end_src
+* Mac command bindings /mac-keys/
+:PROPERTIES:
+:header-args: :noweb-ref mac-keys
+:END:
+Change the Mac modifiers to my liking. I also disable passing Control characters to the system, to avoid that C-M-space launches the Character viewer instead of running mark-sexp.
+
+#+begin_src emacs-lisp :noweb-ref mac-keys
+(cond (*is-mac?*
+       (setq mac-command-modifier      'super
+              mac-option-modifier         'meta
+              mac-right-option-modifier   'alt
+              mac-pass-control-to-system nil)))
+
+#+end_src
 * Utility Functions & macros
 :PROPERTIES:
 :ID:                     7ac6b421-f461-44d6-9b26-8b26fc00bbb1
@@ -985,55 +867,54 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 *** Macros
 :PROPERTIES:
 :header-args: :noweb-ref macros
-:ID:                     c9538dff-30bc-4c0e-b196-4020bf042dcd
 :END:
 #+begin_src emacs-lisp
 (require 'cl-lib)
 
 ;;; Macros
 (defmacro define-dir! (name directory &optional docstring inhibit-mkdir)
-    "Define a variable and function NAME expanding to DIRECTORY.
+  "Define a variable and function NAME expanding to DIRECTORY.
         DOCSTRING is applied to the variable.  Ensure DIRECTORY exists in
         the filesystem, unless INHIBIT-MKDIR is non-nil."
-    (declare (indent 2))
-    (unless inhibit-mkdir
-      (make-directory (eval directory) :parents))
-    `(progn
-       (defvar ,name ,directory
-         ,(concat docstring (when docstring "\n")
-                  "Defined by `/define-dir'."))
-       (defun ,name (file &optional mkdir)
-         ,(concat "Expand FILE relative to variable `" (symbol-name name) "'.\n"
-                  "If MKDIR is non-nil, the directory is created.\n"
-                  "Defined by `/define-dir'.")
-         (let ((file-name (expand-file-name (convert-standard-filename file)
-                                            ,name)))
-           (when mkdir
-             (make-directory (file-name-directory file-name) :parents))
-           file-name))))
+  (declare (indent 2))
+  (unless inhibit-mkdir
+    (make-directory (eval directory) :parents))
+  `(progn
+     (defvar ,name ,directory
+       ,(concat docstring (when docstring "\n")
+                "Defined by `/define-dir'."))
+     (defun ,name (file &optional mkdir)
+       ,(concat "Expand FILE relative to variable `" (symbol-name name) "'.\n"
+                "If MKDIR is non-nil, the directory is created.\n"
+                "Defined by `/define-dir'.")
+       (let ((file-name (expand-file-name (convert-standard-filename file)
+                                          ,name)))
+         (when mkdir
+           (make-directory (file-name-directory file-name) :parents))
+         file-name))))
 
 (defun suppress-messages! (oldfn &rest args) ; from pkal
-    "Advice wrapper for suppressing `message'.
+  "Advice wrapper for suppressing `message'.
         OLDFN is the wrapped function, that is passed the arguments
         ARGS."
-    (let ((msg (current-message)))
-      (prog1
-          (let ((inhibit-message t))
-            (apply oldfn args))
-        (when msg
-          (message "%s" msg)))))
+  (let ((msg (current-message)))
+    (prog1
+        (let ((inhibit-message t))
+          (apply oldfn args))
+      (when msg
+        (message "%s" msg)))))
 
 (defmacro letenv! (envvars &rest body)
-    "Lexically bind ENVVARS in BODY, like `let' but for `process-environment'."
-    (declare (indent 1))
-    `(let ((process-environment (copy-sequence process-environment)))
-       (dolist (var (list ,@(cl-loop for (var val) in envvars
-                                     collect `(cons ,var ,val))))
-         (setenv (car var) (cdr var)))
-       ,@body))
+  "Lexically bind ENVVARS in BODY, like `let' but for `process-environment'."
+  (declare (indent 1))
+  `(let ((process-environment (copy-sequence process-environment)))
+     (dolist (var (list ,@(cl-loop for (var val) in envvars
+                                   collect `(cons ,var ,val))))
+       (setenv (car var) (cdr var)))
+     ,@body))
 
 (defmacro letf! (bindings &rest body)
-    "Temporarily rebind function, macros, and advice in BODY.
+  "Temporarily rebind function, macros, and advice in BODY.
 
             Intended as syntax sugar for `cl-letf', `cl-labels', `cl-macrolet', and
             temporary advice.
@@ -1054,138 +935,137 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
             `defadvice!', respectively.
 
             \(fn ((TYPE NAME ARGLIST &rest BODY) ...) BODY...)"
-    (declare (indent defun))
-    (setq body (macroexp-progn body))
-    (when (memq (car bindings) '(defun defun* defmacro defadvice))
-      (setq bindings (list bindings)))
-    (dolist (binding (reverse bindings) body)
-      (let ((type (car binding))
-            (rest (cdr binding)))
-        (setq
-         body (pcase type
-                (`defmacro `(cl-macrolet ((,@rest)) ,body))
-                (`defadvice `(progn (defadvice! ,@rest)
-                                    (unwind-protect ,body (undefadvice! ,@rest))))
-                ((or `defun `defun*)
-                 `(cl-letf ((,(car rest) (symbol-function #',(car rest))))
-                    (ignore ,(car rest))
-                    ,(if (eq type 'defun*)
-                         `(cl-labels ((,@rest)) ,body)
-                       `(cl-letf (((symbol-function #',(car rest))
-                                   (fn! ,(cadr rest) ,@(cddr rest))))
-                          ,body))))
-                (_
-                 (when (eq (car-safe type) 'function)
-                   (setq type (list 'symbol-function type)))
-                 (list 'cl-letf (list (cons type rest)) body)))))))
+  (declare (indent defun))
+  (setq body (macroexp-progn body))
+  (when (memq (car bindings) '(defun defun* defmacro defadvice))
+    (setq bindings (list bindings)))
+  (dolist (binding (reverse bindings) body)
+    (let ((type (car binding))
+          (rest (cdr binding)))
+      (setq
+       body (pcase type
+              (`defmacro `(cl-macrolet ((,@rest)) ,body))
+              (`defadvice `(progn (defadvice! ,@rest)
+                                  (unwind-protect ,body (undefadvice! ,@rest))))
+              ((or `defun `defun*)
+               `(cl-letf ((,(car rest) (symbol-function #',(car rest))))
+                  (ignore ,(car rest))
+                  ,(if (eq type 'defun*)
+                       `(cl-labels ((,@rest)) ,body)
+                     `(cl-letf (((symbol-function #',(car rest))
+                                 (fn! ,(cadr rest) ,@(cddr rest))))
+                        ,body))))
+              (_
+               (when (eq (car-safe type) 'function)
+                 (setq type (list 'symbol-function type)))
+               (list 'cl-letf (list (cons type rest)) body)))))))
 
-
-  (defmacro fn! (&rest body)
-    `(lambda () (interactive) ,@body))
+(defmacro fn! (&rest body)
+  `(lambda () (interactive) ,@body))
 
 ;;; Closure factories
-  (defmacro fn!! (arglist &rest body)
-    "Returns (cl-function (lambda ARGLIST BODY...))
+(defmacro fn!! (arglist &rest body)
+  "Returns (cl-function (lambda ARGLIST BODY...))
                 The closure is wrapped in `cl-function', meaning ARGLIST will accept anything
                 `cl-defun' will. Implicitly adds `&allow-other-keys' if `&key' is present in
                 ARGLIST."
-    (declare (indent defun) (doc-string 1) (pure t) (side-effect-free t))
-    `(cl-function
-      (lambda
-        ,(letf! (defun* allow-other-keys (args)
-                  (mapcar
-                   (lambda (arg)
-                     (cond ((nlistp (cdr-safe arg)) arg)
-                           ((listp arg) (allow-other-keys arg))
-                           (arg)))
-                   (if (and (memq '&key args)
-                            (not (memq '&allow-other-keys args)))
-                       (if (memq '&aux args)
-                           (let (newargs arg)
-                             (while args
-                               (setq arg (pop args))
-                               (when (eq arg '&aux)
-                                 (push '&allow-other-keys newargs))
-                               (push arg newargs))
-                             (nreverse newargs))
-                         (append args (list '&allow-other-keys)))
-                     args)))
-           (allow-other-keys arglist))
-        ,@body)))
+  (declare (indent defun) (doc-string 1) (pure t) (side-effect-free t))
+  `(cl-function
+    (lambda
+      ,(letf! (defun* allow-other-keys (args)
+                (mapcar
+                 (lambda (arg)
+                   (cond ((nlistp (cdr-safe arg)) arg)
+                         ((listp arg) (allow-other-keys arg))
+                         (arg)))
+                 (if (and (memq '&key args)
+                          (not (memq '&allow-other-keys args)))
+                     (if (memq '&aux args)
+                         (let (newargs arg)
+                           (while args
+                             (setq arg (pop args))
+                             (when (eq arg '&aux)
+                               (push '&allow-other-keys newargs))
+                             (push arg newargs))
+                           (nreverse newargs))
+                       (append args (list '&allow-other-keys)))
+                   args)))
+              (allow-other-keys arglist))
+      ,@body)))
 
-  (defmacro cmd! (&rest body)
-    "Returns (lambda () (interactive) ,@body)
+(defmacro cmd! (&rest body)
+  "Returns (lambda () (interactive) ,@body)
                 A factory for quickly producing interaction commands, particularly for keybinds
                 or aliases."
-    (declare (doc-string 1) (pure t) (side-effect-free t))
-    `(lambda (&rest _) (interactive) ,@body))
+  (declare (doc-string 1) (pure t) (side-effect-free t))
+  `(lambda (&rest _) (interactive) ,@body))
 
-  (defmacro quiet! (&rest forms)
-    `(cond
-      (noninteractive
-       (let ((old-fn (symbol-function 'write-region)))
-         (cl-letf ((standard-output (lambda (&rest _)))
-                   ((symbol-function 'load-file)
-                    (lambda (file) (load file nil t)))
-                   ((symbol-function 'message) (lambda (&rest _)))
-                   ((symbol-function 'write-region)
-                    (lambda (start end filename &optional append visit lockname
-                                   mustbenew)
-                      (unless visit (setq visit 'no-message))
-                      (funcall old-fn start end filename append visit lockname
-                               mustbenew))))
-           ,@forms)))
-      ((or debug-on-error debug-on-quit)
-       ,@forms)
-      ((let ((inhibit-message t)
-             (save-silently t))
-         (prog1 ,@forms (message ""))))))
+(defmacro quiet! (&rest forms)
+  `(cond
+    (noninteractive
+     (let ((old-fn (symbol-function 'write-region)))
+       (cl-letf ((standard-output (lambda (&rest _)))
+                 ((symbol-function 'load-file)
+                  (lambda (file) (load file nil t)))
+                 ((symbol-function 'message) (lambda (&rest _)))
+                 ((symbol-function 'write-region)
+                  (lambda (start end filename &optional append visit lockname
+                                 mustbenew)
+                    (unless visit (setq visit 'no-message))
+                    (funcall old-fn start end filename append visit lockname
+                             mustbenew))))
+         ,@forms)))
+    ((or debug-on-error debug-on-quit)
+     ,@forms)
+    ((let ((inhibit-message t)
+           (save-silently t))
+       (prog1 ,@forms (message ""))))))
 
 ;;;; Mutation
 (defmacro appendq! (sym &rest lists)
-    "Append LISTS to SYM in place."
-    `(setq ,sym (append ,sym ,@lists)))
+  "Append LISTS to SYM in place."
+  `(setq ,sym (append ,sym ,@lists)))
 
 (defmacro setq! (&rest settings)
-    "A stripped-down `customize-set-variable' with the syntax of `setq'.
+  "A stripped-down `customize-set-variable' with the syntax of `setq'.
 
               This can be used as a drop-in replacement for `setq'. Particularly when you know
               a variable has a custom setter (a :set property in its `defcustom' declaration).
               This triggers setters. `setq' does not."
-    (macroexp-progn
-     (cl-loop for (var val) on settings by 'cddr
-              collect `(funcall (or (get ',var 'custom-set) #'set)
-                                ',var ,val))))
+  (macroexp-progn
+   (cl-loop for (var val) on settings by 'cddr
+            collect `(funcall (or (get ',var 'custom-set) #'set)
+                              ',var ,val))))
 
 (defmacro delq! (elt list &optional fetcher)
-    "`delq' ELT from LIST in-place.
+  "`delq' ELT from LIST in-place.
 
               If FETCHER is a function, ELT is used as the key in LIST (an alist)."
-    `(setq ,list
-           (delq ,(if fetcher
-                      `(funcall ,fetcher ,elt ,list)
-                    elt)
-                 ,list)))
+  `(setq ,list
+         (delq ,(if fetcher
+                    `(funcall ,fetcher ,elt ,list)
+                  elt)
+               ,list)))
 
 (defmacro pushnew! (place &rest values)
-    "Push VALUES sequentially into PLACE, if they aren't already present.
+  "Push VALUES sequentially into PLACE, if they aren't already present.
               This is a variadic `cl-pushnew'."
-    (let ((var (make-symbol "result")))
-      `(dolist (,var (list ,@values) (with-no-warnings ,place))
-         (cl-pushnew ,var ,place :test #'equal))))
+  (let ((var (make-symbol "result")))
+    `(dolist (,var (list ,@values) (with-no-warnings ,place))
+       (cl-pushnew ,var ,place :test #'equal))))
 
 (defmacro prependq! (sym &rest lists)
-    "Prepend LISTS to SYM in place."
-    `(setq ,sym (append ,@lists ,sym)))
+  "Prepend LISTS to SYM in place."
+  `(setq ,sym (append ,@lists ,sym)))
 
 ;;; Loading
 (defmacro add-load-path! (&rest dirs)
-    "Add DIRS to `load-path', relative to the current file.
+  "Add DIRS to `load-path', relative to the current file.
               The current file is the file from which `add-to-load-path!' is used."
-    `(let ((default-directory ,(dir!))
-           file-name-handler-alist)
-       (dolist (dir (list ,@dirs))
-         (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
+  `(let ((default-directory ,(dir!))
+         file-name-handler-alist)
+     (dolist (dir (list ,@dirs))
+       (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
 
  #+end_src
 *** Variables
@@ -1202,159 +1082,118 @@ These have been sucked from [[https://github.com/mfiano/dotfiles/blob/master/.em
 *** Functions
 :PROPERTIES:
 :header-args: :noweb-ref functions
-:ID:                     f00d3971-f116-4a18-9aad-a005ea5eb4ea
 :END:
 #+begin_src emacs-lisp
 ;;; Functions
-  (defun enfer/show-startup-time ()
-    (message "Heure de démarrage d'Emacs: %.2fs (%d GCs (ramasse-miettes))"
-             (float-time (time-subtract after-init-time before-init-time))
-             gcs-done))
+(defun enfer/show-startup-time ()
+  (message "Heure de démarrage d'Emacs: %.2fs (%d GCs (ramasse-miettes))"
+           (float-time (time-subtract after-init-time before-init-time))
+           gcs-done))
 
-  (defun save-in-etc-file! (file-name)
-    (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
+(defun save-in-etc-file! (file-name)
+  (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
 
-  (defun path-in-cache/? (path)
-    (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
+(defun path-in-cache/? (path)
+  (string-prefix-p (getenv "XDG_CACHE_HOME") (expand-file-name path)))
 
-  (define-dir! *emacs-sync/* (expand-file-name "~/Sync/emacs")
-    "My Syncthing Emacs directory.")
+(define-dir! *emacs-sync/* (expand-file-name "~/Sync/emacs")
+  "My Syncthing Emacs directory.")
 
-  (defun mf/smarter-move-beginning-of-line (arg)
-    (interactive "^p")
-    (setq arg (or arg 1))
-    (when (/= arg 1)
-      (let ((line-move-visual nil))
-        (forward-line (1- arg))))
-    (let ((orig-point (point)))
-      (back-to-indentation)
-      (when (= orig-point (point))
-        (move-beginning-of-line 1))))
+(defun mf/smarter-move-beginning-of-line (arg)
+  (interactive "^p")
+  (setq arg (or arg 1))
+  (when (/= arg 1)
+    (let ((line-move-visual nil))
+      (forward-line (1- arg))))
+  (let ((orig-point (point)))
+    (back-to-indentation)
+    (when (= orig-point (point))
+      (move-beginning-of-line 1))))
 
-  (defun mf/yank-primary-selection ()
-    (interactive)
-    (let ((primary (or (gui-get-primary-selection) (gui-get-selection))))
-      (when primary
-        (push-mark (point))
-        (insert-for-yank primary))))
+(defun mf/yank-primary-selection ()
+  (interactive)
+  (let ((primary (or (gui-get-primary-selection) (gui-get-selection))))
+    (when primary
+      (push-mark (point))
+      (insert-for-yank primary))))
 
-  (defun mf/delete-file (filename)
-    (interactive "f")
-    (when (and filename (file-exists-p filename))
-      (let ((buffer (find-buffer-visiting filename)))
-        (when buffer
-          (kill-buffer buffer)))
-      (delete-file filename)))
+(defun mf/delete-file (filename)
+  (interactive "f")
+  (when (and filename (file-exists-p filename))
+    (let ((buffer (find-buffer-visiting filename)))
+      (when buffer
+        (kill-buffer buffer)))
+    (delete-file filename)))
 
-  (defun mf/rename-file ()
-    (interactive)
-    (let ((name (buffer-name))
-          (filename (buffer-file-name)))
-      (if (not (and filename (file-exists-p filename)))
-          (error "Buffer '%s' n'a ​​pas de fichier associé!" name)
-        (let* ((dir (file-name-directory filename))
-               (new-name (read-file-name "Nouveau nom de fichier: " dir)))
-          (cond ((get-buffer new-name)
-                 (error "Un Buffer nommé '%s' existe déjà!" new-name))
-                (t
-                 (let ((dir (file-name-directory new-name)))
-                   (when (and (not (file-exists-p dir))
-                              (yes-or-no-p (format "Créer le répertoire '%s'?"
-                                                   dir)))
-                     (make-directory dir t)))
-                 (rename-file filename new-name 1)
-                 (rename-buffer new-name)
-                 (set-visited-file-name new-name)
-                 (set-buffer-modified-p nil)
-                 (when (fboundp 'recentf-add-file)
-                   (recentf-add-file new-name)
-                   (recentf-remove-if-non-kept filename))
-                 (message "Fichier '%s' renommé avec succès en '%s'" name
-                          (file-name-nondirectory new-name))))))))
+(defun mf/rename-file ()
+  (interactive)
+  (let ((name (buffer-name))
+        (filename (buffer-file-name)))
+    (if (not (and filename (file-exists-p filename)))
+        (error "Buffer '%s' n'a ​​pas de fichier associé!" name)
+      (let* ((dir (file-name-directory filename))
+             (new-name (read-file-name "Nouveau nom de fichier: " dir)))
+        (cond ((get-buffer new-name)
+               (error "Un Buffer nommé '%s' existe déjà!" new-name))
+              (t
+               (let ((dir (file-name-directory new-name)))
+                 (when (and (not (file-exists-p dir))
+                            (yes-or-no-p (format "Créer le répertoire '%s'?"
+                                                 dir)))
+                   (make-directory dir t)))
+               (rename-file filename new-name 1)
+               (rename-buffer new-name)
+               (set-visited-file-name new-name)
+               (set-buffer-modified-p nil)
+               (when (fboundp 'recentf-add-file)
+                 (recentf-add-file new-name)
+                 (recentf-remove-if-non-kept filename))
+               (message "Fichier '%s' renommé avec succès en '%s'" name
+                        (file-name-nondirectory new-name))))))))
 
-  (defun doom-unquote (exp)
-    "Return EXP unquoted."
-    (declare (pure t) (side-effect-free t))
-    (while (memq (car-safe exp) '(quote function))
-      (setq exp (cadr exp)))
-    exp)
+(defun doom-unquote (exp)
+  "Return EXP unquoted."
+  (declare (pure t) (side-effect-free t))
+  (while (memq (car-safe exp) '(quote function))
+    (setq exp (cadr exp)))
+  exp)
 
+(defun doom-keyword-intern (str)
+  "Converts STR (a string) into a keyword (`keywordp')."
+  (declare (pure t) (side-effect-free t))
+  (cl-check-type str string)
+  (intern (concat ":" str)))
 
-  (defun doom-keyword-intern (str)
-    "Converts STR (a string) into a keyword (`keywordp')."
-    (declare (pure t) (side-effect-free t))
-    (cl-check-type str string)
-    (intern (concat ":" str)))
+(defun doom-keyword-name (keyword)
+  "Returns the string name of KEYWORD (`keywordp') minus the leading colon."
+  (declare (pure t) (side-effect-free t))
+  (cl-check-type keyword keyword)
+  (substring (symbol-name keyword) 1))
 
-  (defun doom-keyword-name (keyword)
-    "Returns the string name of KEYWORD (`keywordp') minus the leading colon."
-    (declare (pure t) (side-effect-free t))
-    (cl-check-type keyword keyword)
-    (substring (symbol-name keyword) 1))
-
-
-  (defun +ensure-after-init (function)
-    "Ensure FUNCTION runs after init, or now if already initialised.
+(defun +ensure-after-init (function)
+  "Ensure FUNCTION runs after init, or now if already initialised.
   If Emacs is already started, run FUNCTION.  Otherwise, add it to
   `after-init-hook'.  FUNCTION is called with no arguments."
-    (if after-init-time
-        (funcall function)
-      (add-hook 'after-init-hook function)))
+  (if after-init-time
+      (funcall function)
+    (add-hook 'after-init-hook function)))
 
-  ;;
-  ;;; Sugars
+;;
+;;; Sugars
 
-  (defun dir! ()
-    "Returns the directory of the emacs lisp file this macro is called from."
-    (when-let (path (file!))
-      (directory-file-name (file-name-directory path))))
+(defun dir! ()
+  "Returns the directory of the emacs lisp file this macro is called from."
+  (when-let (path (file!))
+    (directory-file-name (file-name-directory path))))
 
-  (defun file! ()
-    "Return the emacs lisp file this macro is called from."
-    (cond ((bound-and-true-p byte-compile-current-file))
-          (load-file-name)
-          ((stringp (car-safe current-load-list))
-           (car current-load-list))
-          (buffer-file-name)
-          ((error "Cannot get this file-path"))))
-
-#+end_src
-* Setup if exists Executable
-:PROPERTIES:
-:ID:                     8646057b-7936-46f3-a18e-b4b69372eb25
-:END:
-ripgrep and gist
-#+begin_src emacs-lisp :noweb-ref pkg-utils
-  (with-message! "pkg-util"
-    (setup (:pkg rg)
-      (:when-loaded
-	(setq rg-group-result t)
-	(setq rg-ignore-case 'smart)))
-
-    (setup (:pkg gist)
-      (setq gist-view-gist t)
-      (:hide-mode))
-
-    (setup (:pkg link-hint)
-      (:require link-hint))
-
-    ) ;; end of pkg-utils with-message!
-#+end_src
-** MAC PATH specific
-:PROPERTIES:
-:ID:                     59f904d5-a915-4e9b-9102-197d3c1bcf73
-:END:
-#+begin_src emacs-lisp :noweb-ref pkg-editor
-  ;;(cua-mode 1)
-  ;; load doom-path
-
-  ;;    (setup (:pkg-when exec-path-from-shell *is-mac?*)
-  ;;      (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "GOPATH" "HOMEBREW_PREFIX"))
-  ;;        (add-to-list 'exec-path-from-shell-variables var))
-  ;;      (exec-path-from-shell-initialize)
-  ;;      (add-to-list 'exec-path (expand-file-name "/bin" (getenv  "HOMEBREW_PREFIX")))
-  ;;      )
-
+(defun file! ()
+  "Return the emacs lisp file this macro is called from."
+  (cond ((bound-and-true-p byte-compile-current-file))
+        (load-file-name)
+        ((stringp (car-safe current-load-list))
+         (car current-load-list))
+        (buffer-file-name)
+        ((error "Cannot get this file-path"))))
 
 #+end_src
 * Emacs UI Appearance
@@ -1493,10 +1332,7 @@ Some Defaults for my preferred appearance
 
 #+end_src
 ** Menu bar & fringe on
-:PROPERTIES:
-:header-args :tangle no  
-:END:
-#+begin_src elisp :noweb-ref pkg-uis :tangle no
+#+begin_src elisp  :tangle no
 (menu-bar-mode -1)            ; Disable the menu bar
 (unless *is-termux?*
   (set-fringe-mode 10)        ; Give some breathing room
@@ -2293,7 +2129,6 @@ and have made a custom fringe bitmap.
 #+end_src
 
 *** setup abbrev
-
 #+begin_src emacs-lisp
 (setup abbrev
       (:option abbrev-file-name (*emacs-sync/* "abbrev.el")
@@ -2317,7 +2152,7 @@ and have made a custom fringe bitmap.
 
 #+end_src
 *** setup recent files
-#+begin_src
+#+begin_src emacs-lisp
  (setup (:require recentf)
           (setq recentf-auto-cleanup 'mode)
           (setq recentf-exclude `(,#'path-in-cache/?
@@ -3328,69 +3163,11 @@ The default way Emacs makes buffer names unique is really ugly and,
    uniquify-ignore-buffers-re "^\\*"))
 
 #+end_src
-* Sanity settings
-:PROPERTIES:
-:header-args: :noweb-ref sanity
-:ID:                     aa34e0d9-5c92-4a74-b187-ac2be9dcb824
-:END:
-Setup Scratch and minibuffer
-#+begin_src emacs-lisp
-(use-package subr
-  :straight nil
-  :no-require t
-  :init
-  (fset 'yes-or-no-p 'y-or-n-p))
-
-(defun save-in-etc-file! (file-name)
-  (expand-file-name (format "etc/%s" file-name) *emacs-cache/*))
-
-(use-package sanity
-  :straight nil
-  :config
-  (setq ad-redefinition-action 'accept)
-  (setq bidi-inhibit-bpa t)
-  (setq command-line-ns-option-alist nil)
-  (setq confirm-kill-processes nil)
-  (setq custom-file (save-in-etc-file! "custom.el"))
-  (setq default-input-method "TeX")
-  (setq ffap-machine-p-known 'reject)
-  (setq inhibit-compacting-font-caches t)
-  (setq inhibit-default-init t)
-  (setq jit-lock-defer-time nil)
-  (setq jka-compr-verbose nil)
-  (setq native-comp-async-report-warnings-errors nil)
-  (setq read-file-name-completion-ignore-case t)
-  (setq read-process-output-max (* 64 1024))
-  (setq redisplay-skip-fontification-on-input t)
-  (setq ring-bell-function 'ignore)
-  (setq-default fill-column 100)
-  (setq-default lexical-binding t))
-
-(use-package files
-  :straight nil
-  :config 
-  (setq auto-mode-case-fold nil)
-  (setq auto-save-default nil)
-  (setq auto-save-list-file-prefix nil)
-  (setq backup-inhibited t)
-  (setq create-lockfiles nil)
-  (setq delete-by-moving-to-trash nil)
-  (setq find-file-suppress-same-file-warnings t)
-  (setq find-file-visit-truename t)
-  (setq load-prefer-newer t)
-  (setq make-backup-files nil)
-  (setq require-final-newline t)
-  (setq vc-follow-symlinks t))
-
-#+end_src
-
 * Project Setup
 :PROPERTIES:
 :header-args: :noweb-ref projet
-:ID:                     2a1cf21e-d71d-4d0b-a538-74b7989c18b0
 :END:
-
-setup of emacs project
+Setup of emacs project
 #+begin_src emacs-lisp
 (setq project-list-file (expand-file-name "projects" *emacs-etc/*))
 
@@ -3552,14 +3329,9 @@ Setup of magit for cool git
 ;;          (magit-todos-mode 1)))
 #+end_src
 * Emacs *Help* functions
-:PROPERTIES:
-:ID:                     c0c72f61-3244-412e-9deb-8d9abee533b4
-:END:
+Help and which functions
 
- Help and which functions
-
-#+begin_src emacs-lisp :noweb-ref pkg-uis
-
+#+begin_src emacs-lisp :noweb-ref emacs-help
   (setup (:pkg helpful)
     (:when-loaded
       (:global-bind
@@ -3968,101 +3740,13 @@ Other nice extensions of Consult are (i) its ability to work as a generic front-
 #+end_src
 
 * Note Taking
-:PROPERTIES:
-:ID:                     b4494a7b-c67e-401c-b130-7592fb7d7a7c
-:END:
 In its purest form, Org is a markup language that is similar to Markdown: symbols are used to denote the meaning of a construct in its context, such as what may represent a headline element or a phrase that calls for emphasis.
-
 What lends Org its super powers though is everything else built around it: a rich corpus of Elisp functions that automate, link, combine, enhance, structure, or otherwise enrich the process of using this rather straightforward system of plain text notation.
+Couched in those terms, Org is at once a distribution of well integrated libraries and a vibrant ecosystem that keeps producing new ideas and workflows on how to organise one’s life with plain text.c
 
-Couched in those terms, Org is at once a distribution of well integrated libraries and a vibrant ecosystem that keeps producing new ideas and workflows on how to organise one’s life with plain text.
-
-** Notes tangle
-:PROPERTIES:
-:header-args: :tangle lisp/init-notes.el :noweb yes
-:ID:       324cd406-d1af-4262-a7e1-8afab24f987c
-:END:
-
-Setup org-mode
-
-#+begin_src emacs-lisp
-;;; init-notes.el --- Org/Roam Workflow -*- lexical-binding: t -*-
-<<disclaimer>>
-;;; Code:
-(require 'config-path)
-(require 'init-elpa)
-(require 'init-env)
-(require 'init-selection)
-(require  'config-orgmode)
-
-
-(defconst *notes/*
-  (file-name-as-directory (expand-file-name "~/org")))
-
-<<vulpea>>
-
-(provide 'init-notes)
-;;; init-notes.el ends here
-#+end_src
-
-** Vulpea
-:PROPERTIES:
-:header-args: :noweb-ref vulpea :tangle no
-:ID:                     b8538a46-829b-43a2-af58-3123de1cf852
-:END:
-Setup d12frosted's vulpea's helper for org-roam
-#+begin_src emacs-lisp
-  (setup (:pkg org-cliplink))
-
-  (use-package vulpea
-    :straight (vulpea
-               :type git
-               :host github
-               :repo "d12frosted/vulpea")
-    :defer t
-    :general
-    (leader-def
-      "n" '(nil :which-key "vulpea...")
-      "nd" '(nil :which-key "by date...")
-      "ndd" '(vulpea-dailies-date :which-key "arbitrary date")
-      "ndt" '(vulpea-dailies-today :which-key "today")
-      "ndn" '(vulpea-dailies-next :which-key "next")
-      "ndp" '(vulpea-dailies-prev :which-key "previous")
-      "nf" '(vulpea-find :which-key "find")
-      "nF" '(vulpea-find-backlink :which-key "find backlink")
-      "ni" '(vulpea-insert :which-key "insert")
-      "nt" '(vulpea-tags-add :which-key "tag")
-      "nT" '(vulpea-tags-delete :which-key "untag")
-      "na" '(vulpea-alias-add :which-key "alias")
-      "nA" '(vulpea-alias-delete :which-key "unalias")
-      "ol" '(litnotes :which-key "litnotes"))
-    :hook ((before-save . vulpea-pre-save-hook)
-           (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
-    :init
-    (add-to-list 'window-buffer-change-functions
-                 #'vulpea-setup-buffer)
-    (add-hook 'vulpea-insert-handle-functions
-              #'vulpea-insert-handle)
-    (setq-default
-     vulpea-find-default-filter
-     (lambda (note)
-       (= (vulpea-note-level note) 0))
-     vulpea-insert-default-filter
-     (lambda (note)
-       (= (vulpea-note-level note) 0))))
-
-  
-
-#+end_src
 ** Org mode Use-package Defaults
-:PROPERTIES:
-:header-args: :tangle lisp/org-defaults.el :noweb yes
-:END:
-
 Org mode defaults for consistency
-#+begin_src emacs-lisp
-;;; org-defaults.el --- Org Defaults  -*- lexical-binding: t -*-
-
+#+begin_src emacs-lisp :noweb-ref org-defaults
 (use-package org
   :straight (:type built-in)
   :preface
@@ -4242,18 +3926,10 @@ Org mode defaults for consistency
     (show-paren-mode 1)     ;; show parentheses
     )
  )
-  
-(provide 'org-defaults)
-;;; org-defaults.el ends here
 #+end_src
 
-** Org Use-package agenda
-:PROPERTIES:
-   :header-args:    :tangle lisp/org-agenda-defaults.el :noweb yes
-   :END:
-#+begin_src elisp
-;;; org-agenda-defaults.el --- Org Agenda setup  -*- lexical-binding: t -*-
-
+** Org agenda
+#+begin_src elisp :noweb-ref org-agenda
 (use-package org-agenda
   :straight nil
   :defer t
@@ -4329,8 +4005,7 @@ Org mode defaults for consistency
 
   (setq org-agenda-custom-commands
 	(quote
-         (
-          ("n" "Prochaines Tâches"
+	 (("n" "Prochaines Tâches"
 	   ((agenda "" ((org-deadline-warning-days 7)))
 	    (todo "SUIV"
 		  ((org-agenda-overriding-header "Prochaines Tâches")))))
@@ -4491,124 +4166,10 @@ Org mode defaults for consistency
    org-attach-auto-tag nil
    org-attach-file-list-property nil
    org-attach-store-link-p 'attached))
-
-(provide 'org-agenda-defaults)
-;;; org-agenda-defaults.el ends here
-#+end_src
-** Org Setup
-   :PROPERTIES:
-   :header-args:    :tangle lisp/org-setup.el :noweb yes
-   :ID:                     df41daa7-1a79-4a38-9700-4a2a60676302
-   :END:
-
-use Setup to setup Org Mode
-
-#+begin_src emacs-lisp
-;;; org-setup.el --- Orgmode Setup  -*- lexical-binding: t -*-
-;; setup of org-mode keybindings
-(setup (:pkg org)
-  (:also-load org-tempo)
-  (:hook gas/org-mode-setup)
-  (:global "C-c a"  org-agenda
-           "C-c c"  org-capture
-           "C-c l"  org-store-link)
-  (:bind   "C-'"  nil
-           "C-,"  nil
-           "<C-return>"    nil
-           "<C-S-return>"  nil
-           "C-M-S-<right>" nil
-           "C-M-S-<left>"  nil
-           "C-c S-l"       org-toggle-link-display
-           "C-c C-S-l"     org-insert-last-stored-link)
-
-  (push '("conf-unix" . conf-unix) org-src-lang-modes)
-  (:load-after hl-fill-column
-    (:hook gas/org-mode-setup)))
-
-(setup (:require org-indent)
-  (:load-after org
-    (setq evil-auto-indent nil)
-    (org-indent-mode 1)
-    (:hide-mode)))
-
-(setup (:pkg org-appear)
-  (:load-after org
-    (:option org-appear-autoemphasis t
-             org-appear-autoentities t
-             org-appear-autokeywords t
-             org-appear-autolinks nil
-             org-appear-autosubmarkers t
-             org-appear-delay 0)
-    (:hook-into org-mode)))
-
-  (setup org-faces
-    (:load-after org-indent
-      (dolist (face-cons '((org-document-title . 1.75)
-                           (org-level-1 . 1.5)
-                           (org-level-2 . 1.25)
-                           (org-level-3 . 1.12)
-                           (org-level-4 . 1.05)
-                           (org-level-5 . 1.0)
-                           (org-level-6 . 1.0)
-                           (org-level-7 . 1.0)
-                           (org-level-8 . 1.0)))
-        (cl-destructuring-bind (face . height) face-cons
-          (set-face-attribute face
-                              nil
-                              :weight 'bold
-                              :font "Iosevka Aile"
-                              :height height))))
-
-  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
-  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
-  (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
-  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
-  (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
-  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
-
-  ;; Get rid of the background on column views
-  (set-face-attribute 'org-column nil :background nil)
-  (set-face-attribute 'org-column-title nil :background nil))
-
-<<org-tempo>>
-
-
-
 #+end_src
 
-
-** Org Capture
-#+begin_src emacs-lisp
-  (use-package org-capture
-    :straight nil
-    :defer t
-    :general
-    (leader-def
-      "c" '(nil :which-key "capture...")
-      "cX" '(org-capture :which-key "dispatch")
-      "ca" '(vulpea-capture-article :which-key "article")
-      "cj" '(vulpea-capture-journal :which-key "journal")
-      "cl" '(org-store-link :which-key "link")
-      "cm" '(vulpea-capture-meeting :which-key "meeting")
-      "cx" '(vulpea-capture-task :which-key "task"))
-    :init
-    (setq-default org-capture-bookmark nil)
-    :config
-    (vulpea-capture-setup))
-
-  
-
-#+end_src
-** Org Roam
-    :PROPERTIES:
-   :header-args:    :tangle no
-    :ID:                     7856eb18-fd30-4e21-8364-2b3990baa874
-   :END:
-#+begin_src emacs-lisp
+** Org Roam /org-roam/
+#+begin_src emacs-lisp :noweb-ref org-roam
 
 (use-package org-roam
   :after org
@@ -4713,14 +4274,153 @@ use Setup to setup Org Mode
 
 
 #+end_src
-** Org Vulpea Agenda
-    :PROPERTIES:
-   :header-args:    :noweb-ref agenda-vulpea
-    :ID:                     0b03668d-0ae9-4b3f-b55c-652f1896a833
-   :END:
+** Vulpea
+Setup d12frosted's vulpea's helper for org-roam
+#+begin_src emacs-lisp  :noweb-ref vulpea
+(setup (:pkg org-cliplink))
+
+(use-package vulpea
+  :straight (vulpea
+             :type git
+             :host github
+             :repo "d12frosted/vulpea")
+  :defer t
+  :general
+  (leader-def
+   "n" '(nil :which-key "vulpea...")
+   "nd" '(nil :which-key "by date...")
+   "ndd" '(vulpea-dailies-date :which-key "arbitrary date")
+   "ndt" '(vulpea-dailies-today :which-key "today")
+   "ndn" '(vulpea-dailies-next :which-key "next")
+   "ndp" '(vulpea-dailies-prev :which-key "previous")
+   "nf" '(vulpea-find :which-key "find")
+   "nF" '(vulpea-find-backlink :which-key "find backlink")
+   "ni" '(vulpea-insert :which-key "insert")
+   "nt" '(vulpea-tags-add :which-key "tag")
+   "nT" '(vulpea-tags-delete :which-key "untag")
+   "na" '(vulpea-alias-add :which-key "alias")
+   "nA" '(vulpea-alias-delete :which-key "unalias")
+   "ol" '(litnotes :which-key "litnotes"))
+  :hook ((before-save . vulpea-pre-save-hook)
+         (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
+  :init
+  (add-to-list 'window-buffer-change-functions
+               #'vulpea-setup-buffer)
+  (add-hook 'vulpea-insert-handle-functions
+            #'vulpea-insert-handle)
+  (setq-default
+   vulpea-find-default-filter
+   (lambda (note)
+     (= (vulpea-note-level note) 0))
+   vulpea-insert-default-filter
+   (lambda (note)
+     (= (vulpea-note-level note) 0))))
+
+
+
+#+end_src
+** Org Setup /org-setup/
+use Setup to setup Org Mode
+
+#+begin_src emacs-lisp :noweb-ref org-setup
+;;; org-setup.el --- Orgmode Setup  -*- lexical-binding: t -*-
+;; setup of org-mode keybindings
+(setup (:pkg org)
+  (:also-load org-tempo)
+  (:hook gas/org-mode-setup)
+  (:global "C-c a"  org-agenda
+           "C-c c"  org-capture
+           "C-c l"  org-store-link)
+  (:bind   "C-'"  nil
+           "C-,"  nil
+           "<C-return>"    nil
+           "<C-S-return>"  nil
+           "C-M-S-<right>" nil
+           "C-M-S-<left>"  nil
+           "C-c S-l"       org-toggle-link-display
+           "C-c C-S-l"     org-insert-last-stored-link)
+
+  (push '("conf-unix" . conf-unix) org-src-lang-modes)
+  (:load-after hl-fill-column
+    (:hook gas/org-mode-setup)))
+
+(setup (:require org-indent)
+  (:load-after org
+    (setq evil-auto-indent nil)
+    (org-indent-mode 1)
+    (:hide-mode)))
+
+(setup (:pkg org-appear)
+  (:load-after org
+    (:option org-appear-autoemphasis t
+             org-appear-autoentities t
+             org-appear-autokeywords t
+             org-appear-autolinks nil
+             org-appear-autosubmarkers t
+             org-appear-delay 0)
+    (:hook-into org-mode)))
+
+  (setup org-faces
+    (:load-after org-indent
+      (dolist (face-cons '((org-document-title . 1.75)
+                           (org-level-1 . 1.5)
+                           (org-level-2 . 1.25)
+                           (org-level-3 . 1.12)
+                           (org-level-4 . 1.05)
+                           (org-level-5 . 1.0)
+                           (org-level-6 . 1.0)
+                           (org-level-7 . 1.0)
+                           (org-level-8 . 1.0)))
+        (cl-destructuring-bind (face . height) face-cons
+          (set-face-attribute face
+                              nil
+                              :weight 'bold
+                              :font "Iosevka Aile"
+                              :height height))))
+
+  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))
+  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
+
+  ;; Get rid of the background on column views
+  (set-face-attribute 'org-column nil :background nil)
+  (set-face-attribute 'org-column-title nil :background nil))
+
+#+end_src
+
+** Org Capture /vulp-capture/
+#+begin_src emacs-lisp :noweb-ref vulp-capture
+  (use-package org-capture
+    :straight nil
+    :defer t
+    :general
+    (leader-def
+      "c" '(nil :which-key "capture...")
+      "cX" '(org-capture :which-key "dispatch")
+      "ca" '(vulpea-capture-article :which-key "article")
+      "cj" '(vulpea-capture-journal :which-key "journal")
+      "cl" '(org-store-link :which-key "link")
+      "cm" '(vulpea-capture-meeting :which-key "meeting")
+      "cx" '(vulpea-capture-task :which-key "task"))
+    :init
+    (setq-default org-capture-bookmark nil)
+    :config
+    (vulpea-capture-setup))
+
+  
+
+#+end_src
+** Org Vulpea Agenda /agenda-vulpea/
 org-capture provides a generic and extensible interface to capturing things into org-mode in
 different formats
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :noweb-ref agenda-vulpea
 (use-package org-agenda
   :straight nil
   :defer t
@@ -4854,103 +4554,98 @@ different formats
 
 #+end_src
 
-** OX (Presentation)
+** Latex OX (Presentation) /org-latex/
 Setup of latex
-#+begin_src emacs-lisp :noweb-ref use-latex
+#+begin_src emacs-lisp :noweb-ref org-latex
 (use-package ox-latex
-    :straight nil
-    :after org
-    :config
-    (setq org-latex-compiler "xelatex") ;introduced in Org 9.0
+  :straight nil
+  :after org
+  :config
+  (setq org-latex-compiler "xelatex") ;introduced in Org 9.0
 
-    (setq org-latex-prefer-user-labels t) ;org-mode version 8.3+
+  (setq org-latex-prefer-user-labels t) ;org-mode version 8.3+
 
-    ;; Previewing latex fragments in Org mode
-    ;; https://orgmode.org/worg/org-tutorials/org-latex-preview.html
-    ;; (setq org-latex-create-formula-image-program 'dvipng) ;NOT Recommended
-    (setq org-latex-create-formula-image-program 'imagemagick) ;Recommended
+  ;; Previewing latex fragments in Org mode
+  ;; https://orgmode.org/worg/org-tutorials/org-latex-preview.html
+  ;; (setq org-latex-create-formula-image-program 'dvipng) ;NOT Recommended
+  (setq org-latex-create-formula-image-program 'imagemagick) ;Recommended
 
-    (setq org-highlight-latex-and-related '(latex script))
+  (setq org-highlight-latex-and-related '(latex script))
 
-    (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
-    ;;(add-to-list 'org-latex-packages-alist '("" "color"))
-    (setq org-preview-latex-image-directory
-          (expand-file-name "ltximg/" *xdg-cache/*))
-    (setq org-format-latex-options
-          (list :foreground 'auto
-                :background 'auto
-                :scale 1.5
-                :html-foreground "Black"
-                :html-background "Transparent"
-                :html-scale 1.0
-                :matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
-    (setq org-latex-listings 'minted)
-    (setq org-preview-latex-default-process 'dvisvgm)
-    (setq org-latex-pdf-process
-          (seq-map
-           (lambda (_)
-             (string-join '("pdflatex"
-                            "-shell-escape"
-                            "-interaction nonstopmode"
-                            "-output-directory %o %f")
-                          " "))
-           '(1 2 3))))
+  (add-to-list 'org-latex-packages-alist '("newfloat" "minted"))
+  ;;(add-to-list 'org-latex-packages-alist '("" "color"))
+  (setq org-preview-latex-image-directory
+        (expand-file-name "ltximg/" *xdg-cache/*))
+  (setq org-format-latex-options
+        (list :foreground 'auto
+              :background 'auto
+              :scale 1.5
+              :html-foreground "Black"
+              :html-background "Transparent"
+              :html-scale 1.0
+              :matchers '("begin" "$1" "$" "$$" "\\(" "\\[")))
+  (setq org-latex-listings 'minted)
+  (setq org-preview-latex-default-process 'dvisvgm)
+  (setq org-latex-pdf-process
+        (seq-map
+         (lambda (_)
+           (string-join '("pdflatex"
+                          "-shell-escape"
+                          "-interaction nonstopmode"
+                          "-output-directory %o %f")
+                        " "))
+         '(1 2 3))))
 
 
-  (use-package ox-beamer
-    :straight nil
-    :defer t
-    :config
-    (add-to-list
-     'org-beamer-environments-extra
-     '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
+(use-package ox-beamer
+  :straight nil
+  :defer t
+  :config
+  (add-to-list
+   'org-beamer-environments-extra
+   '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
 
-  
+
 
-  (use-package ob-plantuml
-    :straight nil
-    :defer t
-    :defines (org-plantuml-jar-path))
+(use-package ob-plantuml
+  :straight nil
+  :defer t
+  :defines (org-plantuml-jar-path))
+
+
+#+end_src
+
+** Org TOC /org-toc/
+#+begin_src emacs-lisp :noweb-ref org-toc
+(use-package toc-org
+  :hook (org-mode . toc-org-mode))
 
   
 #+end_src
-*** Org Toc & Org Temp
-#+begin_src emacs-lisp
-  (use-package toc-org
-    :hook (org-mode . toc-org-mode))
-
-  (with-eval-after-load 'org
-  (use-package org-tempo
-    :straight nil
-    :unless (version<= org-version "9.1.9")))
-
-  
-#+end_src
-* Templates
-    :PROPERTIES:
-   :header-args:    :noweb-ref templates
-    :ID:                     0cc1b333-09d8-46ed-9494-40ff0044d9fd
-   :END:
+* Templates & YAS /templates/
 These templates enable you to type things like =<el= and then hit =Tab= to expand
 the template.  More documentation can be found at the Org Mode [[https://orgmode.org/manual/Easy-templates.html][Easy Templates]]
 documentation page.
 
-#+begin_src emacs-lisp
-
+#+begin_src emacs-lisp :noweb-ref templates
 ;; This is needed as of Org 9.2
-(setup org-tempo
-    (:load-after org
-      (add-to-list 'org-structure-template-alist '("sh" . "src sh"))
-      (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-      (add-to-list 'org-structure-template-alist '("li" . "src lisp"))
-      (add-to-list 'org-structure-template-alist '("cli" . "src common-lisp"))
-      (add-to-list 'org-structure-template-alist '("sc" . "src scheme"))
-      (add-to-list 'org-structure-template-alist '("cl" . "src clojure"))
-      (add-to-list 'org-structure-template-alist '("ts" . "src typescript"))
-      (add-to-list 'org-structure-template-alist '("py" . "src python"))
-      (add-to-list 'org-structure-template-alist '("go" . "src go"))
-      (add-to-list 'org-structure-template-alist '("yaml" . "src yaml"))
-      (add-to-list 'org-structure-template-alist '("json" . "src json"))))
+(with-eval-after-load 'org
+(use-package org-tempo
+  :straight nil
+  :unless (version<= org-version "9.1.9")
+  :after org
+  :config   
+  (add-to-list 'org-structure-template-alist '("sh" . "src sh"))
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+  (add-to-list 'org-structure-template-alist '("li" . "src lisp"))
+  (add-to-list 'org-structure-template-alist '("cli" . "src common-lisp"))
+  (add-to-list 'org-structure-template-alist '("sc" . "src scheme"))
+  (add-to-list 'org-structure-template-alist '("cl" . "src clojure"))
+  (add-to-list 'org-structure-template-alist '("ts" . "src typescript"))
+  (add-to-list 'org-structure-template-alist '("py" . "src python"))
+  (add-to-list 'org-structure-template-alist '("go" . "src go"))
+  (add-to-list 'org-structure-template-alist '("yaml" . "src yaml"))
+  (add-to-list 'org-structure-template-alist '("json" . "src json"))))
 
 (defvar file-templates-dir
   (expand-file-name "templates/" *emacs-config/* )
@@ -5107,36 +4802,33 @@ appropriate for it. This is used for testing."
     file-templates-alist)))
 
 #+end_src
-Trying to fix weird org syntax problems. This just lets Org ignore < and > characters as if they
-were regular words. This is necessary because in Clojure I want to make functions with -> in the
-name and Org was always insisting on pairing <>. This caused any other paren matching to stop
-working. It sucked.
 
-** Distraction Free
-   :PROPERTIES:
-   :header-args:    :tangle no
-   :ID:                     ad5dade4-6cb2-4fc0-b942-d3986a172fe5
-   :END:
+* Distraction Free /distraction-free/
+:PROPERTIES:
+:header-args:    :noweb-ref distraction-free
+:END:
 setup olivetti to have a distraction free editing mode
-#+begin_src emacs-lisp :tangle no
-  ;; Distraction-free screen
-    (setup (:pkg olivetti)
-      (setq olivetti-body-width .67)
-      (defun distraction-free ()
-        "Distraction-free writing environment"
-        (interactive)
-        (if (equal olivetti-mode nil)
-            (progn
-              (window-configuration-to-register 1)
-              (delete-other-windows)
-              (text-scale-increase 2)
-              (olivetti-mode t))
-          (progn
-            (jump-to-register 1)
-            (olivetti-mode 0)
-            (text-scale-decrease 2))))
-      (:bind "<f9>"  #'distraction-free))
-#+end_src
+#+begin_src emacs-lisp
+;; Distraction-free screen
+(use-package  olivetti
+  :config
+  (setq olivetti-body-width .67)
+  (defun distraction-free ()
+    "Distraction-free writing environment"
+    (interactive)
+    (if (equal olivetti-mode nil)
+        (progn
+          (window-configuration-to-register 1)
+          (delete-other-windows)
+          (text-scale-increase 2)
+          (olivetti-mode t))
+      (progn
+        (jump-to-register 1)
+        (olivetti-mode 0)
+        (text-scale-decrease 2))))
+  :bind "<f9>"  #'distraction-free)
+
+  #+end_src
 
 * Coding Settings
 :PROPERTIES:
@@ -5952,123 +5644,22 @@ Emacs Speaks Statistics
   ("0" polymode-eval-buffer-from-point-to-end "Eval to end" :column "Evaluation"))
 #+end_src
 
-* Keybindings
-:PROPERTIES:
-:header-args: :noweb-ref keyboard
-:ID:                     fd9b171e-7f6a-4140-86e6-57a4b3d726e9
-:END:
-Change the Mac modifiers to my liking. I also disable passing Control characters to the system, to avoid that C-M-space launches the Character viewer instead of running mark-sexp.
-
-
-#+begin_src emacs-lisp
-(cond (*is-mac?*
-       (setq mac-command-modifier      'super
-              mac-option-modifier         'meta
-              mac-right-option-modifier   'alt
-              mac-pass-control-to-system nil)))
-#+end_src
-When at the beginning of the line, make Ctrl-K remove the whole line, instead of just emptying it.
-#+begin_src emacs-lisp
-(setq kill-whole-line t)
-#+end_src
-*** Emulating Vi's % key
-:PROPERTIES:
-:ID:                     80396951-51ce-4299-8b88-7fc72c7fd079
-:END:
-One of the few things I missed in Emacs from vi was the % key, which jumps to the parenthesis, bracket or brace which matches the one below the cursor. This function implements this functionality, bound to the same key. Inspired by NavigatingParentheses, but modified to use smartparens instead of the default commands, and to work on brackets and braces.
-#+begin_src emacs-lisp
-  (setup
-      (:pkg smartparens)
-    (defun zz/goto-match-paren (arg)
-      "Go to the matching paren/bracket, otherwise (or if ARG is not
-      nil) insert %.  vi style of % jumping to matching brace."
-      (interactive "p")
-      (if (not (memq last-command '(set-mark
-				    cua-set-mark
-				    zz/goto-match-paren
-				    down-list
-				    up-list
-				    end-of-defun
-				    beginning-of-defun
-				    backward-sexp
-				    forward-sexp
-				    backward-up-list
-				    forward-paragraph
-				    backward-paragraph
-				    end-of-buffer
-				    beginning-of-buffer
-				    backward-word
-				    forward-word
-				    mwheel-scroll
-				    backward-word
-				    forward-word
-				    mouse-start-secondary
-				    mouse-yank-secondary
-				    mouse-secondary-save-then-kill
-				    move-end-of-line
-				    move-beginning-of-line
-				    backward-char
-				    forward-char
-				    scroll-up
-				    scroll-down
-				    scroll-left
-				    scroll-right
-				    mouse-set-point
-				    next-buffer
-				    previous-buffer
-				    previous-line
-				    next-line
-				    back-to-indentation
-				    )))
-	  (self-insert-command (or arg 1))
-	(cond ((looking-at "\\s\(") (sp-forward-sexp) (backward-char 1))
-	      ((looking-at "\\s\)") (forward-char 1) (sp-backward-sexp))
-	      (t (self-insert-command (or arg 1)))))
-      )
-    (:global "%" 'zz/goto-match-paren))
-#+end_src
-
-* Maybe to applied - not tangled at present
-:PROPERTIES:
-:ID:                     be23b9fc-341c-484f-a0d6-57402277cd14
-:END:
-#+begin_src elisp :tangle no
-
-    ;; enable line-numbers
-     (column-number-mode)
-
-     ;; Enable line numbers for some modes
-     (dolist (mode '(text-mode-hook
-                     prog-mode-hook
-                     conf-mode-hook))
-       (add-hook mode (lambda () (display-line-numbers-mode 1))))
-
-     ;; Override some modes which derive from the above
-     (dolist (mode '(org-mode-hook))
-       (add-hook mode (lambda () (display-line-numbers-mode 0))))
-
-
-
-#+end_src
-
 
 * Tangling config noweb
-** Header & disclaimer
+** Header & disclaimer <disclaimer>
 :PROPERTIES:
 :header-args: :noweb-ref disclaimer
-:ID:                     f9031214-0bc2-4e91-a037-06fc4375292d
 :END:
 
 #+begin_src emacs-lisp
 ;; Copyright (C) 2001-2022 Gas
 ;; Timestamp: <>
-
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
-;; Package-Version: 0.1
+;; Package-Version: 0.7
 ;; Created: Sometime during the Covid-19 lockdown
 ;; Keywords: configuration, emacs
-;; URL: https://github.com/frap/emacs.d
+;; URL: https://github.com/frap/emacs
 ;; Package-Requires: ((emacs "27.2"))
 
 ;; This file is not part of GNU Emacs.
@@ -6079,15 +5670,10 @@ One of the few things I missed in Emacs from vi was the % key, which jumps to th
 ;; Je t'ai prévenu putain!
 
 #+end_src
-** Emacs paths & directories
+** Emacs PATH config and constants
 :PROPERTIES:
 :header-args: :tangle lisp/config-path.el :noweb yes
-:ID:       06227072-5f8a-46ee-abd6-d216972267b6
 :END:
-
-Setup emacs paths and directory constants
-
-
 #+begin_src emacs-lisp
 ;;; config-path.el --- Path constants -*- lexical-binding: t -*-
 
@@ -6103,12 +5689,10 @@ Setup emacs paths and directory constants
 (provide 'config-path)
 ;;; config-path.el ends here
 #+end_src
-** Shell Environment
+** Shell Environment init-env
 :PROPERTIES:
 :header-args: :tangle lisp/init-env.el :noweb yes
-:ID:       b9e98d24-b79e-4982-abf5-9b403dc76990
 :END:
-
 load environment for Emacs from shell
 
 #+begin_src emacs-lisp
@@ -6120,9 +5704,7 @@ load environment for Emacs from shell
 ;;
 ;;; Code:
 
-
 <<environment>>
-
 
 (provide 'init-env)
 ;;; init-env.el ends here
@@ -6132,7 +5714,6 @@ load environment for Emacs from shell
 :header-args: :tangle lisp/init-kbd.el :noweb yes
 :ID:       53f268fc-1d6f-4fe4-a047-945da3ceb14c
 :END:
-
 Setup keyboard
 
 #+begin_src emacs-lisp
@@ -6146,9 +5727,7 @@ Setup keyboard
 
 (require 'init-elpa)
 ;;(require 'init-env)
-<<keyboard>>
-
-<<keybindings>>
+<<mac-keys>>
 
 (provide 'init-kbd)
 ;;; init-kbd.el ends here
@@ -6192,21 +5771,19 @@ File for my constants, macros and functions
 ;;; init-fn-macros.el ends here
 #+end_src
 
-** ELPA package management
+** ELPA package management /init-elpa/
+*** Straight and use-package
 :PROPERTIES:
 :header-args: :tangle lisp/init-elpa.el :noweb yes
-:ID:       d0ccd1fd-61de-4673-96cb-3d4550fef601
 :END:
-
 "Setup" of setup.el the emacs package manager and package setup to replace use-package
 
-
 #+begin_src emacs-lisp
-;;; init-elpa.el --- Initialise ELPA -*- lexical-binding: t -*-
+;;; init-elpa.el --- Initialise ELPA & Straight -*- lexical-binding: t -*-
 <<disclaimer>>
 ;;
 ;; Setup Emacs for installing packages from MELPA and Git
-;; repositories. Enable configuration via `setup'.
+;; repositories. Enable configuration via `use-package.
 ;;; Code:
 
 (require 'config-path)
@@ -6215,26 +5792,6 @@ File for my constants, macros and functions
 
 (provide 'init-elpa)
 ;;; init-elpa.el ends here
-#+end_src
-
-** Emacs Package management
-*** Straight and use-package
-:properties:
-:header-args: :tangle lisp/init-straight.el :noweb yes
-:end:
-
-#+begin_src emacs-lisp
-;;; init-straight.el --- Initialise Straight & use package -*- lexical-binding: t -*-
-<<disclaimer>>
-;;
-;;; Code:
-
-(require 'config-path)
-
-<<straight-setup>>
-
-(provide 'init-straight)
-;;; init-straight.el ends here
 #+end_src
 *** Corgi setup
 :PROPERTIES:
@@ -6256,28 +5813,7 @@ Setup default corgi
 (provide 'init-corgi)
 ;;; init-corgi.el ends here
 #+end_src
-*** Setup Pkg manager
-:properties:
-:header-args: :tangle lisp/init-setup.el :noweb yes
-:end:
 
-#+begin_src emacs-lisp
-;;; init-setup.el --- Initialise Emacs Pkg Managers -*- lexical-binding: t -*-
-<<disclaimer>>
-;;
-;;; Code:
-
-(require 'config-path)
-
-;;;============================================================================
-;;; Custom setup.el local macros
-;;;============================================================================
-
-<<setup-setup>>
-
-(provide 'init-setup)
-;;; init-setup.el ends here
-#+end_src
 ** User setup
 :PROPERTIES:
 :header-args: :tangle lisp/init-usersetup.el :noweb yes
@@ -6334,46 +5870,36 @@ Setup auto-compile, no littering and GMCH
 ;;; init-startup.el ends here
 #+end_src
 ** Emacs Builtins
-:PROPERTIES:
-:header-args: :tangle lisp/enfer-pkg-builtin.el :noweb yes
-:ID:       f5f2cd71-51af-48bd-a328-62092db7df6f
-:END:
 
 Setup Emacs builtins
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
   ;;; enfer-pkg-builtin.el --- Builtins -*- lexical-binding: t -*-
-  <<disclaimer>>
+<<disclaimer>>
   ;;; Code:
-
-  (with-message! "Builtins"
-
-    (setup auto-fill
-           (:with-feature simple
-             (:with-mode (text-mode org-mode)
-               (:hook turn-on-auto-fill))
-             (:with-mode prog-mode
-               (:hook (fn (setq-local comment-auto-fill-only-comments t)
-                          (auto-fill-mode 1))))
-             (:hide-mode auto-fill-function)))
+(setup auto-fill
+       (:with-feature simple
+		      (:with-mode (text-mode org-mode)
+				  (:hook turn-on-auto-fill))
+		      (:with-mode prog-mode
+				  (:hook (fn (setq-local comment-auto-fill-only-comments t)
+					     (auto-fill-mode 1))))
+		      (:hide-mode auto-fill-function)))
 
 
-         (setup (:require goto-addr)
-           (:with-mode prog-mode
-             (:hook goto-address-prog-mode))
-           (:with-mode text-mode
-             (:hook goto-address-mode)))
+(setup (:require goto-addr)
+       (:with-mode prog-mode
+		   (:hook goto-address-prog-mode))
+       (:with-mode text-mode
+		   (:hook goto-address-mode)))
 
-         (setup (:require help-mode)
-           (setq help-window-select t))
+(setup (:require help-mode)
+       (setq help-window-select t))
 
-         (setup (:require url)
-           (setq url-cookie-file (save-in-etc-file! "url-cookies")))
+(setup (:require url)
+       (setq url-cookie-file (save-in-etc-file! "url-cookies")))
 
-
-  ) ;; end of with-message!
-
- (provide 'enfer-pkg-builtin)
+(provide 'enfer-pkg-builtin)
 ;;; enfer-pkg-builtin.el ends here
 #+end_src
 ** Emacs Editor Setup
@@ -6583,11 +6109,8 @@ windose
 ** Projects
 :PROPERTIES:
 :header-args: :tangle lisp/init-project.el :noweb yes
-:ID:       66274ebe-f4ac-4bc6-ba63-89dfc122e18e
 :END:
-
 Setup projects
-
 
 #+begin_src emacs-lisp
 ;;; init-project.el --- Projects -*- lexical-binding: t -*-
@@ -6602,14 +6125,12 @@ Setup projects
 
 <<projet>>
 
-
 (provide 'init-project)
 ;;; init-project.el ends here
 #+end_src
 ** VCS
 :PROPERTIES:
 :header-args: :tangle lisp/init-vcs.el :noweb yes
-:ID:       17898bf9-267b-4ce2-9cde-37fcdec5cf13
 :END:
 
 Setup Magit & Git
@@ -6628,13 +6149,1018 @@ Setup Magit & Git
 (provide 'init-vcs)
 ;;; init-vcs.el ends here
 #+end_src
-** Orgmode Accessory files
-*** Vulpea Setup
+** Notes tangle
 :PROPERTIES:
-:header-args: :tangle lisp/lib-vulpea.el :noweb yes
-:ID:       d6e1bd4d-dbb6-4a19-8e8a-e26a97053ccb
+:header-args: :tangle lisp/init-notes.el :noweb yes
+:END:
+Setup org-mode for Note taking
+
+#+begin_src emacs-lisp
+;;; init-notes.el --- Org Notetaking Workflow -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+(require 'config-path)
+(require 'init-elpa)
+(require 'init-env)
+
+(require 'config-orgmode)
+
+(defconst *notes/*
+  (file-name-as-directory (expand-file-name "~/org")))
+
+<<org-defaults>>
+
+<<org-agenda>>
+
+(provide 'init-notes)
+;;; init-notes.el ends here
+#+end_src
+
+** Coding
+Setup Coding languages
+
+*** Basic IDE
+:PROPERTIES:
+:ID:                     bbc17bb5-e026-4a01-83c7-19a4d1924c96
+:END:
+Setup the basic Coding IDE
+
+*** Coding IDE Setup
+:properties:
+:header-args: :tangle lisp/init-ide.el :noweb yes
+:end:
+Setup of parens and basic coding setup - aka prog mode, also C setup
+#+begin_src emacs-lisp
+;;; init-ide.el --- Code IDE -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+<<code-ide>>
+
+<<code-paren>>
+
+<<code-c>>
+
+(provide 'init-ide)
+;;; init-ide.el ends here
+#+end_src
+
+*** LISP setup
+:properties:
+:header-args: :tangle lisp/init-lisp.el :noweb yes
+:ID:       e285fd8e-e55c-4b82-bc3a-e42634c4b6b2
+:end:
+LISP Common setup here
+#+begin_src emacs-lisp
+  ;;; init-lisp.el --- Code LISP -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<lisp-ide>>
+
+  (provide 'init-lisp)
+   ;;; init-lisp.el ends here
+#+end_src
+
+*** Eval lib
+:PROPERTIES:
+:header-args: :tangle lisp/lib-eval.el :noweb yes
+:ID:       2aad25fa-9a36-4484-b2a6-4397d836773c
+:END:
+Smartparens setup here
+#+begin_src emacs-lisp
+  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+(defmacro eval-with-default-dir (dir &rest body)
+  "Invoke in DIR the BODY."
+  (declare (debug t) (indent 1))
+  `(let ((default-directory ,dir))
+     ,@body))
+
+(cl-flet ((always-yes (&rest _) t))
+  (defun eval-no-confirm (fun &rest args)
+    "Apply FUN to ARGS, skipping user confirmations."
+    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
+              ((symbol-function 'yes-or-no-p) #'always-yes))
+      (apply fun args))))
+
+  (provide 'lib-eval)
+   ;;; lib-eval.el ends here
+#+end_src
+*** Emacs-lisp setup
+:PROPERTIES:
+:header-args: :tangle lisp/init-elisp.el :noweb yes
+:ID:       c07e92e9-c358-4938-977c-b6aa393c7277
 :END:
 #+begin_src emacs-lisp
+  ;;; init-elisp.el --- Emacs LISP -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<code-elisp>>
+
+  (provide 'init-elisp)
+   ;;; init-elisp.el ends here
+#+end_src
+*** Common LISP setup
+:PROPERTIES:
+:header-args: :tangle lisp/init-clisp.el :noweb yes
+:ID:       7c6c8865-ce5d-4b09-ac24-81cff979efb1
+:END:
+#+begin_src emacs-lisp
+  ;;; init-clisp.el --- Common-LISP -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<code-common-lisp>>
+
+  (provide 'init-clisp)
+   ;;; init-clisp.el ends here
+#+end_src
+*** Clojure setup
+:PROPERTIES:
+:header-args: :tangle lisp/init-clojure.el :noweb yes
+:ID:       7f8725fd-d78e-4f0d-9599-566cf5173112
+:END:
+#+begin_src emacs-lisp
+;;; init-clojure.el --- Clojure -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+<<code-clojure>>
+
+(provide 'init-clojure)
+;;; init-clojure.el ends here
+#+end_src
+*** Fennel/LUA setup
+:PROPERTIES:
+:header-args: :tangle lisp/init-fennel.el :noweb yes
+:ID:       afda404b-1889-4438-9efd-40a0aff2218d
+:END:
+#+begin_src emacs-lisp
+;;; init-fennel.el --- Fennel LUA  -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+<<code-fennel>>
+
+(provide 'init-fennel)
+;;; init-fennel.el ends here
+#+end_src
+*** ESS setup
+:Properties:
+:header-args: :tangle lisp/init-ess.el :noweb yes
+:ID:       a04b95ad-e2ca-4aa3-8f4a-301f6986cda8
+:END:
+Emacs Speaks Statisitcs setup here
+#+begin_src emacs-lisp
+  ;;; init-ess.el --- Code ESS -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  (with-message!  "stats R baby!"
+
+  <<ess>>
+
+  )
+  (provide 'init-ess)
+   ;;; init-ess.el ends here
+#+end_src
+
+**** Eval lib
+:PROPERTIES:
+:header-args: :tangle lisp/lib-eval.el :noweb yes
+:ID:       5b4b0991-3552-42c0-b352-64de8428927a
+:END:
+Smartparens setup here
+#+begin_src emacs-lisp
+  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+(defmacro eval-with-default-dir (dir &rest body)
+  "Invoke in DIR the BODY."
+  (declare (debug t) (indent 1))
+  `(let ((default-directory ,dir))
+     ,@body))
+
+(cl-flet ((always-yes (&rest _) t))
+  (defun eval-no-confirm (fun &rest args)
+    "Apply FUN to ARGS, skipping user confirmations."
+    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
+              ((symbol-function 'yes-or-no-p) #'always-yes))
+      (apply fun args))))
+
+  (provide 'lib-eval)
+   ;;; lib-eval.el ends here
+#+end_src
+
+*** Utility packages
+:PROPERTIES:
+:header-args: :tangle lisp/init-utils.el :noweb yes
+:ID:       502d74d1-022e-4f86-a512-00cc0f156769
+:END:
+
+Setup utility packages
+#+begin_src emacs-lisp
+  ;;; init-utils.el --- Utilities -*- lexical-binding: t -*-
+  <<disclaimer>>
+  ;;; Code:
+
+  <<pkg-utils>>
+
+  (provide 'init-utils)
+  ;;; init-utils.el ends here
+#+end_src
+
+** Communications
+:PROPERTIES:
+:header-args: :tangle lisp/init-telega.el :noweb yes
+:ID:                     2b35cb3e-c354-4899-96f6-d16d8097f7ac
+:END:
+
+*** Telega setup
+    :PROPERTIES:
+    :ID:       73cb0290-d331-403b-91ad-6fb88437c065
+    :END:
+
+#+begin_src emacs-lisp
+  ;;; init-telega.el --- personal configuration -*- lexical-binding: t -*-
+(require 'init-elpa)
+(require 'init-kbd)
+
+(use-package telega
+  :straight (telega
+             :type git
+             :host github
+             :repo "zevlg/telega.el"
+             :branch "releases"
+             :files (:defaults "contrib" "etc" "server" "Makefile"))
+  :defer t
+  :hook ((telega-chat-mode . ui-reset-line-spacing)
+         (telega-chat-mode . editor-disable-electric-pair))
+  :general
+  (leader-def
+    "t" '(:keymap telega-prefix-map))
+  :init
+  (when elpa-bootstrap-p
+    (require 'telega-server)
+    (require 'lib-nix)
+    (let ((exec-path (cons telega-directory exec-path))
+          (default-directory telega--lib-directory))
+      (unless (executable-find "telega-server")
+        (nix-shell-command
+         :message-intro "building telega-server..."
+         :message-error "Failed to build telega-server"
+         :deps '("pkg-config" "tdlib")
+         :command (concat
+                   (or (executable-find "gmake")
+                       "make")
+                   " "
+                   "LIBS_PREFIX="
+                   (expand-file-name telega-server-libs-prefix) " "
+                   "INSTALL_PREFIX="
+                   (expand-file-name telega-directory) " "
+                   "server-reinstall"))))))
+#+end_src
+
+
+*** Compatibility Utilities
+:PROPERTIES:
+:header-args: :tangle lisp/lib-compat.el :noweb yes
+:ID:       3cae4486-262c-4e62-bb92-645abbe5ddc6
+:END:
+
+#+begin_src emacs-lisp
+  ;;; lib-compat.el --- Compatibility utilities  -*- lexical-binding: t -*-
+    <<disclaimer>>
+    ;;; Code:
+
+  ;;;###autoload
+  (defun cl--plist-remove (plist member)
+    "Remove MEMBER from PLIST.
+  `telega' needs this function."
+    (cond
+     ((null plist) nil)
+     ((null member) plist)
+     ((eq plist member) (cddr plist))
+     (t `(,(car plist) ,(cadr plist)
+          ,@(cl--plist-remove (cddr plist) member)))))
+
+    ;;; SYSTEM-DEPENDENT SETTINGS
+    ;; at home
+    (eval-and-compile
+      (when (memq system-type '(gnu gnu/linux darwin))
+        <<linux-specific>>
+        ))
+
+    ;; at work
+    (eval-and-compile
+      (when (memq system-type '(ms-dos windows-nt))
+        <<windows-specific>>
+        ))
+
+  (provide 'lib-compat)
+  ;;; lib-compat.el ends here
+#+end_src
+*** Ease of editing
+:PROPERTIES:
+:header-args: :tangle no
+:ID:                     de45708b-cfcc-4add-a59b-8cbc64b4f85e
+:END:
+
+#+begin_src emacs-lisp :noweb-ref functions
+  (defun enfer/find-config ()
+    "Find `config.org'."
+    (interactive)
+    (find-file (locate-user-emacs-file "config.org")))
+#+end_src
+
+Bind it to =C-z i= because =C-z C-c= is taken for capture.
+
+#+begin_src emacs-lisp :noweb-ref bindings
+;;(define-key acdw/leader (kbd "i") #'acdw/find-config)
+#+end_src
+
+*** Ease of reloading
+:PROPERTIES:
+:header-args: :tangle no
+:ID:                     510ef849-87e9-4def-abb8-a28f040752a4
+:END:
+
+#+begin_src emacs-lisp :noweb-ref functions
+  (defun acdw/reload ()
+    "Tangle and reload Emacs configuration."
+    (interactive)
+    (let ((config (locate-user-emacs-file "config.org")))
+      ;; tangle
+      (with-current-buffer (find-file-noselect config)
+        (message "Tangling config.org...")
+        (let ((prog-mode-hook nil)
+              (inhibit-redisplay t)
+              (inhibit-message t))
+          (add-to-list 'load-path (locate-user-emacs-file
+                                   "straight/build/org/"))
+          (require 'org)
+          (org-babel-tangle)))
+      (message "Tangling config.org... Done.")
+      ;; load init files
+      (load (locate-user-emacs-file "early-init.el"))
+      (load (locate-user-emacs-file "init.el"))
+      ;;(load (locate-user-emacs-file "config.el"))
+))
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref bindings
+  (define-key acdw/leader (kbd "C-M-r") #'acdw/reload)
+#+end_src
+
+** init.el
+:PROPERTIES:
+:header-args: :tangle init.el :noweb yes
+:ID:       77eb9838-8f26-4400-b097-c607b10fcfe4
+:END:
+The goal of this file is to require all init-xxx files. The structure is trivial:
+
+- Add lisp folder to load-path, so we can use require.
+- Adjust garbage collection thresholds, so things run smoother.
+- Load config-path declaring various path constants.
+- Load init-elpa which ‘bootstraps’ your package and configuration management tools.
+- Load autoloads file.
+- Load all other init-xxx files.
+- Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
+
+#+begin_src emacs-lisp
+;;; init.el --- Gas Init -*- lexical-binding: t -*-
+
+<<disclaimer>>
+;;; Code:
+(defmacro with-message! (message &rest body)
+  "Execute BODY, with MESSAGE.
+     If body executes without errors, ** MESSAGE... terminé will be displayed."
+  (declare (indent 1))
+  (let ((msg (gensym)))
+    `(let ((,msg ,message))
+       (unwind-protect (progn (message "%s..." ,msg)
+                              ,@body)
+                   (message "* * %s... terminé!!" ,msg)))))
+
+;; load if-let
+(require 'subr-x)
+;;; Bootstrap
+;;; Set up extra load paths and functionality
+;; Add Lisp directory to `load-path'.
+;; Add our custom lisp modules to the Emacs load path so they can be discovered.
+(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
+;;; ============================================================================
+;;; Specify the directory paths
+;;; ============================================================================
+(require 'config-path)
+;; Since we might be running in CI or other environments, stick to
+;; XDG_CONFIG_HOME value if possible.
+
+;;; ============================================================================
+;;; Set up the package manager
+;;; ============================================================================
+(require 'init-elpa)
+(require 'init-corgi)
+;; Setup `custom-file`.
+(setq custom-file (concat *emacs-config/* "custom.el"))
+
+;; load autoloads file
+(unless elpa-bootstrap-p
+  (unless (file-exists-p *emacs-autoloads-file*)
+          (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+                 "eru install emacs"))
+  (load *emacs-autoloads-file* nil 'nomessage))
+#+end_src
+
+#+begin_src emacs-lisp
+;;; core
+;;(require 'init-env)
+(require 'init-kbd)
+(require 'init-startup)
+;;(require 'init-fn-macros)
+(require 'init-editor)
+;;(require 'init-ui)
+;;(require 'init-buffer)
+;;(require 'init-window)
+;;; utilities
+;;(require 'init-selection)
+(require 'init-project)
+(require 'init-vcs)
+;;(require 'enfer-pkg-builtin)
+
+;;; languages
+;;(require 'init-ide)
+;;(require 'init-lisp)
+;;(require 'init-elisp)
+;;(require 'init-clisp)
+;;(require 'init-clojure)
+(require 'init-fennel)
+;;(require 'init-ess)
+;;(require 'init-utils)
+
+;; Org Note Taking
+(require 'init-notes)
+(require 'init-file-templates)
+
+;;; user config & some defaults
+(require 'init-usersetup)
+;;(require 'init-sanity)
+
+;; I don't use `customize' interface, but .dir-locals.el put 'safe'
+;; variables into `custom-file'. And to be honest, I hate to allow
+;; them every time I restart Emacs.
+(when (file-exists-p custom-file)
+  (load custom-file nil 'nomessage))
+
+(provide 'init)
+;;; init.el ends here
+#+end_src
+*** Load the config -disabled
+:PROPERTIES:
+:ID:                     a40cbe30-7947-492b-a365-5dbba82a37a4
+:END:
+
+I keep most of my config in =config.el=, which is tangled directly from
+this file.  This init just loads that file, either from lisp
+or directly from Org if it's newer.  /Note/ the longish comment before
+the =unless= form -- it was pretty tough for me to wrap my head around
+the needed boolean expression to tangle config.org.  Booleans, yall!
+
+#+begin_src emacs-lisp :tangle no
+  (let* (;; Speed up init
+        ;; (gc-cons-threshold most-positive-fixnum)
+         ;; (gc-cons-percentage 0.6)
+         ;;(file-name-handler-alist nil)
+         ;; Config file names
+         (config (expand-file-name "config"
+                                   user-emacs-directory))
+         (config.el (concat config ".el"))
+         (config.org (concat config ".org"))
+         (straight-org-dir (locate-user-emacs-file "straight/build/org")))
+    ;; Okay, let's figure this out.
+    ;; `and' evaluates each form, and returns nil on the first that
+    ;; returns nil.  `unless' only executes its body if the test
+    ;; returns nil.  So.
+    ;; 1. Test if config.org is newer than config.el.  If it is (t), we
+    ;;    *want* to evaluate the body, so we need to negate that test.
+    ;; 2. Try to load the config.  If it errors (nil), it'll bubble that
+    ;;    to the `and' and the body will be evaluated.
+    (unless (and (not (file-newer-than-file-p config.org config.el))
+                 (load config :noerror))
+      ;; A plain require here just loads the older `org'
+      ;; in Emacs' install dir.  We need to add the newer
+      ;; one to the `load-path', hopefully that's all.
+      (when (file-exists-p straight-org-dir)
+        (add-to-list 'load-path straight-org-dir))
+      ;; Load config.org
+      (require 'org)
+      (org-babel-load-file config.org)))
+
+  ;;; init.el ends here
+#+end_src
+
+
+** Libraries & Config
+*** String
+:PROPERTIES:
+:header-args: :tangle lisp/lib-string.el :noweb yes
+:ID:       c636d0e2-9f57-4e6b-bb90-12cf537f603f
+:END:
+#+begin_src emacs-lisp
+;;; lib-string.el --- String Utilities -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+(require 'init-elpa)
+(require 's)
+
+;;;###autoload
+(defun string-match-1 (regexp val)
+  "Get the first group from REGEXP match of the VAL.
+  VAL can be either a string or a region (beg . end) of the
+  buffer."
+  (string-match-n 1 regexp val))
+
+;;;###autoload
+(defun string-match-n (n regexp val)
+  "Get the Nth group from REGEXP match of the VAL.
+  VAL can be either a string or a region (beg . end) of the
+  buffer."
+  (let ((s (if (stringp val)
+               val
+             (buffer-substring (car val) (cdr val)))))
+    (string-match regexp s)
+    (match-string n s)))
+
+;;;###autoload
+(defun string-join-g (strs sep)
+  "Join a list of STRS using SEP."
+  (pcase strs
+    (`nil "")
+    (`(,str) str)
+    (_ (mapconcat #'identity strs sep))))
+
+;;;###autoload
+(defun string-chop-prefix-regexp (prefix s)
+  "Remove PREFIX regexp if it is at the start of S."
+  (s-chop-prefix (car (s-match prefix s)) s))
+
+;;;###autoload
+(defun string-chop-suffix-regexp (suffix s)
+  "Remove SUFFIX regexp if it is at the end of S."
+  (s-chop-suffix (car (s-match suffix s)) s))
+
+(defvar string-http-url-regexp
+  "\\(https?://.*\\)"
+  "HTTP(s) URL regexp.")
+
+(defvar string-uuid-regexp
+  (concat
+   "\\("
+   "[a-zA-Z0-9]\\{8\\}"
+   "-"
+   "[a-zA-Z0-9]\\{4\\}"
+   "-"
+   "[a-zA-Z0-9]\\{4\\}"
+   "-"
+   "[a-zA-Z0-9]\\{4\\}"
+   "-"
+   "[a-zA-Z0-9]\\{12\\}"
+   "\\)")
+  "UUID regexp.")
+
+(defun string-from (value)
+  "Convert VALUE to string."
+  (cond
+   ((stringp value) value)
+   ((numberp value) (number-to-string value))
+   ((symbolp value) (symbol-name value))
+   (t (user-error
+       "Unsupported type of \"%s\"" value))))
+
+(cl-defun string-table (&key data
+                             pad-type
+                             pad-str
+                             sep
+                             row-start
+                             row-end)
+  "Format DATA as a table.
+  DATA is list of lists. Each column is aligned by padding with
+  PAD-STR either on left or right depending on value of PAD-TYPE.
+  Each row begins with ROW-START and ends with ROW-END. Each value
+  in row is separated by SEP."
+  (let* ((widths (seq-reduce
+                  (lambda (r v)
+                    (seq-map-indexed
+                     (lambda (a i)
+                       (max
+                        (length (string-from a))
+                        (or (nth i r)
+                            0)))
+                     v))
+                  data
+                  nil))
+         (pad-fn (pcase (or pad-type 'left)
+                   (`left #'s-pad-left)
+                   (`right #'s-pad-right)))
+         (pad-str (or pad-str " "))
+         (row-start (or row-start ""))
+         (row-end (or row-end ""))
+         (sep (or sep " ")))
+    (seq-reduce
+     (lambda (r v)
+       (concat
+        r
+        row-start
+        (string-join
+         (seq-map-indexed
+          (lambda (a i)
+            (funcall pad-fn
+                     (nth i widths)
+                     pad-str
+                     (string-from a)))
+          v)
+         sep)
+        row-end
+        "\n"))
+     data
+     "")))
+
+(provide 'lib-string)
+;;; lib-string.el ends here
+#+end_src
+*** orgmode config
+:PROPERTIES:
+:header-args: :tangle lisp/config-orgmode.el :noweb yes
+:ID:       7df49a2c-aad7-472a-a186-c8db756aeb44
+:END:
+#+begin_src emacs-lisp
+;;; config-orgmode.el --- Org-mode Directory -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+(require 'config-path)
+
+(defconst *notes/*
+  (file-name-as-directory (expand-file-name "~/org")))
+
+(provide 'config-orgmode)
+;;; config-orgmode.el ends here
+#+end_src
+*** function lib
+:PROPERTIES:
+:header-args: :tangle lisp/lib-fun.el :noweb yes
+:ID:       70df19e8-852a-472f-8d78-d24d1d45dd06
+:END:
+#+begin_src emacs-lisp
+;;; lib-fun.el --- Extra function -*- lexical-binding: t -*-
+<<disclaimer>>
+;; Utilities to build functions.
+;;
+;;; Code:
+
+;;;###autoload
+(defun fun-unquote (exp)
+  "Return EXP unquoted."
+  (declare (pure t) (side-effect-free t))
+  (while (memq (car-safe exp) '(quote function))
+    (setq exp (cadr exp)))
+  exp)
+
+;;;###autoload
+(defun fun-collect-while (fn filter &rest args)
+  "Repeat FN and collect it's results until `C-g` is used.
+Repeat cycle stops when `C-g` is used or FILTER returns nil.
+If FILTER is nil, it does not affect repeat cycle.
+If FILTER returns nil, the computed value is not added to result.
+ARGS are passed to FN."
+  (let (result
+        value
+        (continue t)
+        (inhibit-quit t))
+    (with-local-quit
+      (while continue
+        (setq value (apply fn args))
+        (if (and filter
+                 (null (funcall filter value)))
+            (setq continue nil)
+          (setq result (cons value result)))))
+    (setq quit-flag nil)
+    (seq-reverse result)))
+
+;;;###autoload
+(defun fun-repeat-while (fn filter &rest args)
+  "Repeat FN and return the first unfiltered result.
+Repeat cycle stops when `C-g` is used or FILTER returns nil.
+ARGS are passed to FN."
+  (let (value
+        (continue t)
+        (inhibit-quit t))
+    (with-local-quit
+      (while continue
+        (setq value (apply fn args))
+        (when (null (funcall filter value))
+          (setq continue nil))))
+    (setq quit-flag nil)
+    (when (null continue)
+      value)))
+
+;;;###autoload
+(defun fun-noop (&rest _)
+  "Do nothing.
+Useful for temporarily disabling a function.")
+
+(provide 'lib-fun)
+;;; lib-fun.el ends here
+#+end_src
+*** VCS
+:PROPERTIES:
+:header-args: :tangle lisp/lib-vcs.el :noweb yes
+:ID:       05d0ed58-40b0-49a0-829b-7436db557594
+:END:
+#+begin_src emacs-lisp
+;;; lib-vcs.el --- Libaray -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+(require 'init-kbd)
+
+
+
+(defvar vcs-url-github-issue-regexp
+  (format "\\(%s/\\(%s\\)/\\(%s\\)/\\(%s\\)/\\(%s\\)\\).*"
+          "https://github\\.com"
+          "[-\\.[:alnum:]]+"
+          "[-\\.[:alnum:]]+"
+          "[[:alpha:]]+"
+          "[[:alnum:]]+")
+  "GitHub issue/pull URL regexp.
+- 1st group is whole URL.
+- 2nd group is owner.
+- 3rd group is repository name.
+- 4th group is type of the object - issue/pull/miliestone/commit.
+- 5th group is the number of the object.")
+
+(defvar vcs-url-github-project-regexp
+  (format "\\(%s/\\(%s\\)/\\(%s\\)/?\\)"
+          "https://github\\.com"
+          "[-\\.[:alnum:]]+"
+          "[-\\.[:alnum:]]+")
+  "GitHub project URL regexp.
+- 1st group is whole URL.
+- 2nd group is owner.
+- 3rd group is repository name.")
+
+(defvar vcs-url-known-github-users '("frap"
+                                     "agasson")
+  "List of 'known' GitHub users.")
+
+
+
+;;;###autoload
+(defun vcs-url-format-github-issue (owner repo type number)
+  "Format GitHub issue.
+Depending on the TYPE format can be one of the following:
+- OWNER/REPO#NUMBER if TYPE is not milestone;
+- OWNER/REPOmNUMBER otherwise.
+In case OWNER is a member of `vcs-url-known-github-users', then OWNER
+part of format is omitted."
+  (concat
+   (if (seq-contains-p vcs-url-known-github-users owner)
+       repo
+     (concat owner "/" repo))
+   (if (string-equal type "milestone")
+       "m"
+     "#")
+   (if (string-equal type "commit")
+       (substring number 0 (min 7 (length number)))
+     number)))
+
+;;;###autoload
+(defun vcs-url-format-github-project (owner repo)
+  "Format GitHub REPO.
+In case OWNER is a member of `vcs-url-known-github-users', then OWNER
+part of format is omitted."
+  (concat
+   (if (seq-contains-p vcs-url-known-github-users owner)
+       repo
+     (concat owner "/" repo))))
+
+(provide 'lib-vcs)
+  ;;; lib-vcs.el ends here
+#+end_src
+
+*** File Templates aka YASnippett
+:PROPERTIES:
+:header-args: :tangle lisp/init-file-templates.el :noweb yes
+:ID:       68ae83b4-14d3-4eb7-9c99-fd05cb6d9053
+:END:
+#+begin_src emacs-lisp
+;;; init-file-templates.el --- File templates support -*- lexical-binding: t; -*-
+<<disclaimer>>
+;; Commentary:
+;;
+;; This module configures yasnippet.
+;;
+;;; Code:
+
+(require 'init-project)
+
+<<templates>>
+
+(provide 'init-file-templates)
+;;; init-file-templates.el ends here
+#+end_src
+
+*** Dash-functional fixup
+:PROPERTIES:
+:header-args: :tangle lisp/dash-functional.el :noweb yes
+:ID:       5c50f26c-4d6f-4030-a94f-c2c5c0729585
+:END:
+#+begin_src emacs-lisp
+  ;;; dash-functional.el --- Mocking dash-functional -*- lexical-binding: t; -*-
+  <<disclaimer>>
+  ;;; Commentary:
+;;
+;; Unfortunately, dash-functional is obsolete. And instead of talking
+;; to popular libraries, they simply put a warning inside this
+;; package, meaning that people treating warnings as errors have no
+;; way to load this module (even transitively).
+;;
+;; Thanks, folks! I really appreciate it.
+;;
+;; So this module is a fake to avoid byte compilation error.
+;;
+;;; Code:
+
+(require 'dash)
+
+(provide 'dash-functional)
+;;; dash-functional.el ends here
+#+end_src
+
+** License
+:PROPERTIES:
+:header-args: :tangle LICENSE
+:ID:       544ee924-beef-403c-b654-6fc255528de9
+:END:
+
+Copyright © 2021 Gas <gas@somewhere.red>
+
+This work is free.  You can redistribute it and/or modify it under the
+terms of the Do What the Fuck You Want To Public License, Version 2,
+as published by Gas.  See the =LICENSE= file, tangled from the
+following source block, for details.
+
+#+begin_src text
+  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+
+  Version 2, December 2004
+
+  Copyright (C) 2001-2021 Gas <gas@somewhere.red>
+
+  Everyone is permitted to copy and distribute verbatim or modified copies of
+  this license document, and changing it is allowed as long as the name is changed.
+
+  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+
+  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+#+end_src
+
+
+* Emacs Startup /early-init/
+** Early Init
+:PROPERTIES:
+:header-args: :tangle early-init.el :noweb yes
+:END:
+Beginning with 27.1, Emacs also loads an =early-init.el= file, before
+the package manager or the UI code.
+
+#+begin_src emacs-lisp
+;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
+<<disclaimer>>
+;;; Code:
+
+(message "Chargement en cours early-init.el...")
+
+(define-advice load (:before (feature &rest _))
+    "Message the user when loading a library."
+    (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
+
+;;; ============================================================================
+;;; Emacs startup optimisations
+;;; ============================================================================
+<<garbage-filehandler>>
+
+;;; ============================================================================
+;;; Frame parameters for faster startup
+;;; ============================================================================
+<<early-init-frame>>
+
+(message "Chargement du early-init.el terminé!")
+(provide 'early-init)
+;;; early-init.el ends here
+#+end_src
+
+** Garbage Collection & File handlers
+:PROPERTIES:
+:header-args: :noweb-ref garbage-filehandler
+:END:
+Make startup faster by reducing the frequency of garbage collection and then use a hook to measure Emacs startup time.
+
+#+begin_src emacs-lisp
+;; Garbage collection slows down startup time, so we maximise the threshold for
+;; it to run, and we will later reset it.
+(let ((normal-gc-cons-threshold (* 20 1024 1024))  ;; 20mb
+      (init-gc-cons-threshold (* 128 1024 1024)))    ;;128mb
+  (setq gc-cons-threshold init-gc-cons-threshold)
+  (add-hook 'emacs-startup-hook
+            (lambda () (setq gc-cons-threshold
+                             normal-gc-cons-threshold))))
+;;(setq gc-cons-threshold most-positive-fixnum)
+
+;; file-name-handler-alist is consulted on various I/O functions such as
+;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
+;; to restore when Emacs is finished starting.
+(unless (or (daemonp) noninteractive)
+  (let ((file-name-handler-alist/old file-name-handler-alist))
+    (setq file-name-handler-alist nil)
+    (add-hook 'emacs-startup-hook
+              (lambda ()
+                (let ((value (delete-dups
+                              (append file-name-handler-alist
+                                      file-name-handler-alist/old))))
+                  (setq file-name-handler-alist value))))))
+
+(unless (daemonp)
+  (advice-add #'tty-run-terminal-initialization :override #'ignore)
+  (add-hook 'window-setup-hook
+            (lambda ()
+              (advice-remove #'tty-run-terminal-initialization #'ignore)
+              (tty-run-terminal-initialization (selected-frame) nil t))))
+
+#+end_src
+** Initial frame setup
+:PROPERTIES:
+:header-args: :noweb-ref early-init-frame
+:ID:                     0ae373ff-ee6b-484d-9d03-99ce56f59dc8
+:END:
+
+I don't want the frame to resize when I change fonts and stuff, and I
+want it to resize by pixels -- we /are/ using a GUI, after all.
+
+*** Frame use pixel resize
+:PROPERTIES:
+:ID:                     d054c73f-121a-4155-964e-c4c3d7f1d2ce
+:END:
+
+#+begin_src emacs-lisp
+(setq-default
+ initial-frame-alist '((width . 170)
+                       (height . 56)
+                       (tool-bar-lines . 0)
+                       (bottom-divider-width . 0)
+                       (right-divider-width . 1)
+                       (font . "Iosevka Slab 14"))
+ default-frame-alist initial-frame-alist
+ frame-inhibit-implied-resize t            ;; dont resize
+ frame-resize-pixelwise t                  ;; as GUI use pixels
+ x-gtk-resize-child-frames 'resize-mode
+ fringe-indicator-alist (assq-delete-all 'truncation fringe-indicator-alist))
+
+ (setq truncate-partial-width-windows nil)
+
+#+end_src
+ some stuff left off initial-frame-list
+  (blink-cursor-mode 0)
+  (column-number-mode 1)
+  (display-time-mode 0)
+  (fringe-mode '(4 . 0))
+  (tooltip-mode 0)
+  (window-divider-mode 1)
+
+*** Turn off Tool bar
+#+begin_src emacs-lisp
+(when (fboundp #'tool-bar-mode)
+  (tool-bar-mode -1))
+
+#+end_src
+
+*** Turn off Scroll bars
+#+begin_src emacs-lisp
+(when (fboundp #'scroll-bar-mode)
+  (scroll-bar-mode -1))
+
+#+end_src
+
+* No tangle
+
+**** Vulpea Setup
+#+begin_src emacs-lisp :tangle no 
 ;;; lib-vulpea.el --- Vulpea utilities -*- lexical-binding: t; -*-
 <<disclaimer>>
 (require 'init-elpa)
@@ -6947,13 +7473,8 @@ via `vulpea-agenda-files-update'.")
 (provide 'lib-vulpea)
 ;;; lib-vulpea.el ends here
 #+end_src
-
-*** Directory Utilities
-:PROPERTIES:
-:header-args: :tangle lisp/lib-directory.el :noweb yes
-:ID:       d3d0dbea-9c32-46ca-a0be-0a0676bf748a
-:END:
-#+begin_src emacs-lisp
+**** Directory Utilities /tangle no/
+#+begin_src emacs-lisp :tangle no
 ;;; lib-directory.el --- Directory utilities -*- lexical-binding: t; -*-
 <<disclaimer>>
 ;;; Commentary:
@@ -6988,9 +7509,9 @@ If REC is non-nil then do recursive search."
 (provide 'lib-directory)
 ;;; lib-directory.el ends here
 #+end_src
-*** Literature Notes
+**** Literature Notes /tangle no/
 :PROPERTIES:
-:header-args: :tangle lisp/lib-litnotes.el :noweb yes
+:header-args: :tangle no  :noweb yes
 :ID:                     7b61e449-59c1-4bf8-a3b4-464f9d9b4306
 :END:
 #+begin_src emacs-lisp
@@ -7498,10 +8019,9 @@ EXTRA is unknown thing."
 (provide 'lib-litnotes)
 ;;; lib-litnotes.el ends here
 #+end_src
-*** Vulpea Refile
+**** Vulpea Refile /tangle no/
 :PROPERTIES:
-:header-args: :tangle lisp/lib-vulpea-refile.el :noweb yes
-:ID:       444211ec-1ebc-4afd-abc3-9178b246808f
+:header-args: :tangle no :noweb yes
 :END:
 #+begin_src emacs-lisp
 ;;; lib-vulpea-refile.el --- Note refiling utilities -*- lexical-binding: t; -*-
@@ -7536,10 +8056,9 @@ EXTRA is unknown thing."
 (provide 'lib-vulpea-refile)
 ;;; lib-vulpea-refile.el ends here
 #+end_src
-*** Vulpea Capture
+**** Vulpea Capture /tangel no/
 :PROPERTIES:
-:header-args: :tangle lisp/lib-vulpea-capture.el :noweb yes
-:ID:       6098e5d7-4526-4010-804f-b32a0f22fd0c
+:header-args: :tangle no :noweb yes
 :END:
 #+begin_src emacs-lisp
 ;;; lib-vulpea-capture.el --- Capturing tasks and notes -*- lexical-binding: t; -*-
@@ -7716,10 +8235,9 @@ By default it uses current date to find a daily. With
 (provide 'lib-vulpea-capture)
 ;;; lib-vulpea-capture.el ends here
 #+end_src
-*** Vulpea Agenda
+**** Vulpea Agenda
 :PROPERTIES:
-:header-args: :tangle lisp/lib-vulpea-agenda.el :noweb yes
-:ID:       53e78065-65e3-435a-a63c-222e5470e9a2
+:header-args: :tangle no :noweb yes
 :END:
 #+begin_src emacs-lisp
    ;;; lib-vulpea-agenda.el --- Utilities for building agenda -*- lexical-binding: t; -*-
@@ -8096,10 +8614,9 @@ By default it uses current date to find a daily. With
    (provide 'lib-vulpea-agenda)
    ;;; lib-vulpea-agenda.el ends here
 #+end_src
-*** Vulpea org ID
+**** Vulpea org ID
 :PROPERTIES:
-:header-args: :tangle lisp/lib-vulpea-id.el :noweb yes
-:ID:       d174c967-bfcf-4fd3-b74d-1aa86da54b68
+:header-args: :tangle no :noweb yes
 :END:
 #+begin_src emacs-lisp
 ;;; lib-vulpea-id.el --- ID utilities -*- lexical-binding: t; -*-
@@ -8143,868 +8660,60 @@ Targets are defined by `vulpea-id-auto-targets'."
 (provide 'lib-vulpea-id)
 ;;; lib-vulpea-id.el ends here
 #+end_src
-** Coding
-:PROPERTIES:
-:ID:                     a1bbc1a9-e27e-4f24-b62d-c5dbae52689c
-:END:
-Setup Coding languages
 
-*** Basic IDE
-:PROPERTIES:
-:ID:                     bbc17bb5-e026-4a01-83c7-19a4d1924c96
-:END:
-Setup the basic Coding IDE
-
-*** Coding IDE Setup
+*** Setup Pkg manager
 :properties:
-:header-args: :tangle lisp/init-ide.el :noweb yes
+:header-args: :tangle lisp/init-setup.el :noweb yes
 :end:
-Setup of parens and basic coding setup - aka prog mode, also C setup
+
 #+begin_src emacs-lisp
-;;; init-ide.el --- Code IDE -*- lexical-binding: t -*-
+;;; init-setup.el --- Initialise Emacs Pkg Manager Setup -*- lexical-binding: t -*-
 <<disclaimer>>
+;;
 ;;; Code:
 
-<<code-ide>>
-
-<<code-paren>>
-
-<<code-c>>
-
-(provide 'init-ide)
-;;; init-ide.el ends here
-#+end_src
-
-*** LISP setup
-:properties:
-:header-args: :tangle lisp/init-lisp.el :noweb yes
-:ID:       e285fd8e-e55c-4b82-bc3a-e42634c4b6b2
-:end:
-LISP Common setup here
-#+begin_src emacs-lisp
-  ;;; init-lisp.el --- Code LISP -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<lisp-ide>>
-
-  (provide 'init-lisp)
-   ;;; init-lisp.el ends here
-#+end_src
-
-*** Eval lib
-:PROPERTIES:
-:header-args: :tangle lisp/lib-eval.el :noweb yes
-:ID:       2aad25fa-9a36-4484-b2a6-4397d836773c
-:END:
-Smartparens setup here
-#+begin_src emacs-lisp
-  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-(defmacro eval-with-default-dir (dir &rest body)
-  "Invoke in DIR the BODY."
-  (declare (debug t) (indent 1))
-  `(let ((default-directory ,dir))
-     ,@body))
-
-(cl-flet ((always-yes (&rest _) t))
-  (defun eval-no-confirm (fun &rest args)
-    "Apply FUN to ARGS, skipping user confirmations."
-    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
-              ((symbol-function 'yes-or-no-p) #'always-yes))
-      (apply fun args))))
-
-  (provide 'lib-eval)
-   ;;; lib-eval.el ends here
-#+end_src
-*** Emacs-lisp setup
-:PROPERTIES:
-:header-args: :tangle lisp/init-elisp.el :noweb yes
-:ID:       c07e92e9-c358-4938-977c-b6aa393c7277
-:END:
-#+begin_src emacs-lisp
-  ;;; init-elisp.el --- Emacs LISP -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<code-elisp>>
-
-  (provide 'init-elisp)
-   ;;; init-elisp.el ends here
-#+end_src
-*** Common LISP setup
-:PROPERTIES:
-:header-args: :tangle lisp/init-clisp.el :noweb yes
-:ID:       7c6c8865-ce5d-4b09-ac24-81cff979efb1
-:END:
-#+begin_src emacs-lisp
-  ;;; init-clisp.el --- Common-LISP -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<code-common-lisp>>
-
-  (provide 'init-clisp)
-   ;;; init-clisp.el ends here
-#+end_src
-*** Clojure setup
-:PROPERTIES:
-:header-args: :tangle lisp/init-clojure.el :noweb yes
-:ID:       7f8725fd-d78e-4f0d-9599-566cf5173112
-:END:
-#+begin_src emacs-lisp
-  ;;; init-clojure.el --- Clojure -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<code-clojure>>
-
-  (provide 'init-clojure)
-  ;;; init-clojure.el ends here
-#+end_src
-*** Fennel/LUA setup
-:PROPERTIES:
-:header-args: :tangle lisp/init-fennel.el :noweb yes
-:ID:       afda404b-1889-4438-9efd-40a0aff2218d
-:END:
-#+begin_src emacs-lisp
-;;; init-fennel.el --- Fennel LUA  -*- lexical-binding: t -*-
-<<disclaimer>>
-;;; Code:
-
-<<code-fennel>>
-
-(provide 'init-fennel)
-;;; init-fennel.el ends here
-#+end_src
-*** ESS setup
-:Properties:
-:header-args: :tangle lisp/init-ess.el :noweb yes
-:ID:       a04b95ad-e2ca-4aa3-8f4a-301f6986cda8
-:END:
-Emacs Speaks Statisitcs setup here
-#+begin_src emacs-lisp
-  ;;; init-ess.el --- Code ESS -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  (with-message!  "stats R baby!"
-
-  <<ess>>
-
-  )
-  (provide 'init-ess)
-   ;;; init-ess.el ends here
-#+end_src
-
-**** Eval lib
-:PROPERTIES:
-:header-args: :tangle lisp/lib-eval.el :noweb yes
-:ID:       5b4b0991-3552-42c0-b352-64de8428927a
-:END:
-Smartparens setup here
-#+begin_src emacs-lisp
-  ;;; lib-eval.el --- Eval utilities -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-(defmacro eval-with-default-dir (dir &rest body)
-  "Invoke in DIR the BODY."
-  (declare (debug t) (indent 1))
-  `(let ((default-directory ,dir))
-     ,@body))
-
-(cl-flet ((always-yes (&rest _) t))
-  (defun eval-no-confirm (fun &rest args)
-    "Apply FUN to ARGS, skipping user confirmations."
-    (cl-letf (((symbol-function 'y-or-n-p) #'always-yes)
-              ((symbol-function 'yes-or-no-p) #'always-yes))
-      (apply fun args))))
-
-  (provide 'lib-eval)
-   ;;; lib-eval.el ends here
-#+end_src
-
-*** Utility packages
-:PROPERTIES:
-:header-args: :tangle lisp/init-utils.el :noweb yes
-:ID:       502d74d1-022e-4f86-a512-00cc0f156769
-:END:
-
-Setup utility packages
-#+begin_src emacs-lisp
-  ;;; init-utils.el --- Utilities -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  <<pkg-utils>>
-
-  (provide 'init-utils)
-  ;;; init-utils.el ends here
-#+end_src
-
-** Communications
-:PROPERTIES:
-:header-args: :tangle lisp/init-telega.el :noweb yes
-:ID:                     2b35cb3e-c354-4899-96f6-d16d8097f7ac
-:END:
-
-*** Telega setup
-    :PROPERTIES:
-    :ID:       73cb0290-d331-403b-91ad-6fb88437c065
-    :END:
-
-#+begin_src emacs-lisp
-  ;;; init-telega.el --- personal configuration -*- lexical-binding: t -*-
-(require 'init-elpa)
-(require 'init-kbd)
-
-(use-package telega
-  :straight (telega
-             :type git
-             :host github
-             :repo "zevlg/telega.el"
-             :branch "releases"
-             :files (:defaults "contrib" "etc" "server" "Makefile"))
-  :defer t
-  :hook ((telega-chat-mode . ui-reset-line-spacing)
-         (telega-chat-mode . editor-disable-electric-pair))
-  :general
-  (leader-def
-    "t" '(:keymap telega-prefix-map))
-  :init
-  (when elpa-bootstrap-p
-    (require 'telega-server)
-    (require 'lib-nix)
-    (let ((exec-path (cons telega-directory exec-path))
-          (default-directory telega--lib-directory))
-      (unless (executable-find "telega-server")
-        (nix-shell-command
-         :message-intro "building telega-server..."
-         :message-error "Failed to build telega-server"
-         :deps '("pkg-config" "tdlib")
-         :command (concat
-                   (or (executable-find "gmake")
-                       "make")
-                   " "
-                   "LIBS_PREFIX="
-                   (expand-file-name telega-server-libs-prefix) " "
-                   "INSTALL_PREFIX="
-                   (expand-file-name telega-directory) " "
-                   "server-reinstall"))))))
-#+end_src
-
-
-*** Compatibility Utilities
-:PROPERTIES:
-:header-args: :tangle lisp/lib-compat.el :noweb yes
-:ID:       3cae4486-262c-4e62-bb92-645abbe5ddc6
-:END:
-
-#+begin_src emacs-lisp
-  ;;; lib-compat.el --- Compatibility utilities  -*- lexical-binding: t -*-
-    <<disclaimer>>
-    ;;; Code:
-
-  ;;;###autoload
-  (defun cl--plist-remove (plist member)
-    "Remove MEMBER from PLIST.
-  `telega' needs this function."
-    (cond
-     ((null plist) nil)
-     ((null member) plist)
-     ((eq plist member) (cddr plist))
-     (t `(,(car plist) ,(cadr plist)
-          ,@(cl--plist-remove (cddr plist) member)))))
-
-    ;;; SYSTEM-DEPENDENT SETTINGS
-    ;; at home
-    (eval-and-compile
-      (when (memq system-type '(gnu gnu/linux darwin))
-        <<linux-specific>>
-        ))
-
-    ;; at work
-    (eval-and-compile
-      (when (memq system-type '(ms-dos windows-nt))
-        <<windows-specific>>
-        ))
-
-  (provide 'lib-compat)
-  ;;; lib-compat.el ends here
-#+end_src
-*** Ease of editing
-:PROPERTIES:
-:header-args: :tangle no
-:ID:                     de45708b-cfcc-4add-a59b-8cbc64b4f85e
-:END:
-
-#+begin_src emacs-lisp :noweb-ref functions
-  (defun enfer/find-config ()
-    "Find `config.org'."
-    (interactive)
-    (find-file (locate-user-emacs-file "config.org")))
-#+end_src
-
-Bind it to =C-z i= because =C-z C-c= is taken for capture.
-
-#+begin_src emacs-lisp :noweb-ref bindings
-;;(define-key acdw/leader (kbd "i") #'acdw/find-config)
-#+end_src
-
-*** Ease of reloading
-:PROPERTIES:
-:header-args: :tangle no
-:ID:                     510ef849-87e9-4def-abb8-a28f040752a4
-:END:
-
-#+begin_src emacs-lisp :noweb-ref functions
-  (defun acdw/reload ()
-    "Tangle and reload Emacs configuration."
-    (interactive)
-    (let ((config (locate-user-emacs-file "config.org")))
-      ;; tangle
-      (with-current-buffer (find-file-noselect config)
-        (message "Tangling config.org...")
-        (let ((prog-mode-hook nil)
-              (inhibit-redisplay t)
-              (inhibit-message t))
-          (add-to-list 'load-path (locate-user-emacs-file
-                                   "straight/build/org/"))
-          (require 'org)
-          (org-babel-tangle)))
-      (message "Tangling config.org... Done.")
-      ;; load init files
-      (load (locate-user-emacs-file "early-init.el"))
-      (load (locate-user-emacs-file "init.el"))
-      ;;(load (locate-user-emacs-file "config.el"))
-))
-#+end_src
-
-#+begin_src emacs-lisp :noweb-ref bindings
-  (define-key acdw/leader (kbd "C-M-r") #'acdw/reload)
-#+end_src
-
-** init.el
-:PROPERTIES:
-:header-args: :tangle init.el :noweb yes
-:ID:       77eb9838-8f26-4400-b097-c607b10fcfe4
-:END:
-The goal of this file is to require all init-xxx files. The structure is trivial:
-
-- Add lisp folder to load-path, so we can use require.
-- Adjust garbage collection thresholds, so things run smoother.
-- Load config-path declaring various path constants.
-- Load init-elpa which ‘bootstraps’ your package and configuration management tools.
-- Load autoloads file.
-- Load all other init-xxx files.
-- Load custom-file, even if you are not using customize interface, you need this to use .dir-locals.el.
-
-#+begin_src emacs-lisp
-;;; init.el --- Gas Init -*- lexical-binding: t -*-
-
-<<disclaimer>>
-;;; Code:
-(defmacro with-message! (message &rest body)
-  "Execute BODY, with MESSAGE.
-     If body executes without errors, ** MESSAGE... terminé will be displayed."
-  (declare (indent 1))
-  (let ((msg (gensym)))
-    `(let ((,msg ,message))
-       (unwind-protect (progn (message "%s..." ,msg)
-                              ,@body)
-                   (message "* * %s... terminé!!" ,msg)))))
-
-;; load if-let
-(require 'subr-x)
-;;; Bootstrap
-;;; Set up extra load paths and functionality
-;; Add Lisp directory to `load-path'.
-;; Add our custom lisp modules to the Emacs load path so they can be discovered.
-(push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
-;;; ============================================================================
-;;; Specify the directory paths
-;;; ============================================================================
 (require 'config-path)
-;; Since we might be running in CI or other environments, stick to
-;; XDG_CONFIG_HOME value if possible.
 
-;;; ============================================================================
-;;; Set up the package manager
-;;; ============================================================================
-(require 'init-elpa)
+;;;============================================================================
+;;; Custom setup.el local macros
+;;;============================================================================
 
-;; Setup `custom-file`.
-(setq custom-file (concat *emacs-config/* "custom.el"))
+<<setup-setup>>
 
-;; load autoloads file
-(unless elpa-bootstrap-p
-  (unless (file-exists-p *emacs-autoloads-file*)
-          (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-                 "eru install emacs"))
-  (load *emacs-autoloads-file* nil 'nomessage))
+(provide 'init-setup)
+;;; init-setup.el ends here
+#+end_src
+** line number stuff not tangled
+#+begin_src elisp :tangle no
+
+;; enable line-numbers
+(column-number-mode)
+
+;; Enable line numbers for some modes
+(dolist (mode '(text-mode-hook
+                prog-mode-hook
+                conf-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 1))))
+
+;; Override some modes which derive from the above
+(dolist (mode '(org-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
 #+end_src
 
-#+begin_src emacs-lisp
-;;; core
-;;(require 'init-env)
-(require 'init-kbd)
-(require 'init-startup)
-;;(require 'init-fn-macros)
-(require 'init-editor)
-;;(require 'init-ui)
-;;(require 'init-buffer)
-;;(require 'init-window)
-;;; utilities
-;;(require 'init-selection)
-(require 'init-project)
-(require 'init-vcs)
-;;(require 'enfer-pkg-builtin)
+** Setup if exists Executable
+ripgrep and gist
+#+begin_src emacs-lisp :noweb-ref rg-gist-link-hint
+(setup (:pkg rg)
+       (:when-loaded
+	(setq rg-group-result t)
+	(setq rg-ignore-case 'smart)))
 
-;;; languages
-;;(require 'init-ide)
-;;(require 'init-lisp)
-;;(require 'init-elisp)
-;;(require 'init-clisp)
-;;(require 'init-clojure)
-(require 'init-fennel)
-;;(require 'init-ess)
-;;(require 'init-utils)
+(setup (:pkg gist)
+       (setq gist-view-gist t)
+       (:hide-mode))
 
-;; Org & Roam
-(require 'org-defaults)
-;;(require 'init-notes)
-(require 'init-file-templates)
+(setup (:pkg link-hint)
+       (:require link-hint))
 
-;;; user config & some defaults
-(require 'init-usersetup)
-;;(require 'init-sanity)
-
-;; I don't use `customize' interface, but .dir-locals.el put 'safe'
-;; variables into `custom-file'. And to be honest, I hate to allow
-;; them every time I restart Emacs.
-(when (file-exists-p custom-file)
-  (load custom-file nil 'nomessage))
-
-(provide 'init)
-;;; init.el ends here
-#+end_src
-*** Load the config -disabled
-:PROPERTIES:
-:ID:                     a40cbe30-7947-492b-a365-5dbba82a37a4
-:END:
-
-I keep most of my config in =config.el=, which is tangled directly from
-this file.  This init just loads that file, either from lisp
-or directly from Org if it's newer.  /Note/ the longish comment before
-the =unless= form -- it was pretty tough for me to wrap my head around
-the needed boolean expression to tangle config.org.  Booleans, yall!
-
-#+begin_src emacs-lisp :tangle no
-  (let* (;; Speed up init
-        ;; (gc-cons-threshold most-positive-fixnum)
-         ;; (gc-cons-percentage 0.6)
-         ;;(file-name-handler-alist nil)
-         ;; Config file names
-         (config (expand-file-name "config"
-                                   user-emacs-directory))
-         (config.el (concat config ".el"))
-         (config.org (concat config ".org"))
-         (straight-org-dir (locate-user-emacs-file "straight/build/org")))
-    ;; Okay, let's figure this out.
-    ;; `and' evaluates each form, and returns nil on the first that
-    ;; returns nil.  `unless' only executes its body if the test
-    ;; returns nil.  So.
-    ;; 1. Test if config.org is newer than config.el.  If it is (t), we
-    ;;    *want* to evaluate the body, so we need to negate that test.
-    ;; 2. Try to load the config.  If it errors (nil), it'll bubble that
-    ;;    to the `and' and the body will be evaluated.
-    (unless (and (not (file-newer-than-file-p config.org config.el))
-                 (load config :noerror))
-      ;; A plain require here just loads the older `org'
-      ;; in Emacs' install dir.  We need to add the newer
-      ;; one to the `load-path', hopefully that's all.
-      (when (file-exists-p straight-org-dir)
-        (add-to-list 'load-path straight-org-dir))
-      ;; Load config.org
-      (require 'org)
-      (org-babel-load-file config.org)))
-
-  ;;; init.el ends here
-#+end_src
-
-
-** Libraries & Config
-:PROPERTIES:
-:ID:                     19f2b8c1-c022-4c5d-8a4d-92bc544213f2
-:END:
-*** String
-:PROPERTIES:
-:header-args: :tangle lisp/lib-string.el :noweb yes
-:ID:       c636d0e2-9f57-4e6b-bb90-12cf537f603f
-:END:
-#+begin_src emacs-lisp
-    ;;; lib-string.el --- String Utilities -*- lexical-binding: t -*-
-  <<disclaimer>>
-    ;;; Code:
-
-  (require 'init-elpa)
-  (require 's)
-
-  ;;;###autoload
-  (defun string-match-1 (regexp val)
-    "Get the first group from REGEXP match of the VAL.
-  VAL can be either a string or a region (beg . end) of the
-  buffer."
-    (string-match-n 1 regexp val))
-
-  ;;;###autoload
-  (defun string-match-n (n regexp val)
-    "Get the Nth group from REGEXP match of the VAL.
-  VAL can be either a string or a region (beg . end) of the
-  buffer."
-    (let ((s (if (stringp val)
-                 val
-               (buffer-substring (car val) (cdr val)))))
-      (string-match regexp s)
-      (match-string n s)))
-
-  ;;;###autoload
-  (defun string-join-g (strs sep)
-    "Join a list of STRS using SEP."
-    (pcase strs
-      (`nil "")
-      (`(,str) str)
-      (_ (mapconcat #'identity strs sep))))
-
-  ;;;###autoload
-  (defun string-chop-prefix-regexp (prefix s)
-    "Remove PREFIX regexp if it is at the start of S."
-    (s-chop-prefix (car (s-match prefix s)) s))
-
-  ;;;###autoload
-  (defun string-chop-suffix-regexp (suffix s)
-    "Remove SUFFIX regexp if it is at the end of S."
-    (s-chop-suffix (car (s-match suffix s)) s))
-
-  (defvar string-http-url-regexp
-    "\\(https?://.*\\)"
-    "HTTP(s) URL regexp.")
-
-  (defvar string-uuid-regexp
-    (concat
-     "\\("
-     "[a-zA-Z0-9]\\{8\\}"
-     "-"
-     "[a-zA-Z0-9]\\{4\\}"
-     "-"
-     "[a-zA-Z0-9]\\{4\\}"
-     "-"
-     "[a-zA-Z0-9]\\{4\\}"
-     "-"
-     "[a-zA-Z0-9]\\{12\\}"
-     "\\)")
-    "UUID regexp.")
-
-  (defun string-from (value)
-    "Convert VALUE to string."
-    (cond
-     ((stringp value) value)
-     ((numberp value) (number-to-string value))
-     ((symbolp value) (symbol-name value))
-     (t (user-error
-         "Unsupported type of \"%s\"" value))))
-
-  (cl-defun string-table (&key data
-                               pad-type
-                               pad-str
-                               sep
-                               row-start
-                               row-end)
-    "Format DATA as a table.
-  DATA is list of lists. Each column is aligned by padding with
-  PAD-STR either on left or right depending on value of PAD-TYPE.
-  Each row begins with ROW-START and ends with ROW-END. Each value
-  in row is separated by SEP."
-    (let* ((widths (seq-reduce
-                    (lambda (r v)
-                      (seq-map-indexed
-                       (lambda (a i)
-                         (max
-                          (length (string-from a))
-                          (or (nth i r)
-                              0)))
-                       v))
-                    data
-                    nil))
-           (pad-fn (pcase (or pad-type 'left)
-                     (`left #'s-pad-left)
-                     (`right #'s-pad-right)))
-           (pad-str (or pad-str " "))
-           (row-start (or row-start ""))
-           (row-end (or row-end ""))
-           (sep (or sep " ")))
-      (seq-reduce
-       (lambda (r v)
-         (concat
-          r
-          row-start
-          (string-join
-           (seq-map-indexed
-            (lambda (a i)
-              (funcall pad-fn
-                       (nth i widths)
-                       pad-str
-                       (string-from a)))
-            v)
-           sep)
-          row-end
-          "\n"))
-       data
-       "")))
-
-  (provide 'lib-string)
-    ;;; lib-string.el ends here
-#+end_src
-*** orgmode config
-:PROPERTIES:
-:header-args: :tangle lisp/config-orgmode.el :noweb yes
-:ID:       7df49a2c-aad7-472a-a186-c8db756aeb44
-:END:
-#+begin_src emacs-lisp
-  ;;; config-orgmode.el --- Org-mode Directory -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-  (require 'config-path)
-
- (defvar vulpea-directory
-  (expand-file-name "org/roam" *user-home/*)
-  "Directory containing notes.")
-
- (defconst *notes/*
-  (file-name-as-directory (expand-file-name "~/org")))
-
-  (provide 'config-orgmode)
-  ;;; config-orgmode.el ends here
-#+end_src
-*** function lib
-:PROPERTIES:
-:header-args: :tangle lisp/lib-fun.el :noweb yes
-:ID:       70df19e8-852a-472f-8d78-d24d1d45dd06
-:END:
-#+begin_src emacs-lisp
-  ;;; lib-fun.el --- Extra function -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;; Utilities to build functions.
-;;
-;;; Code:
-
-;;;###autoload
-(defun fun-unquote (exp)
-  "Return EXP unquoted."
-  (declare (pure t) (side-effect-free t))
-  (while (memq (car-safe exp) '(quote function))
-    (setq exp (cadr exp)))
-  exp)
-
-;;;###autoload
-(defun fun-collect-while (fn filter &rest args)
-  "Repeat FN and collect it's results until `C-g` is used.
-Repeat cycle stops when `C-g` is used or FILTER returns nil.
-If FILTER is nil, it does not affect repeat cycle.
-If FILTER returns nil, the computed value is not added to result.
-ARGS are passed to FN."
-  (let (result
-        value
-        (continue t)
-        (inhibit-quit t))
-    (with-local-quit
-      (while continue
-        (setq value (apply fn args))
-        (if (and filter
-                 (null (funcall filter value)))
-            (setq continue nil)
-          (setq result (cons value result)))))
-    (setq quit-flag nil)
-    (seq-reverse result)))
-
-;;;###autoload
-(defun fun-repeat-while (fn filter &rest args)
-  "Repeat FN and return the first unfiltered result.
-Repeat cycle stops when `C-g` is used or FILTER returns nil.
-ARGS are passed to FN."
-  (let (value
-        (continue t)
-        (inhibit-quit t))
-    (with-local-quit
-      (while continue
-        (setq value (apply fn args))
-        (when (null (funcall filter value))
-          (setq continue nil))))
-    (setq quit-flag nil)
-    (when (null continue)
-      value)))
-
-;;;###autoload
-(defun fun-noop (&rest _)
-  "Do nothing.
-Useful for temporarily disabling a function.")
-
-(provide 'lib-fun)
-;;; lib-fun.el ends here
-#+end_src
-*** VCS
-:PROPERTIES:
-:header-args: :tangle lisp/lib-vcs.el :noweb yes
-:ID:       05d0ed58-40b0-49a0-829b-7436db557594
-:END:
-#+begin_src emacs-lisp
-  ;;; lib-vcs.el --- Libaray -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
-
-  (require 'init-kbd)
-
-
-
-(defvar vcs-url-github-issue-regexp
-  (format "\\(%s/\\(%s\\)/\\(%s\\)/\\(%s\\)/\\(%s\\)\\).*"
-          "https://github\\.com"
-          "[-\\.[:alnum:]]+"
-          "[-\\.[:alnum:]]+"
-          "[[:alpha:]]+"
-          "[[:alnum:]]+")
-  "GitHub issue/pull URL regexp.
-- 1st group is whole URL.
-- 2nd group is owner.
-- 3rd group is repository name.
-- 4th group is type of the object - issue/pull/miliestone/commit.
-- 5th group is the number of the object.")
-
-(defvar vcs-url-github-project-regexp
-  (format "\\(%s/\\(%s\\)/\\(%s\\)/?\\)"
-          "https://github\\.com"
-          "[-\\.[:alnum:]]+"
-          "[-\\.[:alnum:]]+")
-  "GitHub project URL regexp.
-- 1st group is whole URL.
-- 2nd group is owner.
-- 3rd group is repository name.")
-
-(defvar vcs-url-known-github-users '("frap"
-                                     "agasson")
-  "List of 'known' GitHub users.")
-
-
-
-;;;###autoload
-(defun vcs-url-format-github-issue (owner repo type number)
-  "Format GitHub issue.
-Depending on the TYPE format can be one of the following:
-- OWNER/REPO#NUMBER if TYPE is not milestone;
-- OWNER/REPOmNUMBER otherwise.
-In case OWNER is a member of `vcs-url-known-github-users', then OWNER
-part of format is omitted."
-  (concat
-   (if (seq-contains-p vcs-url-known-github-users owner)
-       repo
-     (concat owner "/" repo))
-   (if (string-equal type "milestone")
-       "m"
-     "#")
-   (if (string-equal type "commit")
-       (substring number 0 (min 7 (length number)))
-     number)))
-
-;;;###autoload
-(defun vcs-url-format-github-project (owner repo)
-  "Format GitHub REPO.
-In case OWNER is a member of `vcs-url-known-github-users', then OWNER
-part of format is omitted."
-  (concat
-   (if (seq-contains-p vcs-url-known-github-users owner)
-       repo
-     (concat owner "/" repo))))
-
-  (provide 'lib-vcs)
-  ;;; lib-vcs.el ends here
-#+end_src
-
-*** File Templates aka YASnippett
-:PROPERTIES:
-:header-args: :tangle lisp/init-file-templates.el :noweb yes
-:ID:       68ae83b4-14d3-4eb7-9c99-fd05cb6d9053
-:END:
-#+begin_src emacs-lisp
-;;; init-file-templates.el --- File templates support -*- lexical-binding: t; -*-
-<<disclaimer>>
-;; Commentary:
-;;
-;; This module configures yasnippet.
-;;
-;;; Code:
-
-(require 'init-project)
-
-<<templates>>
-
-(provide 'init-file-templates)
-;;; init-file-templates.el ends here
-#+end_src
-
-*** Dash-functional fixup
-:PROPERTIES:
-:header-args: :tangle lisp/dash-functional.el :noweb yes
-:ID:       5c50f26c-4d6f-4030-a94f-c2c5c0729585
-:END:
-#+begin_src emacs-lisp
-  ;;; dash-functional.el --- Mocking dash-functional -*- lexical-binding: t; -*-
-  <<disclaimer>>
-  ;;; Commentary:
-;;
-;; Unfortunately, dash-functional is obsolete. And instead of talking
-;; to popular libraries, they simply put a warning inside this
-;; package, meaning that people treating warnings as errors have no
-;; way to load this module (even transitively).
-;;
-;; Thanks, folks! I really appreciate it.
-;;
-;; So this module is a fake to avoid byte compilation error.
-;;
-;;; Code:
-
-(require 'dash)
-
-(provide 'dash-functional)
-;;; dash-functional.el ends here
-#+end_src
-
-** License
-:PROPERTIES:
-:header-args: :tangle LICENSE
-:ID:       544ee924-beef-403c-b654-6fc255528de9
-:END:
-
-Copyright © 2021 Gas <gas@somewhere.red>
-
-This work is free.  You can redistribute it and/or modify it under the
-terms of the Do What the Fuck You Want To Public License, Version 2,
-as published by Gas.  See the =LICENSE= file, tangled from the
-following source block, for details.
-
-#+begin_src text
-  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-
-  Version 2, December 2004
-
-  Copyright (C) 2001-2021 Gas <gas@somewhere.red>
-
-  Everyone is permitted to copy and distribute verbatim or modified copies of
-  this license document, and changing it is allowed as long as the name is changed.
-
-  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-
-  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-  0. You just DO WHAT THE FUCK YOU WANT TO.
 #+end_src

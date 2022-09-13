@@ -1,13 +1,12 @@
 ;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
 ;; Copyright (C) 2001-2022 Gas
 ;; Timestamp: <>
-
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
-;; Package-Version: 0.1
+;; Package-Version: 0.7
 ;; Created: Sometime during the Covid-19 lockdown
 ;; Keywords: configuration, emacs
-;; URL: https://github.com/frap/emacs.d
+;; URL: https://github.com/frap/emacs
 ;; Package-Requires: ((emacs "27.2"))
 
 ;; This file is not part of GNU Emacs.
@@ -71,18 +70,17 @@
                        (font . "Iosevka Slab 14"))
  default-frame-alist initial-frame-alist
  frame-inhibit-implied-resize t            ;; dont resize
- frame-resize-pixelwise t                   ;; as GUI use pixels
+ frame-resize-pixelwise t                  ;; as GUI use pixels
  x-gtk-resize-child-frames 'resize-mode
  fringe-indicator-alist (assq-delete-all 'truncation fringe-indicator-alist))
 
  (setq truncate-partial-width-windows nil)
 
-
 (when (fboundp #'tool-bar-mode)
-    (tool-bar-mode -1))
+  (tool-bar-mode -1))
 
 (when (fboundp #'scroll-bar-mode)
-     (scroll-bar-mode -1))
+  (scroll-bar-mode -1))
 
 
 (message "Chargement du early-init.el terminé!")
