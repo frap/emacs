@@ -16,6 +16,7 @@
 ;; Hand edits will be overwritten!
 ;; Je t'ai prévenu putain!
 
+;;
 ;;; Code:
 
 (message "Chargement en cours early-init.el...")
@@ -23,6 +24,13 @@
 (define-advice load (:before (feature &rest _))
     "Message the user when loading a library."
     (with-temp-message (format "En cours de chargement de la bibliothèque: '%s'" feature)))
+
+;;; ============================================================================
+;;; Turn off Emacs "package" manager
+;;; ============================================================================
+;; Pre-configure the package manager settings before it is loaded.
+(setq package-enable-at-startup nil)
+(setq package-quickstart nil)
 
 ;;; ============================================================================
 ;;; Emacs startup optimisations

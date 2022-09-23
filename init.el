@@ -1,5 +1,4 @@
-;;; init.el --- Gas Init -*- lexical-binding: t -*-
-
+;;; init.el --- Gas Emacs Init -*- lexical-binding: t -*-
 ;; Copyright (C) 2001-2022 Gas
 ;; Timestamp: <>
 ;; Author: Gas <gas@tuatara.red>
@@ -17,51 +16,37 @@
 ;; Hand edits will be overwritten!
 ;; Je t'ai prévenu putain!
 
-;;; Code:
-(defmacro with-message! (message &rest body)
-  "Execute BODY, with MESSAGE.
-     If body executes without errors, ** MESSAGE... terminé will be displayed."
-  (declare (indent 1))
-  (let ((msg (gensym)))
-    `(let ((,msg ,message))
-       (unwind-protect (progn (message "%s..." ,msg)
-                              ,@body)
-                   (message "* * %s... terminé!!" ,msg)))))
 
-;; load if-let
+;;; Code:
+
 (require 'subr-x)
 ;;; Bootstrap
 ;;; Set up extra load paths and functionality
-;; Add Lisp directory to `load-path'.
 ;; Add our custom lisp modules to the Emacs load path so they can be discovered.
 (push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
 ;;; ============================================================================
 ;;; Specify the directory paths
 ;;; ============================================================================
 (require 'config-path)
-;; Since we might be running in CI or other environments, stick to
-;; XDG_CONFIG_HOME value if possible.
 
 ;;; ============================================================================
 ;;; Set up the package manager
 ;;; ============================================================================
 (require 'init-elpa)
 (require 'init-corgi)
-;; Setup `custom-file`.
-(setq custom-file (concat *emacs-config/* "custom.el"))
 
 ;; load autoloads file
 (unless elpa-bootstrap-p
   (unless (file-exists-p *emacs-autoloads-file*)
-          (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-                 "eru install emacs"))
+    (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
+           "eru install emacs"))
   (load *emacs-autoloads-file* nil 'nomessage))
 
 ;;; core
-;;(require 'init-env)
+(require 'init-env)
 (require 'init-kbd)
 (require 'init-startup)
-;;(require 'init-fn-macros)
+(require 'lib-fn-macros)
 (require 'init-editor)
 ;;(require 'init-ui)
 ;;(require 'init-buffer)
@@ -72,6 +57,10 @@
 (require 'init-vcs)
 ;;(require 'enfer-pkg-builtin)
 
+;; Org Note Taking
+(require 'init-notes)
+(require 'init-file-templates)
+
 ;;; languages
 ;;(require 'init-ide)
 ;;(require 'init-lisp)
@@ -81,10 +70,6 @@
 (require 'init-fennel)
 ;;(require 'init-ess)
 ;;(require 'init-utils)
-
-;; Org Note Taking
-(require 'init-notes)
-(require 'init-file-templates)
 
 ;;; user config & some defaults
 (require 'init-usersetup)
