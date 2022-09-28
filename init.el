@@ -44,8 +44,8 @@
 
 ;;; core
 (require 'init-env)
-(require 'init-kbd)
 (require 'init-startup)
+;;(require 'init-sanity)
 (require 'lib-fn-macros)
 (require 'init-editor)
 ;;(require 'init-ui)
@@ -64,16 +64,16 @@
 ;;; languages
 ;;(require 'init-ide)
 ;;(require 'init-lisp)
-;;(require 'init-elisp)
+(require 'init-elisp)
 ;;(require 'init-clisp)
-;;(require 'init-clojure)
+(require 'init-clojure)
 (require 'init-fennel)
 ;;(require 'init-ess)
 ;;(require 'init-utils)
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-;;(require 'init-sanity)
+(require 'init-kbd)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow
