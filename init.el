@@ -19,9 +19,11 @@
 
 ;;; Code:
 
-(require 'subr-x)
+(eval-when-compile
+  (require 'subr-x)) ;; adds string-trim
 ;;; Bootstrap
-;;; Set up extra load paths and functionality
+;;; Avoid the "loaded old bytecode instead of newer source" pitfall.
+(setq load-prefer-newer t)
 ;; Add our custom lisp modules to the Emacs load path so they can be discovered.
 (push (expand-file-name "lisp/" (file-name-directory user-init-file)) load-path)
 ;;; ============================================================================
@@ -33,27 +35,25 @@
 ;;; Set up the package manager
 ;;; ============================================================================
 (require 'init-elpa)
-(require 'init-corgi)
-
-;; load autoloads file
-(unless elpa-bootstrap-p
-  (unless (file-exists-p *emacs-autoloads-file*)
-    (error "Le fichier autoloads n'existe pas, veuillez exécuter '%s'"
-           "eru install emacs"))
-  (load *emacs-autoloads-file* nil 'nomessage))
 
 ;;; core
-(require 'init-env)
+;; sanity settings
+(require 'init-sanity)
+
+;; startup packages & gcmh
 (require 'init-startup)
-;;(require 'init-sanity)
-(require 'lib-fn-macros)
+
+;; navigation & Editor setup
+(require 'init-selection)
 (require 'init-editor)
+
 ;;(require 'init-ui)
 ;;(require 'init-buffer)
 ;;(require 'init-window)
 ;;; utilities
-;;(require 'init-selection)
 (require 'init-project)
+;; Powerful Git integration. Corgi already ships with a single keybinding for
+;; Magit, which will be enabled if it's installed (`SPC g s' or `magit-status').
 (require 'init-vcs)
 ;;(require 'enfer-pkg-builtin)
 
@@ -61,15 +61,22 @@
 (require 'init-notes)
 (require 'init-file-templates)
 
-;;; languages
-;;(require 'init-ide)
+;;; Setup the Theme
+(require 'init-ui)
+
+;;; Coding Setup
+(require 'init-ide)
 ;;(require 'init-lisp)
 (require 'init-elisp)
 ;;(require 'init-clisp)
 (require 'init-clojure)
-(require 'init-fennel)
-;;(require 'init-ess)
+;;(require 'init-fennel)
+;; R
+(require 'init-ess)
 ;;(require 'init-utils)
+(require 'init-javascript)
+(require 'init-utils-coding)
+
 
 ;;; user config & some defaults
 (require 'init-usersetup)
