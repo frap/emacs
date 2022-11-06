@@ -82,6 +82,7 @@ Need to setup some constants and try to keep state in a "clean" directory struct
       Use this for files that don't change much, like servers binaries,
       external dependencies or long-term shared data.")
 
+(defconst my-env-file (concat EMACS_CACHE/  "env"))
 ;; For the rest of the Emacs configuration, set this directory to something
 ;; inside the standard cache directory, so we do not pollute our emacs.d
 ;; directory with files that we would then have to ignore with Git.
@@ -610,19 +611,60 @@ Use =straight-remove-unused-repos= for this purpose.
 :END:
 Setup the Emacs environment from the local env
 #+begin_src emacs-lisp
-(use-package exec-path-from-shell
-  :when (memq window-system '(mac ns))
-  :hook (emacs-startup . (lambda ()
-               (setq exec-path-from-shell-arguments '("-l")) ; removed the -i for faster startup
-               (exec-path-from-shell-initialize)))
-   :config
-   (exec-path-from-shell-copy-envs
-    '("GOPATH"  "GOPROXY" "HOMEBREW_PREFIX"
-      "XDG_CACHE_HOME" "XDG_CONFIG_HOME"
-  ;;    "NPMBIN" "LC_ALL" "LANG" "LC_TYPE"
-      "SSH_AGENT_PID" "SSH_AUTH_SOCK" "SHELL"
-      "JAVA_HOME"))
-  )
+(defun my-load-envvars-file (file &optional noerror)
+  "Read and set envvars from FILE.
+If NOERROR is non-nil, don't throw an error if the file doesn't exist or is
+unreadable. Returns the names of envvars that were changed."
+  (if (not (file-readable-p file))
+      (unless noerror
+        (signal 'file-error (list "Couldn't read envvar file" file)))
+    (let (envvars environment)
+      (with-temp-buffer
+        (save-excursion
+          (insert "\n")
+          (insert-file-contents file))
+        (while (re-search-forward "\n *\\([^#= \n]*\\)=" nil t)
+          (push (match-string 1) envvars)
+          (push (buffer-substring
+                 (match-beginning 1)
+                 (1- (or (save-excursion
+                           (when (re-search-forward "^\\([^= ]+\\)=" nil t)
+                             (line-beginning-position)))
+                         (point-max))))
+                environment)))
+      (when environment
+        (setq process-environment
+              (append (nreverse environment) process-environment)
+              exec-path
+              (if (member "PATH" envvars)
+                  (append (split-string (getenv "PATH") path-separator t)
+                          (list exec-directory))
+                exec-path)
+              shell-file-name
+              (if (member "SHELL" envvars)
+                  (or (getenv "SHELL") shell-file-name)
+                shell-file-name))
+        envvars))))
+ ;; to create doom env file doom env -o ~/.cache/emacs/env
+
+(when (and (or (display-graphic-p)
+               (daemonp))
+           (file-exists-p my-env-file))
+  (my-load-envvars-file my-env-file))
+
+;; (use-package exec-path-from-shell
+;;   :when (memq window-system '(mac ns))
+;;   :hook (emacs-startup . (lambda ()
+;;                (setq exec-path-from-shell-arguments '("-l")) ; removed the -i for faster startup
+;;                (exec-path-from-shell-initialize)))
+;;    :config
+;;    (exec-path-from-shell-copy-envs
+;;     '("GOPATH"  "GOPROXY" "HOMEBREW_PREFIX"
+;;       "XDG_CACHE_HOME" "XDG_CONFIG_HOME"
+;;   ;;    "NPMBIN" "LC_ALL" "LANG" "LC_TYPE"
+;;       "SSH_AGENT_PID" "SSH_AUTH_SOCK" "SHELL"
+;;       "JAVA_HOME"))
+;;   )
 
 #+end_src
 *** Shell Environment init-env
@@ -674,7 +716,7 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a few 
 ;;(defconst *is-nativecomp?* (if (fboundp 'native-comp-available-p) (native-comp-available-p)))
 
 ;;(defconst IS_MAC?        (eq system-type 'darwin))
-;;(defconst *is-linux?*      (eq system-type 'gnu/linux))
+;;(defconst *IS_LINUX?*      (eq system-type 'gnu/linux))
 (defconst IS_TERMUX?
     (string-suffix-p "Android" (string-trim (shell-command-to-string "uname -a"))))
 
