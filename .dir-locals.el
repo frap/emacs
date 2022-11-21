@@ -1,8 +1,7 @@
 ((emacs-lisp-mode . ((byte-compile-error-on-warn . t)
-                     (fill-column . 70)
+                     (fill-column . 75)
                      (indent-tabs-mode . nil)
-                     (elisp-lint-indent-specs . ((vulpea-utils-with-file . 1)
-                                                 (vulpea-utils-with-note . 1)
+                     (elisp-lint-indent-specs . (
                                                  (org-roam-with-file . 2)
                                                  (org-with-point-at . 1)
                                                  (org-element-map . 2)
@@ -18,4 +17,4 @@
                                                  (buffer-lines-each-t . 1)
                                                  (request . defun)))))
  (org-mode . ((fill-column . 80)
-              (vulpea-id-auto-targets . nil))))
+              )))
