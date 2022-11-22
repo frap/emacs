@@ -1,4 +1,3 @@
-
 #+title: Literate Roam Clojure Emacs Config
 #+author: Gas
 #+startup: overview
@@ -9,7 +8,7 @@
 Some scripts to setup whether I am on work computer or not
 #+begin_src emacs-lisp :noweb-ref user-config
 (if (getenv "USER")
-     (defconst IS-WORK (string-match "WindoseUserName" (getenv "USER")))
+     (defconst IS-WORK (string-match "Gas" (getenv "USER")))
      (defconst IS-WORK nil))
 
 (if IS-WORK
@@ -26,7 +25,7 @@ Some scripts to setup whether I am on work computer or not
 
 ** Where am I?
 #+begin_src emacs-lisp :noweb-ref user-config
-(setq calendar-location-name "Wellington, NZ"
+(setq calendar-location-name "Kapiti, NZ"
       calendar-latitude -41.28
       calendar-longitude 174.78)
 
@@ -416,7 +415,6 @@ the needed boolean expression to tangle config.org.  Booleans, yall!
   ;;; init.el ends here
 #+end_src
 
-
 * Emacs Package Management
 ** Turn of legacy Emacs "package" Manager
 #+begin_src emacs-lisp :noweb-ref turnoff-package
@@ -468,7 +466,7 @@ Use Straight for package Management.
   ;;(straight-freeze-versions))
 
   ;; Additional post-setup of straight.el.
-  ;;(require 'straight-x)
+  (require 'straight-x)
   ;;; Appendix
   ;; Get rid of a dumb alias.  straight-ಠ_ಠ-mode really slows down all
   ;; minibuffer completion functions.  Since it's a (rarely-used, even)
@@ -3503,7 +3501,7 @@ It provides various commands that operate on the project, like project-find-file
 By default a project is something that is managed by a VCS, such as git. However, sometimes is useful to mark something as a project without actually create a repo for it. This code, adapted from something that I found online I don't remember where, adds another implementation for the project backend that consider a project something that has a .project file.
 #+begin_src emacs-lisp
 (with-eval-after-load 'project
-(setq project-list-file  *gas-dev/*)
+(setq project-list-file  GAS_DEV/ )
 
 (defalias 'project-switch #'project-switch-project)
 
@@ -4570,8 +4568,9 @@ Change the Mac modifiers to my liking. I also disable passing Control characters
 #+end_src
 ***  tangle Keyboard
 :PROPERTIES:
-:header-args: :tangle lisp/init-kbd.el :noweb yes
-Setup keyboard
+co:header-args: :tangle lisp/init-kbd.el :noweb yes
+:end:
+    Setup keyboard
 
 #+begin_src emacs-lisp
 ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
