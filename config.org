@@ -298,11 +298,35 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 (require 'init-sanity)
 
 ;; startup packages & gcmh
-(require 'init-startup)
+;;(require 'init-startup)
 
 ;; navigation & Editor setup
-(require 'init-selection)
-(require 'init-editor)
+;;(require 'init-selection)
+;;(require 'init-editor)
+(use-package corgi-editor)
+(use-package corgi-commands)
+
+
+;; Change the color of the modeline based on the Evil state (e.g. green when
+;; in insert state)
+(use-package corgi-stateline
+  :config
+  (global-corgi-stateline-mode))
+
+;; Package which provides corgi-keys and corgi-signals, the two files that
+;; define all Corgi bindings, and the default files that Corkey will look for.
+(use-package corgi-bindings)
+
+;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
+;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
+;; f e s' `SPC f e S')
+;; Put this last here, otherwise keybindings for commands that aren't loaded
+;; yet won't be active.
+(use-package corkey
+  :config
+  (corkey-mode 1)
+  ;; Automatically pick up keybinding changes
+  (corkey/load-and-watch))
 
 ;;(require 'init-ui)
 ;;(require 'init-buffer)
@@ -337,7 +361,7 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-(require 'init-kbd)
+;;(require 'init-kbd)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow
@@ -415,6 +439,7 @@ Use Straight for package Management.
 (defvar bootstrap-version)
 
 (let ((install-url "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el")
+    ;;  (setq-default straight-base-dir EMACS_CACHE/ )
       (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" EMACS_CACHE/ ))
       (bootstrap-version 5))
   (unless (file-exists-p bootstrap-file)
@@ -438,6 +463,10 @@ Use Straight for package Management.
   (setq use-package-verbose nil) ;; use 't' to see execution profile at startup
   (setq straight-profiles `((nil . ,(expand-file-name "lockfile" EMACS_CACHE/ ))))
 
+  ;; Corgi freezes versions
+  ;;(when (not (file-exists-p (expand-file-name "straight/versions/default.el" straight-base-dir)))
+  ;;(straight-freeze-versions))
+
   ;; Additional post-setup of straight.el.
   ;;(require 'straight-x)
   ;;; Appendix
@@ -445,8 +474,20 @@ Use Straight for package Management.
   ;; minibuffer completion functions.  Since it's a (rarely-used, even)
   ;; alias anyway, I just define it back to nil.  By the way, the alias
   ;; is `straight-package-neutering-mode'.
-  (defalias 'straight-ಠ_ಠ-mode nil)
-  )
+  (defalias 'straight-ಠ_ಠ-mode nil))
+
+;; Enable the corgi-packages repository so we can install our packages with
+;; Straight. This also runs some Corgi initialization code, notably copying over
+;; Corgi's version file, so you get the same versions of packages that Corgi was
+;; tested with.
+
+(use-package corgi-packages
+  :straight (corgi-packages
+             :type git
+             :host github
+             :repo "corgi-emacs/corgi-packages"))
+
+(add-to-list 'straight-recipe-repositories 'corgi-packages)
 
 #+end_src
 ** Setup (no pun intended) the Emacs Package Manager
@@ -747,143 +788,201 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a few 
 :END:
 Setup Builtins and try and get some sane defaults
 #+begin_src emacs-lisp
-  ;; Turn off mouse interface early in startup to avoid momentary display
-  (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-  (if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+;; Turn off mouse interface early in startup to avoid momentary display
+(if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+(if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 
-  (use-package diminish)
+(use-package diminish)
 
-  ;; sanity setting UI
-  (use-package emacs
-   :straight nil
-   :diminish
-    abbrev-mode
-    elisp-slime-nav-mode
-    eldoc-mode
-    subword-mode
-    auto-fill-function " AF"
-    visual-line-mode
-    org-indent-mode
-    auto-revert-mode
-    subword-mode
-    text-scale-mode
-    buffer-face-mode
-    pretty-control-l-mode
-    global-form-feed-mode ""
-    :init
-    (setq read-process-output-max (* 1024 1024)) ;; 1mb
+;; sanity setting UI
+(use-package emacs
+  :straight nil
+  :diminish
+  abbrev-mode
+  elisp-slime-nav-mode
+  eldoc-mode
+  subword-mode
+  auto-fill-function " AF"
+  visual-line-mode
+  org-indent-mode
+  auto-revert-mode
+  subword-mode
+  text-scale-mode
+  buffer-face-mode
+  pretty-control-l-mode
+  projectile-mode "Prjl"
+  global-form-feed-mode ""
+  :init
+  (setq read-process-output-max (* 1024 1024)) ;; 1mb
 
-    ;; always allow 'y' instead of 'yes'.
-    (defalias 'yes-or-no-p 'y-or-n-p)
+  ;; always allow 'y' instead of 'yes'.
+  (defalias 'yes-or-no-p 'y-or-n-p)
 
-    ;; don't want ESC as a modifier
-    (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+  ;; don't want ESC as a modifier
+  (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-    ;; disable a few keybindings
-    (unbind-key "C-z") ;; `suspend-frame'
-    (unbind-key "C-c o") ;; was bound to open a file externally
-    ;;(unbind-key "C-x C-c") ;; was `save-buffers-kill-terminal'
+  ;; disable a few keybindings
+  (unbind-key "C-z") ;; `suspend-frame'
+  (unbind-key "C-c o") ;; was bound to open a file externally
+  ;;(unbind-key "C-x C-c") ;; was `save-buffers-kill-terminal'
 
-    (global-set-key (kbd "<M-delete>") 'kill-word)
-    (global-set-key (kbd "<s-down>") 'end-of-buffer)
-    (global-set-key (kbd "<s-up>") 'beginning-of-buffer)
-    (global-set-key (kbd "s-q") 'save-buffers-kill-terminal)
-    (global-set-key (kbd "s-w") 'kill-current-buffer)
-    (global-set-key (kbd "C-x C-b") 'ibuffer)
-    (global-set-key (kbd "M-RET") 'newline-and-indent)
-    :config
-    (setq ad-redefinition-action 'accept)
-    (setq bidi-inhibit-bpa t)
-    (setq command-line-ns-option-alist nil)
-    (setq confirm-kill-processes nil)
-    (setq default-input-method "TeX")
-    (setq ffap-machine-p-known 'reject)
-    (setq inhibit-compacting-font-caches t)
-    (setq inhibit-default-init t)
-    (setq jit-lock-defer-time nil)
-    (setq jka-compr-verbose nil)
-    (setq native-comp-async-report-warnings-errors nil)
-    (setq read-file-name-completion-ignore-case t)
-    (setq redisplay-skip-fontification-on-input t))
+  (global-set-key (kbd "<M-delete>") 'kill-word)
+  (global-set-key (kbd "<s-down>") 'end-of-buffer)
+  (global-set-key (kbd "<s-up>") 'beginning-of-buffer)
+  (global-set-key (kbd "s-q") 'save-buffers-kill-terminal)
+  (global-set-key (kbd "s-w") 'kill-current-buffer)
+  (global-set-key (kbd "C-x C-b") 'ibuffer)
+  ;;(global-set-key (kbd "M-RET") 'newline-and-indent)
+  :config
+  (setq ad-redefinition-action 'accept)
+  (setq bidi-inhibit-bpa t)
+  (setq command-line-ns-option-alist nil)
+  (setq confirm-kill-processes nil)
+  (setq default-input-method "TeX")
+  (setq ffap-machine-p-known 'reject)
+  (setq inhibit-compacting-font-caches t)
+  (setq inhibit-default-init t)
+  (setq jit-lock-defer-time nil)
+  (setq jka-compr-verbose nil)
+  (setq native-comp-async-report-warnings-errors nil)
+  (setq read-file-name-completion-ignore-case t)
+  (setq redisplay-skip-fontification-on-input t))
 
 
 
-  (use-package recentf
-    :straight nil
-    :config
-    (setq recentf-exclude `(,(expand-file-name "straight/build/" user-emacs-directory)
-			    ,(expand-file-name "eln-cache/" user-emacs-directory)
-			    ,(expand-file-name "etc/" EMACS_CACHE/ )
-			    ,(expand-file-name "var/" user-emacs-directory)))
-    (add-to-list 'recentf-exclude (format "%s/early-init.el" EMACS_CONFIG/ ))
-    (add-to-list 'recentf-exclude (format "%s/init.el" EMACS_CONFIG/ ))
-    (recentf-mode +1))
+(use-package recentf
+;; Keep track of recently opened files
+  :straight nil
+  :commands recent-open-files
+  :custom (recentf-save-file (concat EMACS_CACHE/ "recentf"))
+  :config
+  (setq recentf-auto-cleanup nil     ; Don't. We'll auto-cleanup on shutdown
+        recentf-max-saved-items 200) ; default is 20
 
-  (use-package files
-    :straight nil
-    :preface
-    (defun gas/find-file-sudo-root ()
-      "Open a file as the root user.
+  (defun doom--recentf-file-truename-fn (file)
+    (if (or (not (file-remote-p file))
+            (equal "sudo" (file-remote-p file 'method)))
+        (abbreviate-file-name (file-truename (tramp-file-name-localname tfile)))
+      file))
+
+  ;; Resolve symlinks, strip out the /sudo:X@ prefix in local tramp paths, and
+  ;; abbreviate $HOME ~ in filepaths (more portable, more readable, & saves
+  ;; space)
+  (add-to-list 'recentf-filename-handlers #'doom--recentf-file-truename-fn)
+
+  ;; Text properties inflate the size of recentf's files, and there is
+  ;; no purpose in persisting them (Must be first in the list!)
+  (add-to-list 'recentf-filename-handlers #'substring-no-properties)
+
+  (setq recentf-exclude `(,(expand-file-name "straight/build/" user-emacs-directory)
+			  ,(expand-file-name "eln-cache/" user-emacs-directory)
+			  ,(expand-file-name "etc/" EMACS_CACHE/ )
+			  ,(expand-file-name "var/" user-emacs-directory)))
+  (add-to-list 'recentf-exclude (format "%s/early-init.el" EMACS_CONFIG/ ))
+  (add-to-list 'recentf-exclude (format "%s/init.el" EMACS_CONFIG/ )) (recentf-mode +1))
+
+(use-package files
+  :straight nil
+  :preface
+  (defun gas/find-file-sudo-root ()
+    "Open a file as the root user.
       Reference: https://www.emacswiki.org/emacs/TrampMode#h5o-19"
-      (interactive)
-      (require 'tramp)
-      (let* ((name (or buffer-file-name default-directory))
-	     (tramp (and (tramp-tramp-file-p name)
-			 (tramp-dissect-file-name name)))
-	     path dir file)
-	(when tramp ; If called from a "root" file, we need to fix up the path.
-	  (setq path (tramp-file-name-localname tramp)
-		dir (file-name-directory path)))
-	(when (setq file (read-file-name "Find file (sudo): " dir path))
-	  (find-file (concat "/sudo:root@localhost:" file)))))
-    :config
-    (remove-hook 'find-file-hook 'vc-refresh-state) ; makes open files faster
-    (setq confirm-kill-processes nil)
+    (interactive)
+    (require 'tramp)
+    (let* ((name (or buffer-file-name default-directory))
+	   (tramp (and (tramp-tramp-file-p name)
+		       (tramp-dissect-file-name name)))
+	   path dir file)
+      (when tramp ; If called from a "root" file, we need to fix up the path.
+	(setq path (tramp-file-name-localname tramp)
+	      dir (file-name-directory path)))
+      (when (setq file (read-file-name "Find file (sudo): " dir path))
+	(find-file (concat "/sudo:root@localhost:" file)))))
+  :config
+  (remove-hook 'find-file-hook 'vc-refresh-state) ; makes open files faster
+  (setq confirm-kill-processes nil)
 
-    (setq revert-without-query '(".*"))
-    (setq auto-mode-case-fold nil)
-    (setq auto-save-default nil)
-    (setq auto-save-list-file-prefix nil)
+  (setq revert-without-query '(".*"))
+  (setq auto-mode-case-fold nil)
+  (setq auto-save-default nil)
+  (setq auto-save-list-file-prefix nil)
 
-    ;; Move files to trash when deleting
-    (setq delete-by-moving-to-trash t)
+  ;; Move files to trash when deleting
+  (setq delete-by-moving-to-trash t)
 
-    (setq find-file-suppress-same-file-warnings t)
-    (setq find-file-visit-truename t)
-    (setq load-prefer-newer t)
+  (setq find-file-suppress-same-file-warnings t)
+  (setq find-file-visit-truename t)
+  (setq load-prefer-newer t)
 
-    (setq create-lockfiles nil) ; don't create .# files (crashes 'npm start')
-    ;; Don't make backup~ files
-    ;; (setq make-backup-files nil)
-    ;; (setq backup-inhibited t)
+  (setq create-lockfiles nil) ; don't create .# files (crashes 'npm start')
+  ;; Don't make backup~ files
+  ;; (setq make-backup-files nil)
+  ;; (setq backup-inhibited t)
 
-    (when (not (file-directory-p (expand-file-name "backups" EMACS_CACHE/ )))
-      (make-directory (expand-file-name "backups" EMACS_CACHE/ )))
+  (when (not (file-directory-p (expand-file-name "backups" EMACS_CACHE/ )))
+    (make-directory (expand-file-name "backups" EMACS_CACHE/ )))
 
-    (when (not (file-directory-p (expand-file-name "auto-save-list" EMACS_CACHE/ )))
-      (make-directory (expand-file-name "auto-save-list" EMACS_CACHE/ )))
+  (when (not (file-directory-p (expand-file-name "auto-save-list" EMACS_CACHE/ )))
+    (make-directory (expand-file-name "auto-save-list" EMACS_CACHE/ )))
 
-    ;; Put backups and auto-save files in subdirectories, so the
-    ;; user-emacs-directory doesn't clutter
-    (setq backup-directory-alist
-	  `(("." . ,(expand-file-name "backups" EMACS_CACHE/ )))
-	  auto-save-file-name-transforms
-	  `((".*" ,(expand-file-name "auto-save-list/" EMACS_CACHE/ ) t)))
+  ;; Put backups and auto-save files in subdirectories, so the
+  ;; user-emacs-directory doesn't clutter
+  (setq backup-directory-alist
+	`(("." . ,(expand-file-name "backups" EMACS_CACHE/ )))
+	auto-save-file-name-transforms
+	`((".*" ,(expand-file-name "auto-save-list/" EMACS_CACHE/ ) t)))
 
-    (setq require-final-newline t)
+  (setq require-final-newline t)
 
-    ;; Stop asking about following symlinks to version controlled files
-    (setq vc-follow-symlinks t)
+  ;; Stop asking about following symlinks to version controlled files
+  (setq vc-follow-symlinks t)
 
-    ;; big files
-    (global-so-long-mode 1)
+  ;; big files
+  (global-so-long-mode 1)
 
-    ;; sudo find file
-    (global-set-key (kbd "C-c C-f") #'gas/find-file-sudo-root)
-    (global-set-key (kbd "<f6>") #'(lambda ()
-				     (interactive)
-				     (revert-buffer)
-				     (message "attente de rafraîchissement du buffer...fini"))))
+  ;; sudo find file
+  (global-set-key (kbd "C-c C-f") #'gas/find-file-sudo-root)
+  (global-set-key (kbd "<f6>") #'(lambda ()
+				   (interactive)
+				   (revert-buffer)
+				   (message "attente de rafraîchissement du buffer...fini"))))
+
+;; save-place remembers the position of pt in a buffer and on re-opening restores it
+(use-package saveplace
+  :straight nil
+  :config (save-place-mode 1))
+;; savehist same as saveplace but for history
+(use-package savehist
+  :straight nil
+  :custom (savehist-file (concat EMACS_CACHE/ "savehist"))
+  :config
+   (setq savehist-save-minibuffer-history t
+        savehist-autosave-interval nil     ; save on kill only
+        savehist-additional-variables
+        '(kill-ring                        ; persist clipboard
+          register-alist                   ; persist macros
+          mark-ring global-mark-ring       ; persist marks
+          search-ring regexp-search-ring)) ; persist searches
+  (add-hook 'savehist-save-hook
+    (defun doom-savehist-unpropertize-variables-h ()
+      "Remove text properties from `kill-ring' to reduce savehist cache size."
+      (setq kill-ring
+            (mapcar #'substring-no-properties
+                    (cl-remove-if-not #'stringp kill-ring))
+            register-alist
+            (cl-loop for (reg . item) in register-alist
+                     if (stringp item)
+                     collect (cons reg (substring-no-properties item))
+                     else collect (cons reg item))))
+    (defun doom-savehist-remove-unprintable-registers-h ()
+      "Remove unwriteable registers (e.g. containing window configurations).
+Otherwise, `savehist' would discard `register-alist' entirely if we don't omit
+the unwritable tidbits."
+      ;; Save new value in the temp buffer savehist is running
+      ;; `savehist-save-hook' in. We don't want to actually remove the
+      ;; unserializable registers in the current session!
+      (setq-local register-alist
+                  (cl-remove-if-not #'savehist-printable register-alist)))))
 
 #+end_src
 *** Tangle Sanity Defaults
@@ -908,9 +1007,7 @@ Setup Builtins and try and get some sane defaults
 ** Emacs Startup Setup
 Show startup time
 #+begin_src emacs-lisp :noweb-ref startup-time
-
-        (kill-buffer buffer)))
-    (delete-file filename)))
+(require 'cl-lib)
 
 (defun mf/rename-file ()
   (interactive)
@@ -966,6 +1063,23 @@ Show startup time
     (add-hook 'after-init-hook function)))
 
 ;;
+;;; Helpers
+
+(defun doom--resolve-hook-forms (hooks)
+  "Converts a list of modes into a list of hook symbols.
+
+If a mode is quoted, it is left as is. If the entire HOOKS list is quoted, the
+list is returned as-is."
+  (declare (pure t) (side-effect-free t))
+  (let ((hook-list (doom-enlist (doom-unquote hooks))))
+    (if (eq (car-safe hooks) 'quote)
+        hook-list
+      (cl-loop for hook in hook-list
+               if (eq (car-safe hook) 'quote)
+               collect (cadr hook)
+               else collect (intern (format "%s-hook" (symbol-name hook)))))))
+
+;;
 ;;; Sugars
 
 (defun dir! ()
@@ -981,6 +1095,124 @@ Show startup time
          (car current-load-list))
         (buffer-file-name)
         ((error "Cannot get this file-path"))))
+
+;;; Loading
+(defmacro add-load-path! (&rest dirs)
+  "Add DIRS to `load-path', relative to the current file.
+The current file is the file from which `add-to-load-path!' is used."
+  `(let ((default-directory ,(dir!))
+         file-name-handler-alist)
+     (dolist (dir (list ,@dirs))
+       (cl-pushnew (expand-file-name dir) load-path :test #'string=))))
+
+;;; Hooks
+(defmacro add-transient-hook! (hook-or-function &rest forms)
+  "Attaches a self-removing function to HOOK-OR-FUNCTION.
+
+FORMS are evaluated once, when that function/hook is first invoked, then never
+again.
+
+HOOK-OR-FUNCTION can be a quoted hook or a sharp-quoted function (which will be
+advised)."
+  (declare (indent 1))
+  (let ((append (if (eq (car forms) :after) (pop forms)))
+        ;; Avoid `make-symbol' and `gensym' here because an interned symbol is
+        ;; easier to debug in backtraces (and is visible to `describe-function')
+        (fn (intern (format "doom--transient-%d-h"
+                            (put 'add-transient-hook! 'counter
+                                 (1+ (or (get 'add-transient-hook! 'counter)
+                                         0)))))))
+    `(let ((sym ,hook-or-function))
+       (defun ,fn (&rest _)
+         ,(format "Transient hook for %S" (doom-unquote hook-or-function))
+         ,@forms
+         (let ((sym ,hook-or-function))
+           (cond ((functionp sym) (advice-remove sym #',fn))
+                 ((symbolp sym)   (remove-hook sym #',fn))))
+         (unintern ',fn nil))
+       (cond ((functionp sym)
+              (advice-add ,hook-or-function ,(if append :after :before) #',fn))
+             ((symbolp sym)
+              (put ',fn 'permanent-local-hook t)
+              (add-hook sym #',fn ,append))))))
+
+(defmacro add-hook! (hooks &rest rest)
+  "A convenience macro for adding N functions to M hooks.
+
+This macro accepts, in order:
+
+  1. The mode(s) or hook(s) to add to. This is either an unquoted mode, an
+     unquoted list of modes, a quoted hook variable or a quoted list of hook
+     variables.
+  2. Optional properties :local, :append, and/or :depth [N], which will make the
+     hook buffer-local or append to the list of hooks (respectively),
+  3. The function(s) to be added: this can be a quoted function, a quoted list
+     thereof, a list of `defun' or `cl-defun' forms, or arbitrary forms (will
+     implicitly be wrapped in a lambda).
+
+\(fn HOOKS [:append :local [:depth N]] FUNCTIONS-OR-FORMS...)"
+  (declare (indent (lambda (indent-point state)
+                     (goto-char indent-point)
+                     (when (looking-at-p "\\s-*(")
+                       (lisp-indent-defform state indent-point))))
+           (debug t))
+  (let* ((hook-forms (doom--resolve-hook-forms hooks))
+         (func-forms ())
+         (defn-forms ())
+         append-p local-p remove-p depth)
+    (while (keywordp (car rest))
+      (pcase (pop rest)
+        (:append (setq append-p t))
+        (:depth  (setq depth (pop rest)))
+        (:local  (setq local-p t))
+        (:remove (setq remove-p t))))
+    (while rest
+      (let* ((next (pop rest))
+             (first (car-safe next)))
+        (push (cond ((memq first '(function nil))
+                     next)
+                    ((eq first 'quote)
+                     (let ((quoted (cadr next)))
+                       (if (atom quoted)
+                           next
+                         (when (cdr quoted)
+                           (setq rest (cons (list first (cdr quoted)) rest)))
+                         (list first (car quoted)))))
+                    ((memq first '(defun cl-defun))
+                     (push next defn-forms)
+                     (list 'function (cadr next)))
+                    ((prog1 `(lambda (&rest _) ,@(cons next rest))
+                       (setq rest nil))))
+              func-forms)))
+    `(progn
+       ,@defn-forms
+       (dolist (hook (nreverse ',hook-forms))
+         (dolist (func (list ,@func-forms))
+           ,(if remove-p
+                `(remove-hook hook func ,local-p)
+              `(add-hook hook func ,(or depth append-p) ,local-p)))))))
+
+(defmacro defadvice! (symbol arglist &optional docstring &rest body)
+  "Define an advice called SYMBOL and add it to PLACES.
+
+ARGLIST is as in `defun'. WHERE is a keyword as passed to `advice-add', and
+PLACE is the function to which to add the advice, like in `advice-add'.
+DOCSTRING and BODY are as in `defun'.
+
+\(fn SYMBOL ARGLIST &optional DOCSTRING &rest [WHERE PLACES...] BODY\)"
+  (declare (doc-string 3) (indent defun))
+  (unless (stringp docstring)
+    (push docstring body)
+    (setq docstring nil))
+  (let (where-alist)
+    (while (keywordp (car body))
+      (push `(cons ,(pop body) (doom-enlist ,(pop body)))
+            where-alist))
+    `(progn
+       (defun ,symbol ,arglist ,docstring ,@body)
+       (dolist (targets (list ,@(nreverse where-alist)))
+         (dolist (target (cdr targets))
+           (advice-add target (car targets) #',symbol))))))
 
 #+end_src
 *** Tangle lib-fn-macros
@@ -1017,6 +1249,734 @@ File for my constants, macros and functions
 ;;; lib-fn-macros.el ends here
 #+end_src
 
+* Emacs UI Appearance
+*** Default Appearance setting
+Some Defaults for my preferred appearance
+#+begin_src emacs-lisp :noweb-ref appearance
+(use-package emacs
+  :straight nil
+  :hook (prog-mode text-mode conf-mode)
+  :init
+  (add-hook 'prog-mode-hook #'display-line-numbers-mode )
+  (add-hook 'text-mode-hook #'visual-line-mode )
+  :config
+  (setq-default
+   inhibit-startup-message t
+   inhibit-startup-screen t
+   inhibit-startup-echo-area-message user-login-name
+   inhibit-default-init t
+   initial-major-mode 'fundamental-mode
+   initial-scratch-message nil
+   use-file-dialog nil
+   use-dialog-box nil)
+
+  (setq display-time-default-load-average nil)
+  (setq echo-keystrokes 0.1)
+  (setq highlight-nonselected-windows nil)
+  (setq visible-bell nil)
+  (setq x-gtk-use-system-tooltips nil)
+  (setq x-stretch-cursor nil)
+
+  ;; update
+  (setq idle-update-delay 1.0)
+
+  ;; disable cursor blinking
+  (blink-cursor-mode -1)
+  (setq blink-matching-paren nil)
+  ;; hide cursors in other windose
+  (setq-default cursor-in-non-selected-windows nil)
+  (setq-default cursor-type 'hbar)
+
+  ;; play around with frame title (which I rarely see)
+  (setq frame-title-format
+        '("%b@"
+          (:eval (or (file-remote-p default-directory 'host)
+                     system-name))
+          " — Emacs"))
+
+  ;; y/n instead of yes/no
+  (fset #'yes-or-no-p #'y-or-n-p)
+
+  ;; mode line
+  (column-number-mode)
+  (size-indication-mode)
+  ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
+  (setq-default mode-line-format nil)
+
+  ;; line numbers
+  (setq-default display-line-numbers-widen t)
+  (setq-default display-line-numbers-width 3)
+
+  (setq-default
+   ;; no beeping and no blinking please
+   ring-bell-function #'ignore
+   visible-bell nil
+
+   ;; make sure that trash is not drawn
+   indicate-buffer-boundaries nil
+   indicate-empty-lines nil
+
+   ;; don't resize emacs in steps, it looks weird and plays bad with
+   ;; window manager.
+   window-resize-pixelwise t
+   frame-resize-pixelwise t
+
+   ;; disable bidirectional text for tiny performance boost
+   bidi-display-reordering 'left-to-right
+   bidi-paragraph-direction 'left-to-right
+
+   ;; truncate lines
+   ;;truncate-lines t
+
+   (menu-bar-mode 1)
+
+   ;; frame setup
+   (unless IS_TERMUX?
+     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
+     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
+     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+     (add-to-list 'default-frame-alist '(fullscreen . maximized))))
+
+  
+
+  (use-package form-feed
+    :config (global-form-feed-mode))
+
+  
+
+#+end_src
+*** Fonts, Emojis & Icons
+
+On Linux, I have a custom build of Iosevka that I like.
+
+#+begin_src emacs-lisp :noweb-ref fonts
+(use-package all-the-icons
+  :if (display-graphic-p)
+  :after (marginalia dired)
+  :init
+  (add-hook 'marginalia-mode #'all-the-icons-completion-marginalia-setup)
+  (add-hook 'dired-mode #'all-the-icons-dired-mode)
+  :config
+  (use-package all-the-icons-dired)
+  (use-package all-the-icons-completion)
+  :config
+  (all-the-icons-completion-mode 1))
+
+(use-package emojify
+  :config
+  (setq emojify-emoji-styles '(unicode))
+  (global-emojify-mode 1))
+
+(use-package unicode-fonts
+  :config
+  (unicode-fonts-setup))
+
+;; (use-package mixed-pitch
+;;   :config
+;;   :hook (text-mode org-mode))
+
+(let ((font "Iosevka Term Curly Medium 14"))
+  (add-to-list 'default-frame-alist `(font . ,font))
+  (set-face-attribute 'default t :font font :height 140)
+  (set-face-attribute 'default nil :font font :height 140)
+  (set-frame-font font nil t))
+
+;; Required for proportional font in posframe
+(use-package company-posframe
+  :diminish company-posframe-mode
+  :config
+  (company-posframe-mode 1))
+
+(use-package default-text-scale
+  :bind (( "M--" . default-text-scale-decrease)
+            ( "M-+" . default-text-scale-increase)
+            ( "M-=" . default-text-scale-reset))
+  :config
+  (setq default-text-scale-mode 1))
+
+;; Dimm the colours of inactive windows
+(use-package dimmer
+  :config
+  (setq dimmer-fraction 0.3)
+  (setq dimmer-adjustment-mode :foreground)
+  (setq dimmer-use-colorsapce :rgb)
+  (dimmer-mode 1))
+
+;; Install it from sources, because ELPA version has invalid
+;; signature.
+;; (use-package spinner
+;;   :straight '( spinner
+;;                :type git
+;;                :host github
+;;                :repo "Malabarba/spinner.el"))
+#+end_src
+
+*** Mouse & scrolling setup
+
+#+begin_src emacs-lisp :noweb-ref mouse
+
+(unless IS_TERMUX?
+  (setup mouse
+         (setq focus-follows-mouse t)
+         (setq make-pointer-invisible t)
+         (setq mouse-1-click-follows-link t)
+         (setq mouse-autoselect-window t)
+         (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+         (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+         ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+         (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+         (setq mouse-wheel-scroll-amount-horizontal 2)
+         (setq mouse-yank-at-point t)
+         (setq scroll-step 1) ;; keyboard scroll one line at a time
+         (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
+
+(unless IS_TERMUX?
+  (setup scrolling
+         (setq auto-hscroll-mode 'current-line)
+         (setq auto-window-vscroll nil)
+         (setq fast-but-imprecise-scrolling t)
+         (setq hscroll-margin 16)
+         (setq hscroll-step 1)
+         (setq scroll-conservatively 101)
+         (setq scroll-margin 8)
+         (setq scroll-preserve-screen-position t)
+         (setq scroll-step 1)))
+
+
+
+#+end_src
+
+*** Themes & Modeline
+Load up some themes
+
+#+begin_src emacs-lisp :noweb-ref modus
+;;; Modus themes (Prositelaus highly accessible themes)
+(use-package modus-themes
+  ;; :straight (modus-themes :type built-in)
+
+  :straight (:type git :host gitlab :repo "protesilaos/modus-themes" :branch "main")
+  ;; Add all your customisations prior to loading the themes
+  ;;
+  ;;:requires highlight-parentheses
+  ;; Also check my package configurations for `prot-fonts' because I use
+  ;; the `modus-themes-after-load-theme-hook' for some typeface-related
+  ;; tweaks (as those are made at the "face" level).
+  ;;:bind ( "<f5>" .  #'modus-themes-toggle)
+  :config
+  (setq
+   modus-themes-vivendi-color-overrides
+   ;; '((bg-region-accent-subtle . "#240f55")) ;; Default
+   ;; '((bg-region-accent-subtle . "#323da2"));; Good candidate
+      '((bg-region-accent-subtle . "#304466"))
+
+   modus-themes-italic-constructs t
+   modus-themes-bold-constructs t
+   modus-themes-mixed-fonts nil
+   modus-themes-scale-headings t
+   modus-themes-slanted-constructs t
+   modus-themes-subtle-line-numbers t
+   modus-themes-intense-mouseovers nil
+   modus-themes-deuteranopia t
+   modus-themes-tabs-accented t
+   modus-themes-variable-pitch-ui t
+   modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
+
+   modus-themes-fringes 'intense ; {nil,'subtle,'intense}
+
+   ;; Options for `modus-themes-lang-checkers' are either nil (the
+   ;; default), or a list of properties that may include any of those
+   ;; symbols: `straight-underline', `text-also', `background',
+   ;; `intense' OR `faint'.
+   modus-themes-lang-checkers nil
+
+   ;; Options for `modus-themes-mode-line' are either nil, or a list
+   ;; that can combine any of `3d' OR `moody', `borderless',
+   ;; `accented', a natural number for extra padding (or a cons cell
+   ;; of padding and NATNUM), and a floating point for the height of
+   ;; the text relative to the base font size (or a cons cell of
+   ;; height and FLOAT)
+   modus-themes-mode-line '(moody accented (padding . 4) (height . 0.9))
+
+   ;; Options for `modus-themes-markup' are either nil, or a list
+   ;; that can combine any of `bold', `italic', `background',
+   ;; `intense'.
+   modus-themes-markup nil
+
+   ;; Options for `modus-themes-syntax' are either nil (the default),
+   ;; or a list of properties that may include any of those symbols:
+   ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
+   modus-themes-syntax '(alt-syntax yellow-comments green-strings)
+
+   ;; Options for `modus-themes-hl-line' are either nil (the default),
+   ;; or a list of properties that may include any of those symbols:
+   ;; `accented', `underline', `intense'
+   modus-themes-hl-line '(accented intense)
+
+   ;; Options for `modus-themes-paren-match' are either nil (the
+   ;; default), or a list of properties that may include any of those
+   ;; symbols: `bold', `intense', `underline'
+   modus-themes-paren-match '(bold intense)
+
+   ;; Options for `modus-themes-links' are either nil (the default),
+   ;; or a list of properties that may include any of those symbols:
+   ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
+   ;; `bold', `italic', `background'
+   modus-themes-links '(faint background)
+
+   ;; Options for `modus-themes-box-buttons' are either nil (the
+   ;; default), or a list that can combine any of `flat',
+   ;; `accented', `faint', `variable-pitch', `underline', the
+   ;; symbol of any font weight as listed in
+   ;; `modus-themes-weights', and a floating point number
+   ;; (e.g. 0.9) for the height of the button's text.
+   modus-themes-box-buttons '(variable-pitch flat faint 0.9)
+
+   ;; Options for `modus-themes-prompts' are either nil (the
+   ;; default), or a list of properties that may include any of those
+   ;; symbols: `background', `bold', `gray', `intense', `italic'
+   modus-themes-prompts '(intense accented)
+
+   ;; The `modus-themes-completions' is an alist that reads three
+   ;; keys: `matches', `selection', `popup'.  Each accepts a nil
+   ;; value (or empty list) or a list of properties that can include
+   ;; any of the following (for WEIGHT read further below):
+   ;;
+   ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
+   ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
+   ;; `popup' - same as `selected'
+   ;; `t' - applies to any key not explicitly referenced (check docs)
+   ;;
+   ;; WEIGHT is a symbol such as `semibold', `light', or anything
+   ;; covered in `modus-themes-weights'.  Bold is used in the absence
+   ;; of an explicit WEIGHT.
+   modus-themes-completions
+   '((matches . (extrabold background))
+     (selection . (semibold intense accented text-also))
+     (popup . (accented intense)))
+
+   modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
+
+   ;; Options for `modus-themes-region' are either nil (the default),
+   ;; or a list of properties that may include any of those symbols:
+   ;; `no-extend', `bg-only', `accented'
+   modus-themes-region '(bg-only accented)
+
+   ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
+   modus-themes-diffs 'desaturated
+
+   modus-themes-org-blocks 'gray-background ; {nil,'gray-background,'tinted-background}
+
+   modus-themes-org-agenda ; this is an alist: read the manual or its doc string
+   '((header-block . (variable-pitch regular 1.5))
+     (header-date . (bold-today grayscale underline-today 1.2))
+     (event . (accented varied))
+     (scheduled . uniform)
+     (habit . nil))
+
+   ;; modus-themes-headings ; this is an alist: read the manual or its doc string
+   ;; '((1 . (variable-pitch light 1.6))
+   ;;   (2 . (variable-pitch regular 1.4))
+   ;;   (3 . (variable-pitch regular 1.3))
+   ;;   (4 . (1.2))
+   ;;   (5 . (1.1))
+   ;;   (t . (monochrome 1.05))))
+
+   modus-themes-headings
+   '((1 . (variable-pitch light 1.6))
+     (2 . (overline semibold 1.4))
+     (3 . (monochrome overline 1.2 background))
+     (4 . (overline 1.1))
+     (t . (rainbow 1.05))))
+
+  ;; Load the theme files before enabling a theme (else you get an error).
+  (modus-themes-load-themes)
+
+  (let ((time (string-to-number (format-time-string "%H"))))
+    (if (and (> time 7) (< time 18))
+        (modus-themes-load-operandi)
+      (modus-themes-load-vivendi))))
+
+;; doom themes
+(use-package doom-themes
+  :defer t
+  :config
+  (setq doom-themes-enable-bold t)
+  (setq doom-themes-enable-italic t)
+  (doom-themes-org-config))
+
+#+end_src
+
+modeline stuff
+#+begin_src emacs-lisp :noweb-ref modeline
+(use-package bui
+;; buffer user inetrface - info and buffer layout
+:defer t)
+
+;; Mode-line
+;;Basic Customisation
+;;(setq display-time-format "%l:%M %p %b %y"
+;;      display-time-default-load-average nil)
+
+;; Change the colour of the modeline based on the Evil state (e.g. green when
+;; in insert state)
+(use-package corgi-stateline
+  :config
+  (global-corgi-stateline-mode))
+
+;; Corgi or Doom Modeline
+(use-package minions
+   ;; lists enable minor-modes)
+
+#+end_src
+
+*** highlights and diff
+:PROPERTIES:
+:ID:                     6d744ef7-add5-408d-8f5f-e7112027ce62
+:END:
+setup diff and highlights
+#+begin_src emacs-lisp :noweb-ref highlights
+  (use-package highlight-numbers
+    :diminish t
+    ;;:hook prog-mode
+     )
+
+  (use-package hl-fill-column
+    :requires hl-fill-column
+    :hook (prog-mode text-mode conf-mode))
+
+  (use-package hl-line
+    :config
+      (global-hl-line-mode 1))
+
+  (use-package hl-todo
+    :config
+     (global-hl-todo-mode 1))
+
+  (use-package diff-hl
+    :after magit
+    :init
+    (add-hook 'dired-mode #'diff-hl-dired-mode)
+    (add-hook 'magit-pre-refesh-hook #'diff-hl-magit-pre-refresh)
+    (add-hook 'magit-post-refesh-hook #'diff-hl-magit-post-refresh)
+    :config
+    (global-diff-hl-mode 1))
+
+#+end_src
+*** Window Setup
+:PROPERTIES:
+:header-args: :noweb-ref windose
+:END:
+
+1st some defaults
+
+#+begin_src emacs-lisp
+  (setup windows
+      (setq display-buffer-alist
+        `(;; no window
+          ("\\`\\*Async Shell Command\\*\\'"
+           (display-buffer-no-window))
+          ;; top side window
+          ("\\*\\(Flymake diagnostics\\|Package-Lint\\).*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 0))
+          ("\\*Messages.*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 1))
+          ("\\*\\(Backtrace\\|Warnings\\|Compile-Log\\|Flymake log\\)\\*"
+           (display-buffer-in-side-window)
+           (window-height . 0.16)
+           (side . top)
+           (slot . 2))
+          ;; left side window
+          ("\\*\\(.* # Help.*\\|Help\\)\\*"    ; See the hooks for `visual-line-mode'
+           (display-buffer-reuse-mode-window display-buffer-in-side-window)
+           (window-width . 0.25)
+           (side . left)
+           (slot . 0))
+          ;; right side window
+          ("\\*keycast\\*"
+           (display-buffer-in-side-window)
+           (dedicated . t)
+           (window-width . 0.25)
+           (side . right)
+           (slot . -1)
+           (window-parameters . ((no-other-window . t)
+                                 (mode-line-format . none))))
+          ;; bottom side window
+          ("\\*Org Select\\*"
+           (display-buffer-in-side-window)
+           (dedicated . t)
+           (side . bottom)
+           (slot . 0)
+           (window-parameters . ((mode-line-format . none))))
+          ;; bottom buffer (NOT side window)
+          ("\\*Embark Actions\\*"
+           (display-buffer-reuse-mode-window display-buffer-at-bottom)
+           (window-height . fit-window-to-buffer)
+           (window-parameters . ((no-other-window . t)
+                                 (mode-line-format . none))))
+          ;; below current window
+          ("\\*.*\\(e?shell\\|v?term\\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected))
+          ("\\*\\vc-\\(incoming\\|outgoing\\|git : \\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected)
+           ;; NOTE 2021-10-06: we cannot `fit-window-to-buffer' because
+           ;; the height is not known in advance.
+           (window-height . 0.2))
+          ("\\*\\(Calendar\\|Bookmark Annotation\\).*"
+           (display-buffer-reuse-mode-window display-buffer-below-selected)
+           (window-height . fit-window-to-buffer))))
+      ;;(setq split-height-threshold nil)
+      ;;(setq split-width-threshold 160)
+      (setq window-divider-default-bottom-width 2)
+      (setq window-divider-default-places t)
+      (setq window-divider-default-right-width 2)
+      (setq window-resize-pixelwise nil)
+      (setq window-combination-resize t)
+  (setq even-window-sizes 'height-only)
+  (setq window-sides-vertical nil)
+  (setq switch-to-buffer-in-dedicated-window 'pop)
+
+  (add-hook 'help-mode-hook #'visual-line-mode)
+  (add-hook 'custom-mode-hook #'visual-line-mode)
+
+  (let ((map global-map))
+    (define-key map (kbd "C-x <down>") #'next-buffer)
+    (define-key map (kbd "C-x <up>") #'previous-buffer)
+    (define-key map (kbd "C-x C-n") #'next-buffer)     ; override `set-goal-column'
+    (define-key map (kbd "C-x C-p") #'previous-buffer) ; override `mark-page'
+    (define-key map (kbd "C-x !") #'delete-other-windows-vertically)
+    (define-key map (kbd "C-x _") #'balance-windows)      ; underscore
+    (define-key map (kbd "C-x -") #'fit-window-to-buffer) ; hyphen
+    (define-key map (kbd "C-x +") #'balance-windows-area)
+    (define-key map (kbd "C-x }") #'enlarge-window)
+    (define-key map (kbd "C-x {") #'shrink-window)
+    (define-key map (kbd "C-x >") #'enlarge-window-horizontally) ; override `scroll-right'
+    (define-key map (kbd "C-x <") #'shrink-window-horizontally)) ; override `scroll-left'
+
+ ;; (let ((map resize-window-repeat-map))
+ ;;   (define-key map ">" #'enlarge-window-horizontally)
+ ;;   (define-key map "<" #'shrink-window-horizontally))
+)
+
+ 
+
+#+end_src
+#+begin_src emacs-lisp
+  ;; (setup (:pkg ace-window)
+  ;;   (setq aw-background t)
+  ;;   (setq aw-scope 'frame)
+  ;;   (ace-window-display-mode 1)
+  ;;   (:hide-mode))
+
+(setup (:pkg windmove)
+    (setq windmove-create-window nil)     ; Emacs 27.1
+  (let ((map global-map))
+    ;; Those override some commands that are already available with
+    ;; C-M-u, C-M-f, C-M-b.
+    (define-key map (kbd "C-M-<up>") #'windmove-up)
+    (define-key map (kbd "C-M-<right>") #'windmove-right)
+    (define-key map (kbd "C-M-<down>") #'windmove-down)
+    (define-key map (kbd "C-M-<left>") #'windmove-left)
+    (define-key map (kbd "C-M-S-<up>") #'windmove-swap-states-up)
+    (define-key map (kbd "C-M-S-<right>") #'windmove-swap-states-right) ; conflicts with `org-increase-number-at-point'
+    (define-key map (kbd "C-M-S-<down>") #'windmove-swap-states-down)
+    (define-key map (kbd "C-M-S-<left>") #'windmove-swap-states-left)))
+
+(setup (:pkg winner)
+  (winner-mode 1))
+  (setq-default window-divider-default-places 'right-only ; only right
+                window-divider-default-bottom-width 2
+                window-divider-default-right-width 2)
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref pkg-uis
+ ;; (window-divider-mode +1)
+#+end_src
+
+*** Splitting windows sensibly
+:PROPERTIES:
+:ID:                     43136dd2-3231-485b-89d9-88c8fe9fd6aa
+:END:
+
+This is extremely fiddly and I'd love another option.
+- [[https://www.emacswiki.org/emacs/ToggleWindowSplit][ToggleWindowSplit, EmacsWiki]]
+
+#+begin_src emacs-lisp :noweb-ref pkg-window
+  (defun window-split-vertically ()
+      "Split window vertically."
+      (interactive)
+      (split-window-right))
+
+    (defun window-split-vertically-and-focus ()
+      "Split window vertically and focus it."
+      (interactive)
+      (split-window-right)
+      (windmove-right))
+
+    (defun window-split-horizontally ()
+      "Split window horizontally."
+      (interactive)
+      (split-window-below))
+
+    (defun window-split-horizontally-and-focus ()
+      "Split window horizontally and focus it."
+      (interactive)
+      (split-window-below)
+      (windmove-down))
+
+    (defun window-zoom ()
+      "Close other windows to focus on this one.
+    Activate again to undo this. If the window changes before then,
+    the undo expires."
+      (interactive)
+      (if (and (one-window-p)
+               (assq ?_ register-alist))
+          (jump-to-register ?_)
+        (window-configuration-to-register ?_)
+        (delete-other-windows)))
+
+  ;;(setq-default split-width-threshold 100
+  ;;                  split-height-threshold 50)
+#+end_src
+*** Distraction Free
+:PROPERTIES:
+:header-args: :noweb-ref distraction-free
+:END:
+setup olivetti to have a distraction free editing mode
+#+begin_src emacs-lisp :noweb-ref distraction-free
+;; Distraction-free screen
+(use-package  olivetti
+  :config
+  (setq olivetti-body-width .67)
+  (defun distraction-free ()
+    "Distraction-free writing environment"
+    (interactive)
+    (if (equal olivetti-mode nil)
+        (progn
+          (window-configuration-to-register 1)
+          (delete-other-windows)
+          (text-scale-increase 2)
+          (olivetti-mode t))
+      (progn
+        (jump-to-register 1)
+        (olivetti-mode 0)
+        (text-scale-decrease 2))))
+  :bind ("<f9>" .  #'distraction-free))
+
+#+end_src
+
+*** Fringes
+:PROPERTIES:
+:ID:                     2d868201-f74e-4308-9326-55ffecb072a3
+:END:
+
+I have grown to love Emacs's little fringes on the side of the
+windows.  In fact, I love them so much that I really went overboard
+and have made a custom fringe bitmap.
+
+**** Indicate empty lines after the end of the buffer
+:PROPERTIES:
+:ID:                     ed5dbc40-17dc-4dc1-afe9-438667404b90
+:END:
+
+#+begin_src emacs-lisp
+  (setq-default indicate-empty-lines t)
+#+end_src
+
+**** Indicate the boundaries of the buffer
+:PROPERTIES:
+:ID:                     18a0a877-886e-4258-9cec-b4c7ade6acb8
+:END:
+
+#+begin_src emacs-lisp
+  (setq-default indicate-buffer-boundaries 'right)
+#+end_src
+
+**** Indicate continuation lines, but only on the left fringe
+:PROPERTIES:
+:ID:                     a9d9c920-70a0-44f8-9a35-e8dbab82ee02
+:END:
+
+#+begin_src emacs-lisp
+  (setq-default visual-line-fringe-indicators '(left-curly-arrow nil))
+#+end_src
+
+**** Customise fringe bitmaps
+:PROPERTIES:
+:ID:                     809ba958-cf27-4d36-91a1-cee523bb164c
+:END:
+
+***** Curly arrows (continuation lines)
+:PROPERTIES:
+:ID:                     a6b18024-eff2-4daa-bff3-37a9b190c6a8
+:END:
+
+#+begin_src emacs-lisp
+  (define-fringe-bitmap 'left-curly-arrow
+    [#b11000000
+     #b01100000
+     #b00110000
+     #b00011000])
+
+  (define-fringe-bitmap 'right-curly-arrow
+    [#b00011000
+     #b00110000
+     #b01100000
+     #b11000000])
+#+end_src
+
+***** Arrows (truncation lines)
+:PROPERTIES:
+:ID:                     34b749d5-dc05-4f04-ad4a-6477dd225bc6
+:END:
+
+#+begin_src emacs-lisp
+  (define-fringe-bitmap 'left-arrow
+    [#b00000000
+     #b01010100
+     #b01010100
+     #b00000000])
+
+  (define-fringe-bitmap 'right-arrow
+    [#b00000000
+     #b00101010
+     #b00101010
+     #b00000000])
+#+end_src
+*** Tangle Emacs UI Appearance
+:PROPERTIES:
+:header-args: :tangle lisp/init-ui.el :noweb yes
+:END:
+
+Tangle My UI
+
+#+begin_src emacs-lisp
+;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
+
+<<appearance>>
+
+<<mouse>>
+
+<<fonts>>
+
+<<modus>>
+
+<<modeline>>
+
+<<highlights>>
+
+<<distraction-free>>
+
+(provide 'init-ui)
+;;; init-ui.el ends here
+#+end_src
 * Emacs as an Editor
 :PROPERTIES:
 :header-args: :noweb-ref pkg-editor
@@ -2531,911 +3491,6 @@ Setup Editor functions
 
 (provide 'init-editor)
 ;;; init-editor.el ends here
-#+end_src
-** Emacs UI Appearance
-*** Default Appearance setting
-Some Defaults for my preferred appearance
-#+begin_src emacs-lisp :noweb-ref appearance
-  (use-package emacs
-    :straight nil
-    ;; :preface
-    ;; (defgroup gas-ui ()
-    ;;   "Customisation group for local settings."
-    ;;   :prefix "gas-ui-"
-    ;;   :group 'emacs)
-    ;; (defcustom gas-ui-title-show-bufname t
-    ;;   "Whether to include bufname in the title bar.
-    ;; Bufname is not necessary on GNOME but may be useful in other DEs."
-    ;;   :type 'boolean
-    ;;   :tag "Title bufname"
-    ;;   :group 'gas-ui)
-    ;; (defcustom gas-ui-dark-theme 'modus-vivendi
-    ;;   "Dark theme to use."
-    ;;   :tag "Dark theme"
-    ;;   :type 'symbol
-    ;;   :group 'gas-ui)
-    ;; (defcustom gas-ui-light-theme 'modus-operandi
-    ;;   "Light theme to use."
-    ;;   :tag "Light theme"
-    ;;   :type 'symbol
-    ;;   :group 'gas-ui)
-    ;; (defvar gas-ui-line-pixel-height (line-pixel-height)
-    ;;   "Line height in pixels.
-    ;; Used in various places to avoid getting wrong line height when
-    ;; `text-scale-mode' is active.")
-    ;; (provide 'gas-ui)
-    :hook (prog-mode text-mode conf-mode)
-    :init
-     (add-hook 'prog-mode-hook #'display-line-numbers-mode )
-     (add-hook 'text-mode-hook #'visual-line-mode )
-    :config
-    (setq-default
-     inhibit-startup-message t
-     inhibit-startup-screen t
-     inhibit-startup-echo-area-message user-login-name
-     inhibit-default-init t
-     initial-major-mode 'fundamental-mode
-     initial-scratch-message nil
-     use-file-dialog nil
-     use-dialog-box nil)
-
-    (setq display-time-default-load-average nil)
-    (setq echo-keystrokes 0.1)
-    (setq highlight-nonselected-windows nil)
-    (setq visible-bell nil)
-    (setq x-gtk-use-system-tooltips nil)
-    (setq x-stretch-cursor nil)
-
-    ;; update
-    (setq idle-update-delay 1.0)
-
-    ;; disable cursor blinking
-    (blink-cursor-mode -1)
-    (setq blink-matching-paren nil)
-    ;; hide cursors in other windose
-    (setq-default cursor-in-non-selected-windows nil)
-    (setq-default cursor-type 'hbar)
-
-    ;; play around with frame title (which I rarely see)
-    (setq frame-title-format
-      '("%b@"
-        (:eval (or (file-remote-p default-directory 'host)
-               system-name))
-        " — Emacs"))
-
-    ;; y/n instead of yes/no
-    (fset #'yes-or-no-p #'y-or-n-p)
-
-    ;; mode line
-    (column-number-mode)
-    (size-indication-mode)
-    ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
-    (setq-default mode-line-format nil)
-
-    ;; line numbers
-    (setq-default display-line-numbers-widen t)
-    (setq-default display-line-numbers-width 3)
-
-    (setq-default
-     ;; no beeping and no blinking please
-     ring-bell-function #'ignore
-     visible-bell nil
-
-     ;; make sure that trash is not drawn
-     indicate-buffer-boundaries nil
-     indicate-empty-lines nil
-
-     ;; don't resize emacs in steps, it looks weird and plays bad with
-     ;; window manager.
-     window-resize-pixelwise t
-     frame-resize-pixelwise t
-
-     ;; disable bidirectional text for tiny performance boost
-     bidi-display-reordering 'left-to-right
-     bidi-paragraph-direction 'left-to-right
-
-     ;; truncate lines
-     ;;truncate-lines t
-     ))
-
-  
-
-  (use-package form-feed
-  :config (global-form-feed-mode))
-
-  
-
-#+end_src
-*** Menu bar & fringe on
-#+begin_src elisp  :tangle no
-(menu-bar-mode -1)            ; Disable the menu bar
-(unless IS_TERMUX?
-  (set-fringe-mode 10)        ; Give some breathing room
-  (menu-bar-mode 1))          ; I like menu whilst learning
-
-
-
-#+end_src
-*** Fonts, Emojis & Icons
-
-On Linux, I have a custom build of Iosevka that I like.
-
-#+begin_src emacs-lisp :noweb-ref fonts
-    (use-package all-the-icons
-      :if (display-graphic-p)
-      :after (marginalia dired)
-      :init
-      (add-hook 'marginalia-mode #'all-the-icons-completion-marginalia-setup)
-      (add-hook 'dired-mode #'all-the-icons-dired-mode)
-      :config
-      (use-package all-the-icons-dired)
-      (use-package all-the-icons-completion)
-    :config
-    (all-the-icons-completion-mode 1))
-
-    (use-package emojify
-      :config
-      (setq emojify-emoji-styles '(unicode))
-      (global-emojify-mode 1))
-
-    (use-package unicode-fonts
-      :config
-      (unicode-fonts-setup))
-
-   ;; (use-package mixed-pitch
-   ;;   :config
-   ;;   :hook (text-mode org-mode))
-
-    ;;; Font configurations (prot-fonts.el)
-    (use-package prot-fonts
-      :straight nil
-      :load-path *gas-lisp/*
-      :config
-      ;; This is defined in Emacs C code: it belongs to font settings.
-      (setq x-underline-at-descent-line t)
-
-      ;; And this is for Emacs28.
-      ;;(setq-default text-scale-remap-header-line t)
-
-      ;; Make sure to read the `prot-fonts-typeface-sets-alist' doc string,
-      ;; as it explains what those property lists should contain.
-      ;;
-      ;; The version of "Hack" that I custom is a custom build on mine:
-      ;; <https://gitlab.com/protesilaos/hack-font-mod>.  Same principle for
-      ;; Iosevka Comfy: <https://gitlab.com/protesilaos/iosevka-comfy>.
-      (setq prot-fonts-typeface-sets-alist
-        '((small . ( :fixed-pitch-family "JetBrains Mono"
-             :fixed-pitch-regular-weight regular
-             :fixed-pitch-heavy-weight bold
-             :fixed-pitch-height 75
-             :fixed-pitch-line-spacing 1
-             :variable-pitch-family "Iosevka Aile"
-             :variable-pitch-height 1.05
-             :variable-pitch-regular-weight normal))
-
-          (small-alt . ( :fixed-pitch-family "JetBrains Mono"
-                 :fixed-pitch-regular-weight regular
-                 :fixed-pitch-heavy-weight extrabold
-                 :fixed-pitch-height 80
-                 :fixed-pitch-line-spacing 1
-                 :variable-pitch-family "Iosevka Aile"
-                 :variable-pitch-height 1.0
-                 :variable-pitch-regular-weight normal))
-
-          (regular . ( :fixed-pitch-family "JetBrains Mono"
-               :fixed-pitch-regular-weight regular
-               :fixed-pitch-heavy-weight extrabold
-               :fixed-pitch-height 100
-               :fixed-pitch-line-spacing nil
-               :variable-pitch-family "Ubuntu"
-               :variable-pitch-height 1.0
-               :variable-pitch-regular-weight normal))
-
-          (large . ( :fixed-pitch-family "JetBrains Mono"
-             :fixed-pitch-regular-weight semilight
-             :fixed-pitch-heavy-weight bold
-             :fixed-pitch-height 135
-             :fixed-pitch-line-spacing nil
-             :variable-pitch-family "Iosevka Aile"
-             :variable-pitch-height 1.0
-             :variable-pitch-regular-weight normal))
-
-          (large-alt . ( :fixed-pitch-family "JetBrains Mono"
-                 :fixed-pitch-regular-weight normal
-                 :fixed-pitch-heavy-weight bold
-                 :fixed-pitch-height fixed
-                 :130-pitch-line-spacing nil
-                 :variable-pitch-family "FiraGO"
-                 :variable-pitch-height 1.05
-                 :variable-pitch-regular-weight normal))))
-
-    ;; TODO 2021-08-27: I no longer have a laptop.  Those configurations
-    ;; are not relevant, but I keep them around as the idea is still good.
-
-    ;; The value of `prot-fonts--laptop-desktop-keys-list' becomes '(small
-    ;; regular) based on the car of the first two cons cells found in
-    ;; `prot-fonts-typeface-sets-alist'.  The assumption is that those
-    ;; contain sets from smaller to larger display types.
-    (setq prot-fonts--laptop-desktop-keys-list
-      (prot-fonts--laptop-desktop-keys))
-
-      ;; This is the breakpoint, in pixels, for determining whether we are
-      ;; on the small or large screen layout.  The number here is my
-      ;; laptop's screen width, while it expands beyond that when I connect
-      ;; it to an external monitor (how I normally set it up on my desk).
-      (setq prot-fonts-max-small-resolution-width 1366)
-
-      ;; And this just sets the right font depending on whether my laptop is
-      ;; connected to an external monitor or not.
-      (prot-fonts-fonts-per-monitor)
-
-      ;; See theme section for this hook and also read the doc string of
-      ;; `prot-fonts-restore-last'.
-      :init
-      (add-hook 'modus-themes-after-load-theme-hook #'prot-fonts-restore-last)
-       :bind
-    (( "C-c f"  . prot-fonts-set-fonts)
-     ( "C-c F"  . prot-fonts-set-default-font)))
-
-    ;; Required for proportional font in posframe
-    (use-package company-posframe
-      :diminish t
-      :config
-      (company-posframe-mode 1))
-
-    (use-package default-text-scale
-      :bind (( "M--" . default-text-scale-decrease)
-         ( "M-+" . default-text-scale-increase)
-         ( "M-=" . default-text-scale-reset))
-      :config
-      (setq default-text-scale-mode 1))
-
-    ;; Dimm the colours of inactive windows
-    (use-package dimmer
-      :config
-      (setq dimmer-fraction 0.3)
-      (setq dimmer-adjustment-mode :foreground)
-      (setq dimmer-use-colorsapce :rgb)
-      (dimmer-mode 1))
-
-    ;; Install it from sources, because ELPA version has invalid
-    ;; signature.
-    (use-package spinner
-      :straight '( spinner
-           :type git
-           :host github
-           :repo "Malabarba/spinner.el"))
-#+end_src
-
-*** Mouse & scrolling setup and initial framesize
-
-#+begin_src emacs-lisp :noweb-ref mouse
-
-(unless IS_TERMUX?
-  (setup mouse
-     (setq focus-follows-mouse t)
-     (setq make-pointer-invisible t)
-     (setq mouse-1-click-follows-link t)
-     (setq mouse-autoselect-window t)
-     (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-     (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-     ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-     (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-     (setq mouse-wheel-scroll-amount-horizontal 2)
-     (setq mouse-yank-at-point t)
-     (setq scroll-step 1) ;; keyboard scroll one line at a time
-     (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
-
-
-(unless IS_TERMUX?
-  (setup scrolling
-     (setq auto-hscroll-mode 'current-line)
-     (setq auto-window-vscroll nil)
-     (setq fast-but-imprecise-scrolling t)
-     (setq hscroll-margin 16)
-     (setq hscroll-step 1)
-     (setq scroll-conservatively 101)
-     (setq scroll-margin 8)
-     (setq scroll-preserve-screen-position t)
-     (setq scroll-step 1)))
-
-(unless IS_TERMUX?
-  (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-  (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-  (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-  (add-to-list 'default-frame-alist '(fullscreen . maximized)))
-
-
-
-#+end_src
-
-*** Themes & Modeline
-Load up some themes
- #+begin_src emacs-lisp :noweb-ref doom-themes
-(use-package doom-themes
-  :defer t
-  :config
-  (setq doom-themes-enable-bold t)
-  (setq doom-themes-enable-italic t)
-  (doom-themes-org-config))
-
-;;(unless IS_TERMUX?
-  ;; (modus-themes-load-vivendi)
-  ;;(load-theme 'doom-one-light t)
- ;; (doom-themes-visual-bell-config))
-#+end_src
-
-#+begin_src emacs-lisp :noweb-ref sanityinc
-;; We like this theme because it looks nice and works well enough in terminals,
-;; swap it out with whatever suits you.
-(use-package color-theme-sanityinc-tomorrow
-  :config
-  (load-theme 'sanityinc-tomorrow-bright t))
-
-#+end_src
-
-#+begin_src emacs-lisp :noweb-ref modus
-;;; Modus themes (Prositelaus highly accessible themes)
-(use-package modus-themes
-  ;; Add all your customisations prior to loading the themes
-  ;;
-  :requires highlight-parentheses
-  ;; Also check my package configurations for `prot-fonts' because I use
-  ;; the `modus-themes-after-load-theme-hook' for some typeface-related
-  ;; tweaks (as those are made at the "face" level).
-  :bind ( "<f5>" .  #'modus-themes-toggle)
-  :config
-  (setq modus-themes-italic-constructs t
-    modus-themes-bold-constructs t
-    modus-themes-mixed-fonts nil
-    modus-themes-subtle-line-numbers nil
-    modus-themes-intense-mouseovers nil
-    modus-themes-deuteranopia t
-    modus-themes-tabs-accented nil
-    modus-themes-variable-pitch-ui t
-    modus-themes-inhibit-reload t ; only applies to `customize-set-variable' and related
-
-    modus-themes-fringes nil ; {nil,'subtle,'intense}
-
-    ;; Options for `modus-themes-lang-checkers' are either nil (the
-    ;; default), or a list of properties that may include any of those
-    ;; symbols: `straight-underline', `text-also', `background',
-    ;; `intense' OR `faint'.
-    modus-themes-lang-checkers nil
-
-    ;; Options for `modus-themes-mode-line' are either nil, or a list
-    ;; that can combine any of `3d' OR `moody', `borderless',
-    ;; `accented', a natural number for extra padding (or a cons cell
-    ;; of padding and NATNUM), and a floating point for the height of
-    ;; the text relative to the base font size (or a cons cell of
-    ;; height and FLOAT)
-    modus-themes-mode-line '(borderless accented (padding . 4) (height . 0.9))
-
-    ;; Options for `modus-themes-markup' are either nil, or a list
-    ;; that can combine any of `bold', `italic', `background',
-    ;; `intense'.
-    modus-themes-markup nil
-
-    ;; Options for `modus-themes-syntax' are either nil (the default),
-    ;; or a list of properties that may include any of those symbols:
-    ;; `faint', `yellow-comments', `green-strings', `alt-syntax'
-    modus-themes-syntax nil
-
-    ;; Options for `modus-themes-hl-line' are either nil (the default),
-    ;; or a list of properties that may include any of those symbols:
-    ;; `accented', `underline', `intense'
-    modus-themes-hl-line '(intense)
-
-    ;; Options for `modus-themes-paren-match' are either nil (the
-    ;; default), or a list of properties that may include any of those
-    ;; symbols: `bold', `intense', `underline'
-    modus-themes-paren-match '(intense)
-
-    ;; Options for `modus-themes-links' are either nil (the default),
-    ;; or a list of properties that may include any of those symbols:
-    ;; `neutral-underline' OR `no-underline', `faint' OR `no-color',
-    ;; `bold', `italic', `background'
-    modus-themes-links nil
-
-    ;; Options for `modus-themes-box-buttons' are either nil (the
-    ;; default), or a list that can combine any of `flat',
-    ;; `accented', `faint', `variable-pitch', `underline', the
-    ;; symbol of any font weight as listed in
-    ;; `modus-themes-weights', and a floating point number
-    ;; (e.g. 0.9) for the height of the button's text.
-    modus-themes-box-buttons '(variable-pitch flat faint 0.9)
-
-    ;; Options for `modus-themes-prompts' are either nil (the
-    ;; default), or a list of properties that may include any of those
-    ;; symbols: `background', `bold', `gray', `intense', `italic'
-    modus-themes-prompts '(background subtle)
-
-    ;; The `modus-themes-completions' is an alist that reads three
-    ;; keys: `matches', `selection', `popup'.  Each accepts a nil
-    ;; value (or empty list) or a list of properties that can include
-    ;; any of the following (for WEIGHT read further below):
-    ;;
-    ;; `matches' - `background', `intense', `underline', `italic', WEIGHT
-    ;; `selection' - `accented', `intense', `underline', `italic', `text-also', WEIGHT
-    ;; `popup' - same as `selected'
-    ;; `t' - applies to any key not explicitly referenced (check docs)
-    ;;
-    ;; WEIGHT is a symbol such as `semibold', `light', or anything
-    ;; covered in `modus-themes-weights'.  Bold is used in the absence
-    ;; of an explicit WEIGHT.
-    modus-themes-completions
-    '((matches . (extrabold background))
-      (selection . (semibold intense accented text-also))
-      (popup . (accented intense)))
-
-    modus-themes-mail-citations nil ; {nil,'intense,'faint,'monochrome}
-
-    ;; Options for `modus-themes-region' are either nil (the default),
-    ;; or a list of properties that may include any of those symbols:
-    ;; `no-extend', `bg-only', `accented'
-    modus-themes-region '(no-extend bg-only)
-
-    ;; Options for `modus-themes-diffs': nil, 'desaturated, 'bg-only
-    modus-themes-diffs 'desaturated
-
-    modus-themes-org-blocks nil ; {nil,'gray-background,'tinted-background}
-
-    modus-themes-org-agenda ; this is an alist: read the manual or its doc string
-    '((header-block . (variable-pitch regular 1.4))
-      (header-date . (bold-today grayscale underline-today 1.2))
-      (event . (accented varied))
-      (scheduled . uniform)
-      (habit . nil))
-
-    modus-themes-headings ; this is an alist: read the manual or its doc string
-    '((1 . (variable-pitch light 1.6))
-      (2 . (variable-pitch regular 1.4))
-      (3 . (variable-pitch regular 1.3))
-      (4 . (1.2))
-      (5 . (1.1))
-      (t . (monochrome 1.05)))
-    )
-
-  ;; Load the theme files before enabling a theme (else you get an error).
-  (modus-themes-load-themes)
-
-  ;; (defun prot/modus-themes-custom-faces ()
-  ;;   (modus-themes-with-colors
-  ;;    (custom-set-faces
-  ;;     `(cursor ((,class :background ,magenta-intense)))
-  ;;     `(fill-column-indicator ((,class :background ,bg-inactive
-  ;;                                      :foreground ,bg-inactive))))))
-
-  ;; (add-hook 'modus-themes-after-load-theme-hook #'prot/modus-themes-custom-faces)
-
-  ;; Enable the theme at startup.  This is done after loading the files.
-  ;; You only need `modus-themes-load-operandi' for the light theme or
-  ;; `modus-themes-load-vivendi' for the dark one.  What I have here is
-  ;; a simple test to load a light/dark theme based on some general time
-  ;; ranges (just accounting for the hour and without checking for the
-  ;; actual sunrise/sunset times).  Plus we have `modus-themes-toggle'
-  ;; to switch themes at will.
-  (let ((time (string-to-number (format-time-string "%H"))))
-    (if (and (> time 7) (< time 18))
-    (modus-themes-load-operandi)
-      (modus-themes-load-vivendi))))
-
-(use-package highlight-parentheses
-  ;;:requires  highlight-parentheses
-  ;; :straight (:type built-in)
-  :config
-  (defvar my-highlight-parentheses-use-background t
-    "Prefer `highlight-parentheses-background-colors'.")
-
-  ;;(setq my-highlight-parentheses-use-background nil) ; Set to nil to disable backgrounds
-
-  (defun my-modus-themes-highlight-parentheses ()
-    (modus-themes-with-colors
-     ;; Our preference for setting either background or foreground
-     ;; styles, depending on `my-highlight-parentheses-use-background'.
-     (if my-highlight-parentheses-use-background
-
-     ;; Here we set color combinations that involve both a background
-     ;; and a foreground value.
-     (setq highlight-parentheses-background-colors
-           (list cyan-refine-bg
-             magenta-refine-bg
-             green-refine-bg
-             yellow-refine-bg)
-           highlight-parentheses-colors (list cyan-refine-fg
-                          magenta-refine-fg
-                          green-refine-fg
-                          yellow-refine-fg))
-
-       ;; And here we pass only foreground colors while disabling any
-       ;; backgrounds.
-       (setq highlight-parentheses-colors (list green-intense
-                        magenta-intense
-                        blue-intense
-                        red-intense)
-         highlight-parentheses-background-colors nil)))
-
-    ;; Include this if you also want to make the parentheses bold:
-    (set-face-attribute 'highlight-parentheses-highlight nil :inherit 'bold)
-
-    ;; Our changes must be evaluated before enabling the relevant mode, so
-    ;; this comes last.
-    (global-highlight-parentheses-mode 1))
-  :init
-  (add-hook 'modus-themes-after-load-theme-hook #'my-modus-themes-highlight-parentheses)
-  (add-hook 'minibuffer-setup-hook #'highlight-parentheses-minibuffer-setup))
-#+end_src
-
-modeline stuff
-#+begin_src emacs-lisp :noweb-ref modeline
-(use-package bui
-  :defer t)
-
-;; Mode-line
-;;Basic Customisation
-;;(setq display-time-format "%l:%M %p %b %y"
-;;      display-time-default-load-average nil)
-
-;; Change the colour of the modeline based on the Evil state (e.g. green when
-;; in insert state)
-(use-package corgi-stateline
-  :config
-  (global-corgi-stateline-mode))
-
-;; Corgi or Doom Modeline
-;;(use-package minions
-;;  :hook global-corgi-stateline-mode)
-
-;; (use-package doom-modeline
-;;   :init
-;;   ;;(add-hook 'window-setup-hook #'(face-remap-add-relative  'mode-line nil :family "Iosevka Slab" :height 140))
-;;   ;;(add-hook 'doom-modeline-mode #'(face-remap-add-relative  'mode-line nil :family "Iosevka Slab" :height 130))
-;;   :custom-face
-;;   (mode-line ((t (:height 0.85))))
-;;   (mode-line-inactive ((t (:height 0.85))))
-;;   :config
-;;   ;; (setq doom-modeline-bar-width 4)
-;;   (setq doom-modeline-buffer-encoding nil)
-;;   (setq doom-modeline-buffer-file-name-style 'relative-from-project)
-;;   (setq doom-modeline-height 30)
-;;   (setq doom-modeline-major-mode-icon t)
-;;   (setq doom-modeline-minor-modes t)
-;;   ;;(:with-hook window-setup-hook
-;;   ;;  (:hook (fn (set-face-attribute
-;;   ;;           'mode-line nil :family "Iosevka Slab" :height 130))))
-;;   ;;(:hook-into window-setup)
-;;   (setq doom-modeline-height 15
-;;      doom-modeline-bar-width 6
-;;      doom-modeline-lsp t
-;;      doom-modeline-github nil
-;;      doom-modeline-mu4e nil
-;;      doom-modeline-irc t
-;;      doom-modeline-minor-modes t
-;;      doom-modeline-persp-name nil
-;;      doom-modeline-buffer-file-name-style 'truncate-except-project
-;;      doom-modeline-major-mode-icon nil))
-
-#+end_src
-
-*** highlights and diff
-:PROPERTIES:
-:ID:                     6d744ef7-add5-408d-8f5f-e7112027ce62
-:END:
-setup diff and highlights
-#+begin_src emacs-lisp :noweb-ref highlights
-  (use-package highlight-numbers
-    :diminish t
-    ;;:hook prog-mode
-     )
-
-  (use-package hl-fill-column
-    :requires hl-fill-column
-    :hook (prog-mode text-mode conf-mode))
-
-  (use-package hl-line
-    :config
-      (global-hl-line-mode 1))
-
-  (use-package hl-todo
-    :config
-     (global-hl-todo-mode 1))
-
-  (use-package diff-hl
-    :after magit
-    :init
-    (add-hook 'dired-mode #'diff-hl-dired-mode)
-    (add-hook 'magit-pre-refesh-hook #'diff-hl-magit-pre-refresh)
-    (add-hook 'magit-post-refesh-hook #'diff-hl-magit-post-refresh)
-    :config
-    (global-diff-hl-mode 1))
-
-#+end_src
-*** Window Setup
-:PROPERTIES:
-:header-args: :noweb-ref windose
-:END:
-
-1st some defaults
-
-#+begin_src emacs-lisp
-  (setup windows
-      (setq display-buffer-alist
-        `(;; no window
-          ("\\`\\*Async Shell Command\\*\\'"
-           (display-buffer-no-window))
-          ;; top side window
-          ("\\*\\(Flymake diagnostics\\|Package-Lint\\).*"
-           (display-buffer-in-side-window)
-           (window-height . 0.16)
-           (side . top)
-           (slot . 0))
-          ("\\*Messages.*"
-           (display-buffer-in-side-window)
-           (window-height . 0.16)
-           (side . top)
-           (slot . 1))
-          ("\\*\\(Backtrace\\|Warnings\\|Compile-Log\\|Flymake log\\)\\*"
-           (display-buffer-in-side-window)
-           (window-height . 0.16)
-           (side . top)
-           (slot . 2))
-          ;; left side window
-          ("\\*\\(.* # Help.*\\|Help\\)\\*"    ; See the hooks for `visual-line-mode'
-           (display-buffer-reuse-mode-window display-buffer-in-side-window)
-           (window-width . 0.25)
-           (side . left)
-           (slot . 0))
-          ;; right side window
-          ("\\*keycast\\*"
-           (display-buffer-in-side-window)
-           (dedicated . t)
-           (window-width . 0.25)
-           (side . right)
-           (slot . -1)
-           (window-parameters . ((no-other-window . t)
-                                 (mode-line-format . none))))
-          ;; bottom side window
-          ("\\*Org Select\\*"
-           (display-buffer-in-side-window)
-           (dedicated . t)
-           (side . bottom)
-           (slot . 0)
-           (window-parameters . ((mode-line-format . none))))
-          ;; bottom buffer (NOT side window)
-          ("\\*Embark Actions\\*"
-           (display-buffer-reuse-mode-window display-buffer-at-bottom)
-           (window-height . fit-window-to-buffer)
-           (window-parameters . ((no-other-window . t)
-                                 (mode-line-format . none))))
-          ;; below current window
-          ("\\*.*\\(e?shell\\|v?term\\).*"
-           (display-buffer-reuse-mode-window display-buffer-below-selected))
-          ("\\*\\vc-\\(incoming\\|outgoing\\|git : \\).*"
-           (display-buffer-reuse-mode-window display-buffer-below-selected)
-           ;; NOTE 2021-10-06: we cannot `fit-window-to-buffer' because
-           ;; the height is not known in advance.
-           (window-height . 0.2))
-          ("\\*\\(Calendar\\|Bookmark Annotation\\).*"
-           (display-buffer-reuse-mode-window display-buffer-below-selected)
-           (window-height . fit-window-to-buffer))))
-      ;;(setq split-height-threshold nil)
-      ;;(setq split-width-threshold 160)
-      (setq window-divider-default-bottom-width 2)
-      (setq window-divider-default-places t)
-      (setq window-divider-default-right-width 2)
-      (setq window-resize-pixelwise nil)
-      (setq window-combination-resize t)
-  (setq even-window-sizes 'height-only)
-  (setq window-sides-vertical nil)
-  (setq switch-to-buffer-in-dedicated-window 'pop)
-
-  (add-hook 'help-mode-hook #'visual-line-mode)
-  (add-hook 'custom-mode-hook #'visual-line-mode)
-
-  (let ((map global-map))
-    (define-key map (kbd "C-x <down>") #'next-buffer)
-    (define-key map (kbd "C-x <up>") #'previous-buffer)
-    (define-key map (kbd "C-x C-n") #'next-buffer)     ; override `set-goal-column'
-    (define-key map (kbd "C-x C-p") #'previous-buffer) ; override `mark-page'
-    (define-key map (kbd "C-x !") #'delete-other-windows-vertically)
-    (define-key map (kbd "C-x _") #'balance-windows)      ; underscore
-    (define-key map (kbd "C-x -") #'fit-window-to-buffer) ; hyphen
-    (define-key map (kbd "C-x +") #'balance-windows-area)
-    (define-key map (kbd "C-x }") #'enlarge-window)
-    (define-key map (kbd "C-x {") #'shrink-window)
-    (define-key map (kbd "C-x >") #'enlarge-window-horizontally) ; override `scroll-right'
-    (define-key map (kbd "C-x <") #'shrink-window-horizontally)) ; override `scroll-left'
-
- ;; (let ((map resize-window-repeat-map))
- ;;   (define-key map ">" #'enlarge-window-horizontally)
- ;;   (define-key map "<" #'shrink-window-horizontally))
-)
-
- 
-
-#+end_src
-#+begin_src emacs-lisp
-  ;; (setup (:pkg ace-window)
-  ;;   (setq aw-background t)
-  ;;   (setq aw-scope 'frame)
-  ;;   (ace-window-display-mode 1)
-  ;;   (:hide-mode))
-
-(setup (:pkg windmove)
-    (setq windmove-create-window nil)     ; Emacs 27.1
-  (let ((map global-map))
-    ;; Those override some commands that are already available with
-    ;; C-M-u, C-M-f, C-M-b.
-    (define-key map (kbd "C-M-<up>") #'windmove-up)
-    (define-key map (kbd "C-M-<right>") #'windmove-right)
-    (define-key map (kbd "C-M-<down>") #'windmove-down)
-    (define-key map (kbd "C-M-<left>") #'windmove-left)
-    (define-key map (kbd "C-M-S-<up>") #'windmove-swap-states-up)
-    (define-key map (kbd "C-M-S-<right>") #'windmove-swap-states-right) ; conflicts with `org-increase-number-at-point'
-    (define-key map (kbd "C-M-S-<down>") #'windmove-swap-states-down)
-    (define-key map (kbd "C-M-S-<left>") #'windmove-swap-states-left)))
-
-(setup (:pkg winner)
-  (winner-mode 1))
-  (setq-default window-divider-default-places 'right-only ; only right
-                window-divider-default-bottom-width 2
-                window-divider-default-right-width 2)
-#+end_src
-
-#+begin_src emacs-lisp :noweb-ref pkg-uis
- ;; (window-divider-mode +1)
-#+end_src
-
-*** Splitting windows sensibly
-:PROPERTIES:
-:ID:                     43136dd2-3231-485b-89d9-88c8fe9fd6aa
-:END:
-
-This is extremely fiddly and I'd love another option.
-- [[https://www.emacswiki.org/emacs/ToggleWindowSplit][ToggleWindowSplit, EmacsWiki]]
-
-#+begin_src emacs-lisp :noweb-ref pkg-window
-  (defun window-split-vertically ()
-      "Split window vertically."
-      (interactive)
-      (split-window-right))
-
-    (defun window-split-vertically-and-focus ()
-      "Split window vertically and focus it."
-      (interactive)
-      (split-window-right)
-      (windmove-right))
-
-    (defun window-split-horizontally ()
-      "Split window horizontally."
-      (interactive)
-      (split-window-below))
-
-    (defun window-split-horizontally-and-focus ()
-      "Split window horizontally and focus it."
-      (interactive)
-      (split-window-below)
-      (windmove-down))
-
-    (defun window-zoom ()
-      "Close other windows to focus on this one.
-    Activate again to undo this. If the window changes before then,
-    the undo expires."
-      (interactive)
-      (if (and (one-window-p)
-               (assq ?_ register-alist))
-          (jump-to-register ?_)
-        (window-configuration-to-register ?_)
-        (delete-other-windows)))
-
-  ;;(setq-default split-width-threshold 100
-  ;;                  split-height-threshold 50)
-#+end_src
-*** Fringes
-:PROPERTIES:
-:ID:                     2d868201-f74e-4308-9326-55ffecb072a3
-:END:
-
-I have grown to love Emacs's little fringes on the side of the
-windows.  In fact, I love them so much that I really went overboard
-and have made a custom fringe bitmap.
-
-**** Indicate empty lines after the end of the buffer
-:PROPERTIES:
-:ID:                     ed5dbc40-17dc-4dc1-afe9-438667404b90
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default indicate-empty-lines t)
-#+end_src
-
-**** Indicate the boundaries of the buffer
-:PROPERTIES:
-:ID:                     18a0a877-886e-4258-9cec-b4c7ade6acb8
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default indicate-buffer-boundaries 'right)
-#+end_src
-
-**** Indicate continuation lines, but only on the left fringe
-:PROPERTIES:
-:ID:                     a9d9c920-70a0-44f8-9a35-e8dbab82ee02
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default visual-line-fringe-indicators '(left-curly-arrow nil))
-#+end_src
-
-**** Customise fringe bitmaps
-:PROPERTIES:
-:ID:                     809ba958-cf27-4d36-91a1-cee523bb164c
-:END:
-
-***** Curly arrows (continuation lines)
-:PROPERTIES:
-:ID:                     a6b18024-eff2-4daa-bff3-37a9b190c6a8
-:END:
-
-#+begin_src emacs-lisp
-  (define-fringe-bitmap 'left-curly-arrow
-    [#b11000000
-     #b01100000
-     #b00110000
-     #b00011000])
-
-  (define-fringe-bitmap 'right-curly-arrow
-    [#b00011000
-     #b00110000
-     #b01100000
-     #b11000000])
-#+end_src
-
-***** Arrows (truncation lines)
-:PROPERTIES:
-:ID:                     34b749d5-dc05-4f04-ad4a-6477dd225bc6
-:END:
-
-#+begin_src emacs-lisp
-  (define-fringe-bitmap 'left-arrow
-    [#b00000000
-     #b01010100
-     #b01010100
-     #b00000000])
-
-  (define-fringe-bitmap 'right-arrow
-    [#b00000000
-     #b00101010
-     #b00101010
-     #b00000000])
-#+end_src
-*** Tangle Emacs UI Appearance
-:PROPERTIES:
-:header-args: :tangle lisp/init-ui.el :noweb yes
-:END:
-
-Tangle My UI
-
-#+begin_src emacs-lisp
-;;; init-ui.el --- UI Setup -*- lexical-binding: t -*-
-<<disclaimer>>
-;;; Code:
-
-<<appearance>>
-
-<<fonts>>
-
-;;<<modus>>
-<<sanityinc>>
-
-<<modeline>>
-
-<<highlights>>
-
-<<distraction-free>>
-
-(provide 'init-ui)
-;;; init-ui.el ends here
 #+end_src
 ** Project Setup
 :PROPERTIES:
@@ -5622,33 +5677,6 @@ appropriate for it. This is used for testing."
 
 #+end_src
 
-* Distraction Free
-:PROPERTIES:
-:header-args: :noweb-ref distraction-free
-:END:
-setup olivetti to have a distraction free editing mode
-#+begin_src emacs-lisp :noweb-ref distraction-free
-;; Distraction-free screen
-(use-package  olivetti
-  :config
-  (setq olivetti-body-width .67)
-  (defun distraction-free ()
-    "Distraction-free writing environment"
-    (interactive)
-    (if (equal olivetti-mode nil)
-        (progn
-          (window-configuration-to-register 1)
-          (delete-other-windows)
-          (text-scale-increase 2)
-          (olivetti-mode t))
-      (progn
-        (jump-to-register 1)
-        (olivetti-mode 0)
-        (text-scale-decrease 2))))
-  :bind ("<f9>" .  #'distraction-free))
-
-#+end_src
-
 * Coding Settings
 
 I mostly use Clojure and Clojurescript, so they're setup inheriting from LISP setup
@@ -5926,6 +5954,7 @@ Setup smartparens and rainbow delimiters
 
 (use-package flycheck
   :defer 1
+  :disabled t
   :custom
   (flycheck-indication-mode 'right-fringe)
   (flycheck-display-errors-delay 86400 "86400 seconds is 1 day")
@@ -6013,6 +6042,7 @@ Setup of parens and basic coding setup - aka prog mode, also C setup
 #+begin_src emacs-lisp :noweb-ref lisp-ide
 (use-package common-lisp-modes
   :diminish
+;;  :disabled t
   :straight nil
   :bind ( :map common-lisp-modes-mode-map
           ("M-q" . common-lisp-modes-indent-or-fill-sexp))
@@ -6171,17 +6201,7 @@ SLY setup
 
 (use-package inf-lisp
   :straight nil
-  :hook (inferior-lisp-mode . common-lisp-modes-mode)
-  :custom
-  (inferior-lisp-program (cond ((executable-find "sbcl") "sbcl")
-                               ((executable-find "ecl") "ecl"))))
-
-
-(defvar mf/cl-implementations
-  '((sbcl ("sbcl"))
-    ;;    (sbcl-renderdoc ("sbcl-renderdoc.sh"))
-    ))
-
+  :hook (infe
 (defun mf/sly-ask ()
   (interactive)
   (let ((current-prefix-arg '-))
@@ -6312,9 +6332,9 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
 #+end_src
 #+begin_src elisp :noweb-ref code-clojure
 (use-package clojure-mode
-  :magic ("^#![^\n]*/\\(clj\\|clojure\\|bb\\|lumo\\)" . clojure-mode)
+  :magic ("^#![^\n]*/\\(clj\\|clojure\\|bb\\|nbb\\)" . clojure-mode)
   :init
-  (add-to-list 'auto-mode-alist '("\\.ednl$" . clojure-mode))
+  (add-to-list 'auto-mode-alist '("\\.edn$" . clojure-mode))
   :hook ((clojure-mode
           clojurec-mode
           clojurescript-mode)
@@ -6344,15 +6364,14 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
     (common-lisp-modes-mode)
     (clojure-set-compile-command)
     (flycheck-mode))
-  (defun clerk-show ()
-    (interactive)
+(defun clerk-show ()
+  (interactive)
+  (when-let
+      ((filename
+        (buffer-file-name)))
     (save-buffer)
-    (let
-        ((filename
-          (buffer-file-name)))
-      (when filename
-        (cider-interactive-eval
-         (concat "(nextjournal.clerk/show! \"" filename "\")"))))))
+    (cider-interactive-eval
+     (concat "(nextjournal.clerk/show! \"" filename "\")")))))
 
 (use-package cider
   :diminish t
@@ -6432,7 +6451,7 @@ Source comes from: [[https://stackoverflow.com/a/31080940]]
                  ((cider-maybe-intern type))))
           (repls (delete-dups (seq-mapcat #'cdr (or (sesman-current-sessions 'CIDER)
                                                     (when ensure
-                                                      (user-error "No linked CIDER sessions"))))))
+                                                      (user-error "CIDER sessions non liées"))))))
           (bb-repl (get-buffer "*babashka-repl*")))
       (or (seq-filter (lambda (b)
                         (and (cider--match-repl-type type b)
@@ -6506,6 +6525,7 @@ creates a new one. Don't unnecessarily bother the user."
 (advice-add #'cider-jack-in-global-options :around #'corgi/around-cider-jack-in-global-options)
 
 (use-package clj-refactor
+  :disabled t
   :diminish clj-refactor-mode
   :hook ((clj-refactor-mode . yas-minor-mode)
          (cider-mode . clj-refactor-mode))
@@ -6515,8 +6535,16 @@ creates a new one. Don't unnecessarily bother the user."
   (cljr-warn-on-eval nil))
 
 (use-package clj-ns-name
-  :config
+:straight '(clj-ns-name
+                  :type git
+                 :repo "corgi-emacs/clj-ns-name" )
+:config
   (clj-ns-name-install))
+
+(use-package walkclj
+:straight '(walkclj
+                  :type git
+                 :repo "corgi-emacs/walkclj" ))
 
 (use-package flycheck-clj-kondo
   :after cider
@@ -6608,7 +6636,7 @@ specific project."
                        (pending-cljs (propertize (concat "pending-cljs" info) 'face '( :background "#f7df1e"
                                                                                        :foreground "black")))))))))
             (s-join " "))
-        (propertize "<not connected>" 'face '( :background "red"
+        (propertize "<pas connecté>" 'face '( :background "red"
                                                :foreground "white"))))))
 
 
@@ -6702,7 +6730,7 @@ project or host."
 (defun cider-verify-clojurescript-is-present ()
   "Check whether ClojureScript is present."
   (unless (nrepl-dict-get (cider-sync-tooling-eval "cljs.core/inc") "value")
-    (user-error "ClojureScript is not available.  See https://docs.cider.mx/cider/basics/clojurescript for details")))
+    (user-error "ClojureScript n'est pas disponible.  See https://docs.cider.mx/cider/basics/clojurescript for details")))
 
 #+end_src
 
@@ -6774,6 +6802,7 @@ I use org mode and literate programming ideas to build my clj/cljs projects. So,
 ;;; init-clojure.el --- Clojure -*- lexical-binding: t -*-
 <<disclaimer>>
 ;;; Code:
+<<lisp-ide>>
 
 <<code-clojure>>
 
@@ -6827,13 +6856,35 @@ The add-node-modules-path package is great for automatically detecting and using
 (use-package prettier-js
   :defer t
   :delight prettier-js-mode
-  :hook (((js2-mode rjsx-mode) . prettier-js-mode))
+  :hook (((js2-mode rjsx-mode typescript-mode) . prettier-js-mode))
   ;; :init
   ;; (evil-leader/set-key-for-mode 'rjsx-mode
   ;;   "fp" 'prettier-js-mode) ; (f)ormat (p)rettier
   )
 
 (use-package js-comint)
+
+ (defun setup-tide-mode ()
+    (interactive)
+    ;;  (setq tide-tsserver-process-environment '("TSS_LOG=-level verbose -file /tmp/tss.log"))
+    (tide-setup)
+    (if (file-exists-p (concat tide-project-root "node_modules/typescript/bin/tsserver"))
+        (setq tide-tsserver-executable "node_modules/typescript/bin/tsserver"))
+    (flycheck-mode +1)
+    (setq flycheck-check-syntax-automatically '(save mode-enabled))
+    (eldoc-mode +1)
+    (tide-hl-identifier-mode +1)
+    (setq tide-format-options '(:indentSize 2 :tabSize 2 :insertSpaceAfterFunctionKeywordForAnonymousFunctions t :placeOpenBraceOnNewLineForFunctions nil))
+    (local-set-key (kbd "C-c d") 'tide-documentation-at-point))
+
+(use-package tide
+  :after (typescript-mode company flycheck)
+  :hook ((typescript-mode . tide-setup)
+         (typescript-mode . tide-hl-identifier-mode)
+         (before-save . tide-format-before-save))
+  :config
+  (add-hook 'typescript-mode-hook #'setup-tide-mode)
+      (add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode)))
 
 #+end_src
 *** Tangle JS setup

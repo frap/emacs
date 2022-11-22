@@ -41,11 +41,35 @@
 (require 'init-sanity)
 
 ;; startup packages & gcmh
-(require 'init-startup)
+;;(require 'init-startup)
 
 ;; navigation & Editor setup
-(require 'init-selection)
-(require 'init-editor)
+;;(require 'init-selection)
+;;(require 'init-editor)
+(use-package corgi-editor)
+(use-package corgi-commands)
+
+
+;; Change the color of the modeline based on the Evil state (e.g. green when
+;; in insert state)
+(use-package corgi-stateline
+  :config
+  (global-corgi-stateline-mode))
+
+;; Package which provides corgi-keys and corgi-signals, the two files that
+;; define all Corgi bindings, and the default files that Corkey will look for.
+(use-package corgi-bindings)
+
+;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
+;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
+;; f e s' `SPC f e S')
+;; Put this last here, otherwise keybindings for commands that aren't loaded
+;; yet won't be active.
+(use-package corkey
+  :config
+  (corkey-mode 1)
+  ;; Automatically pick up keybinding changes
+  (corkey/load-and-watch))
 
 ;;(require 'init-ui)
 ;;(require 'init-buffer)
@@ -80,7 +104,7 @@
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-(require 'init-kbd)
+;;(require 'init-kbd)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow
