@@ -17,5 +17,7 @@ eln-cache/
 etc/
 straight/
 var/
-
+places
+projectile-bookmarks.eld
+smex-items
 

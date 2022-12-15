@@ -437,7 +437,7 @@ Use Straight for package Management.
 (defvar bootstrap-version)
 
 (let ((install-url "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el")
-    ;;  (setq-default straight-base-dir EMACS_CACHE/ )
+     ;; (straight-base-dir EMACS_CACHE/ )
       (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" EMACS_CACHE/ ))
       (bootstrap-version 5))
   (unless (file-exists-p bootstrap-file)
@@ -453,7 +453,6 @@ Use Straight for package Management.
 (use-package straight
   :custom
   (straight-use-package-by-default t)
-  (straight-base-dir EMACS_CACHE/ )
   :config
   (setq straight-use-package-by-default t)
 
@@ -462,8 +461,8 @@ Use Straight for package Management.
   (setq straight-profiles `((nil . ,(expand-file-name "lockfile" EMACS_CACHE/ ))))
 
   ;; Corgi freezes versions
-  ;;(when (not (file-exists-p (expand-file-name "straight/versions/default.el" straight-base-dir)))
-  ;;(straight-freeze-versions))
+  (when (not (file-exists-p (expand-file-name "straight/versions/default.el" straight-base-dir)))
+  (straight-freeze-versions))
 
   ;; Additional post-setup of straight.el.
   (require 'straight-x)
@@ -1335,12 +1334,12 @@ Some Defaults for my preferred appearance
      (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
      (add-to-list 'default-frame-alist '(fullscreen . maximized))))
 
-  
+
 
   (use-package form-feed
     :config (global-form-feed-mode))
 
-  
+
 
 #+end_src
 *** Fonts, Emojis & Icons
@@ -4568,7 +4567,7 @@ Change the Mac modifiers to my liking. I also disable passing Control characters
 #+end_src
 ***  tangle Keyboard
 :PROPERTIES:
-co:header-args: :tangle lisp/init-kbd.el :noweb yes
+:header-args: :tangle lisp/init-kbd.el :noweb yes
 :end:
     Setup keyboard
 
