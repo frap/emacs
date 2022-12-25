@@ -126,7 +126,7 @@ Make startup faster by reducing the frequency of garbage collection and then use
 (defvar gas/gc-cons-threshold (* 100 1024 1024))   ;; 100mb
 
 (add-hook 'emacs-startup-hook
-          #'(lambda () (setq gc-cons-threshold normal-gc-cons-threshold
+          #'(lambda () (setq gc-cons-threshold gas/gc-cons-threshold
                              gc-cons-percentage 0.1)))
 
 ;; file-name-handler-alist is consulted on various I/O functions such as
@@ -172,7 +172,7 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
                        (vertical-scroll-bars . 0)
                        (bottom-divider-width . 0)
                        (right-divider-width . 1)
-                       ;;(font . "Iosevka Slab 14")
+                       (font . "Iosevka Curly 14")
                        )
  default-frame-alist initial-frame-alist
  frame-inhibit-implied-resize t            ;; dont resize
@@ -785,201 +785,202 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a few 
 :END:
 Setup Builtins and try and get some sane defaults
 #+begin_src emacs-lisp
-;; Turn off mouse interface early in startup to avoid momentary display
-(if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-(if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+  ;; Turn off mouse interface early in startup to avoid momentary display
+  (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+  (if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 
-(use-package diminish)
+  (use-package diminish)
 
-;; sanity setting UI
-(use-package emacs
-  :straight nil
-  :diminish
-  abbrev-mode
-  elisp-slime-nav-mode
-  eldoc-mode
-  subword-mode
-  auto-fill-function " AF"
-  visual-line-mode
-  org-indent-mode
-  auto-revert-mode
-  subword-mode
-  text-scale-mode
-  buffer-face-mode
-  pretty-control-l-mode
-  projectile-mode "Prjl"
-  global-form-feed-mode ""
-  :init
-  (setq read-process-output-max (* 1024 1024)) ;; 1mb
+  ;; sanity setting UI
+  (use-package emacs
+    :straight nil
+    :diminish
+    abbrev-mode
+    elisp-slime-nav-mode
+    eldoc-mode
+    subword-mode
+    auto-fill-function " AF"
+    visual-line-mode
+    org-indent-mode
+    auto-revert-mode
+    subword-mode
+    text-scale-mode
+    buffer-face-mode
+    pretty-control-l-mode
+    projectile-mode "Prjl"
+    global-form-feed-mode ""
+    :init
+    (setq read-process-output-max (* 1024 1024)) ;; 1mb
 
-  ;; always allow 'y' instead of 'yes'.
-  (defalias 'yes-or-no-p 'y-or-n-p)
+    ;; always allow 'y' instead of 'yes'.
+    (defalias 'yes-or-no-p 'y-or-n-p)
 
-  ;; don't want ESC as a modifier
-  (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+    ;; don't want ESC as a modifier
+    (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-  ;; disable a few keybindings
-  (unbind-key "C-z") ;; `suspend-frame'
-  (unbind-key "C-c o") ;; was bound to open a file externally
-  ;;(unbind-key "C-x C-c") ;; was `save-buffers-kill-terminal'
+    ;; disable a few keybindings
+    (unbind-key "C-z") ;; `suspend-frame'
+    (unbind-key "C-c o") ;; was bound to open a file externally
+    ;;(unbind-key "C-x C-c") ;; was `save-buffers-kill-terminal'
 
-  (global-set-key (kbd "<M-delete>") 'kill-word)
-  (global-set-key (kbd "<s-down>") 'end-of-buffer)
-  (global-set-key (kbd "<s-up>") 'beginning-of-buffer)
-  (global-set-key (kbd "s-q") 'save-buffers-kill-terminal)
-  (global-set-key (kbd "s-w") 'kill-current-buffer)
-  (global-set-key (kbd "C-x C-b") 'ibuffer)
-  ;;(global-set-key (kbd "M-RET") 'newline-and-indent)
-  :config
-  (setq ad-redefinition-action 'accept)
-  (setq bidi-inhibit-bpa t)
-  (setq command-line-ns-option-alist nil)
-  (setq confirm-kill-processes nil)
-  (setq default-input-method "TeX")
-  (setq ffap-machine-p-known 'reject)
-  (setq inhibit-compacting-font-caches t)
-  (setq inhibit-default-init t)
-  (setq jit-lock-defer-time nil)
-  (setq jka-compr-verbose nil)
-  (setq native-comp-async-report-warnings-errors nil)
-  (setq read-file-name-completion-ignore-case t)
-  (setq redisplay-skip-fontification-on-input t))
+    (global-set-key (kbd "<M-delete>") 'kill-word)
+    (global-set-key (kbd "<s-down>") 'end-of-buffer)
+    (global-set-key (kbd "<s-up>") 'beginning-of-buffer)
+    (global-set-key (kbd "s-q") 'save-buffers-kill-terminal)
+    (global-set-key (kbd "s-w") 'kill-current-buffer)
+    (global-set-key (kbd "C-x C-b") 'ibuffer)
+    ;;(global-set-key (kbd "M-RET") 'newline-and-indent)
+    :config
+    (setq ad-redefinition-action 'accept)
+    (setq bidi-inhibit-bpa t)
+    (setq command-line-ns-option-alist nil)
+    (setq confirm-kill-processes nil)
+    (setq default-input-method "TeX")
+    (setq ffap-machine-p-known 'reject)
+    (setq inhibit-compacting-font-caches t)
+    (setq inhibit-default-init t)
+    (setq jit-lock-defer-time nil)
+    (setq jka-compr-verbose nil)
+    (setq native-comp-async-report-warnings-errors nil)
+    (setq read-file-name-completion-ignore-case t)
+    (setq redisplay-skip-fontification-on-input t))
 
-
+  
 
-(use-package recentf
-;; Keep track of recently opened files
-  :straight nil
-  :commands recent-open-files
-  :custom (recentf-save-file (concat EMACS_CACHE/ "recentf"))
-  :config
-  (setq recentf-auto-cleanup nil     ; Don't. We'll auto-cleanup on shutdown
-        recentf-max-saved-items 200) ; default is 20
+  (use-package recentf
+  ;; Keep track of recently opened files
+    :straight nil
+    :commands recent-open-files
+    :custom (recentf-save-file (concat EMACS_CACHE/ "recentf"))
+    :config
+    (setq recentf-auto-cleanup nil     ; Don't. We'll auto-cleanup on shutdown
+	  recentf-max-saved-items 200) ; default is 20
 
-  (defun doom--recentf-file-truename-fn (file)
-    (if (or (not (file-remote-p file))
-            (equal "sudo" (file-remote-p file 'method)))
-        (abbreviate-file-name (file-truename (tramp-file-name-localname tfile)))
-      file))
+    (defun doom--recentf-file-truename-fn (file)
+      (if (or (not (file-remote-p file))
+	      (equal "sudo" (file-remote-p file 'method)))
+	  (abbreviate-file-name (file-truename (tramp-file-name-localname tfile)))
+	file))
 
-  ;; Resolve symlinks, strip out the /sudo:X@ prefix in local tramp paths, and
-  ;; abbreviate $HOME ~ in filepaths (more portable, more readable, & saves
-  ;; space)
-  (add-to-list 'recentf-filename-handlers #'doom--recentf-file-truename-fn)
+    ;; Resolve symlinks, strip out the /sudo:X@ prefix in local tramp paths, and
+    ;; abbreviate $HOME ~ in filepaths (more portable, more readable, & saves
+    ;; space)
+    (add-to-list 'recentf-filename-handlers #'doom--recentf-file-truename-fn)
 
-  ;; Text properties inflate the size of recentf's files, and there is
-  ;; no purpose in persisting them (Must be first in the list!)
-  (add-to-list 'recentf-filename-handlers #'substring-no-properties)
+    ;; Text properties inflate the size of recentf's files, and there is
+    ;; no purpose in persisting them (Must be first in the list!)
+    (add-to-list 'recentf-filename-handlers #'substring-no-properties)
 
-  (setq recentf-exclude `(,(expand-file-name "straight/build/" user-emacs-directory)
-			  ,(expand-file-name "eln-cache/" user-emacs-directory)
-			  ,(expand-file-name "etc/" EMACS_CACHE/ )
-			  ,(expand-file-name "var/" user-emacs-directory)))
-  (add-to-list 'recentf-exclude (format "%s/early-init.el" EMACS_CONFIG/ ))
-  (add-to-list 'recentf-exclude (format "%s/init.el" EMACS_CONFIG/ )) (recentf-mode +1))
+    (setq recentf-exclude `(,(expand-file-name "straight/build/" user-emacs-directory)
+			    ,(expand-file-name "eln-cache/" user-emacs-directory)
+			    ,(expand-file-name "etc/" EMACS_CACHE/ )
+			    ,(expand-file-name "var/" user-emacs-directory)))
+    (add-to-list 'recentf-exclude (format "%s/early-init.el" EMACS_CONFIG/ ))
+    (add-to-list 'recentf-exclude (format "%s/init.el" EMACS_CONFIG/ ))
+    (recentf-mode +1))
 
-(use-package files
-  :straight nil
-  :preface
-  (defun gas/find-file-sudo-root ()
-    "Open a file as the root user.
-      Reference: https://www.emacswiki.org/emacs/TrampMode#h5o-19"
-    (interactive)
-    (require 'tramp)
-    (let* ((name (or buffer-file-name default-directory))
-	   (tramp (and (tramp-tramp-file-p name)
-		       (tramp-dissect-file-name name)))
-	   path dir file)
-      (when tramp ; If called from a "root" file, we need to fix up the path.
-	(setq path (tramp-file-name-localname tramp)
-	      dir (file-name-directory path)))
-      (when (setq file (read-file-name "Find file (sudo): " dir path))
-	(find-file (concat "/sudo:root@localhost:" file)))))
-  :config
-  (remove-hook 'find-file-hook 'vc-refresh-state) ; makes open files faster
-  (setq confirm-kill-processes nil)
+  (use-package files
+    :straight nil
+    :preface
+    (defun gas/find-file-sudo-root ()
+      "Open a file as the root user.
+	Reference: https://www.emacswiki.org/emacs/TrampMode#h5o-19"
+      (interactive)
+      (require 'tramp)
+      (let* ((name (or buffer-file-name default-directory))
+	     (tramp (and (tramp-tramp-file-p name)
+			 (tramp-dissect-file-name name)))
+	     path dir file)
+	(when tramp ; If called from a "root" file, we need to fix up the path.
+	  (setq path (tramp-file-name-localname tramp)
+		dir (file-name-directory path)))
+	(when (setq file (read-file-name "Find file (sudo): " dir path))
+	  (find-file (concat "/sudo:root@localhost:" file)))))
+    :config
+    (remove-hook 'find-file-hook 'vc-refresh-state) ; makes open files faster
+    (setq confirm-kill-processes nil)
 
-  (setq revert-without-query '(".*"))
-  (setq auto-mode-case-fold nil)
-  (setq auto-save-default nil)
-  (setq auto-save-list-file-prefix nil)
+    (setq revert-without-query '(".*"))
+    (setq auto-mode-case-fold nil)
+    (setq auto-save-default nil)
+    (setq auto-save-list-file-prefix nil)
 
-  ;; Move files to trash when deleting
-  (setq delete-by-moving-to-trash t)
+    ;; Move files to trash when deleting
+    (setq delete-by-moving-to-trash t)
 
-  (setq find-file-suppress-same-file-warnings t)
-  (setq find-file-visit-truename t)
-  (setq load-prefer-newer t)
+    (setq find-file-suppress-same-file-warnings t)
+    (setq find-file-visit-truename t)
+    (setq load-prefer-newer t)
 
-  (setq create-lockfiles nil) ; don't create .# files (crashes 'npm start')
-  ;; Don't make backup~ files
-  ;; (setq make-backup-files nil)
-  ;; (setq backup-inhibited t)
+    (setq create-lockfiles nil) ; don't create .# files (crashes 'npm start')
+    ;; Don't make backup~ files
+    ;; (setq make-backup-files nil)
+    ;; (setq backup-inhibited t)
 
-  (when (not (file-directory-p (expand-file-name "backups" EMACS_CACHE/ )))
-    (make-directory (expand-file-name "backups" EMACS_CACHE/ )))
+    (when (not (file-directory-p (expand-file-name "backups" EMACS_CACHE/ )))
+      (make-directory (expand-file-name "backups" EMACS_CACHE/ )))
 
-  (when (not (file-directory-p (expand-file-name "auto-save-list" EMACS_CACHE/ )))
-    (make-directory (expand-file-name "auto-save-list" EMACS_CACHE/ )))
+    (when (not (file-directory-p (expand-file-name "auto-save-list" EMACS_CACHE/ )))
+      (make-directory (expand-file-name "auto-save-list" EMACS_CACHE/ )))
 
-  ;; Put backups and auto-save files in subdirectories, so the
-  ;; user-emacs-directory doesn't clutter
-  (setq backup-directory-alist
-	`(("." . ,(expand-file-name "backups" EMACS_CACHE/ )))
-	auto-save-file-name-transforms
-	`((".*" ,(expand-file-name "auto-save-list/" EMACS_CACHE/ ) t)))
+    ;; Put backups and auto-save files in subdirectories, so the
+    ;; user-emacs-directory doesn't clutter
+    (setq backup-directory-alist
+	  `(("." . ,(expand-file-name "backups" EMACS_CACHE/ )))
+	  auto-save-file-name-transforms
+	  `((".*" ,(expand-file-name "auto-save-list/" EMACS_CACHE/ ) t)))
 
-  (setq require-final-newline t)
+    (setq require-final-newline t)
 
-  ;; Stop asking about following symlinks to version controlled files
-  (setq vc-follow-symlinks t)
+    ;; Stop asking about following symlinks to version controlled files
+    (setq vc-follow-symlinks t)
 
-  ;; big files
-  (global-so-long-mode 1)
+    ;; big files
+    (global-so-long-mode 1)
 
-  ;; sudo find file
-  (global-set-key (kbd "C-c C-f") #'gas/find-file-sudo-root)
-  (global-set-key (kbd "<f6>") #'(lambda ()
-				   (interactive)
-				   (revert-buffer)
-				   (message "attente de rafraîchissement du buffer...fini"))))
+    ;; sudo find file
+    (global-set-key (kbd "C-c C-f") #'gas/find-file-sudo-root)
+    (global-set-key (kbd "<f6>") #'(lambda ()
+				     (interactive)
+				     (revert-buffer)
+				     (message "attente de rafraîchissement du buffer...fini"))))
 
-;; save-place remembers the position of pt in a buffer and on re-opening restores it
-(use-package saveplace
-  :straight nil
-  :config (save-place-mode 1))
-;; savehist same as saveplace but for history
-(use-package savehist
-  :straight nil
-  :custom (savehist-file (concat EMACS_CACHE/ "savehist"))
-  :config
-   (setq savehist-save-minibuffer-history t
-        savehist-autosave-interval nil     ; save on kill only
-        savehist-additional-variables
-        '(kill-ring                        ; persist clipboard
-          register-alist                   ; persist macros
-          mark-ring global-mark-ring       ; persist marks
-          search-ring regexp-search-ring)) ; persist searches
-  (add-hook 'savehist-save-hook
-    (defun doom-savehist-unpropertize-variables-h ()
-      "Remove text properties from `kill-ring' to reduce savehist cache size."
-      (setq kill-ring
-            (mapcar #'substring-no-properties
-                    (cl-remove-if-not #'stringp kill-ring))
-            register-alist
-            (cl-loop for (reg . item) in register-alist
-                     if (stringp item)
-                     collect (cons reg (substring-no-properties item))
-                     else collect (cons reg item))))
-    (defun doom-savehist-remove-unprintable-registers-h ()
-      "Remove unwriteable registers (e.g. containing window configurations).
-Otherwise, `savehist' would discard `register-alist' entirely if we don't omit
-the unwritable tidbits."
-      ;; Save new value in the temp buffer savehist is running
-      ;; `savehist-save-hook' in. We don't want to actually remove the
-      ;; unserializable registers in the current session!
-      (setq-local register-alist
-                  (cl-remove-if-not #'savehist-printable register-alist)))))
+  ;; save-place remembers the position of pt in a buffer and on re-opening restores it
+  (use-package saveplace
+    :straight nil
+    :config (save-place-mode 1))
+  ;; savehist same as saveplace but for history
+  (use-package savehist
+    :straight nil
+    :custom (savehist-file (concat EMACS_CACHE/ "savehist"))
+    :config
+     (setq savehist-save-minibuffer-history t
+	  savehist-autosave-interval nil     ; save on kill only
+	  savehist-additional-variables
+	  '(kill-ring                        ; persist clipboard
+	    register-alist                   ; persist macros
+	    mark-ring global-mark-ring       ; persist marks
+	    search-ring regexp-search-ring)) ; persist searches
+    (add-hook 'savehist-save-hook
+      (defun doom-savehist-unpropertize-variables-h ()
+	"Remove text properties from `kill-ring' to reduce savehist cache size."
+	(setq kill-ring
+	      (mapcar #'substring-no-properties
+		      (cl-remove-if-not #'stringp kill-ring))
+	      register-alist
+	      (cl-loop for (reg . item) in register-alist
+		       if (stringp item)
+		       collect (cons reg (substring-no-properties item))
+		       else collect (cons reg item))))
+      (defun doom-savehist-remove-unprintable-registers-h ()
+	"Remove unwriteable registers (e.g. containing window configurations).
+  Otherwise, `savehist' would discard `register-alist' entirely if we don't omit
+  the unwritable tidbits."
+	;; Save new value in the temp buffer savehist is running
+	;; `savehist-save-hook' in. We don't want to actually remove the
+	;; unserializable registers in the current session!
+	(setq-local register-alist
+		    (cl-remove-if-not #'savehist-printable register-alist)))))
 
 #+end_src
 *** Tangle Sanity Defaults
@@ -4604,6 +4605,11 @@ Couched in those terms, Org is at once a distribution of well integrated librari
 ** Org mode Use-package Defaults
 Org mode defaults for consistency
 #+begin_src emacs-lisp :noweb-ref org-defaults
+(add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
+(setq org-plantuml-jar-path
+      (expand-file-name "~/.local/bin/plantuml.jar"))
+
+
 (use-package org
   :straight (:type built-in)
   :diminish t
@@ -4617,46 +4623,46 @@ Org mode defaults for consistency
   ;; open links and such images in new buffers by doing C-c C-o.
   (setq org-mouse-1-follows-link nil)
   :bind (("C-c c" . org-capture)
-         ("C-c a" . org-agenda)
-         ("<f7> s" . org-store-link)
-         :map org-src-mode-map
-         ("C-x w" . org-edit-src-exit)
-         ("C-x C-s" . org-edit-src-exit))
+	       ("C-c a" . org-agenda)
+	       ("<f7> s" . org-store-link)
+	       :map org-src-mode-map
+	       ("C-x w" . org-edit-src-exit)
+	       ("C-x C-s" . org-edit-src-exit))
   :mode ("\\.org\\'" . org-mode)
   :hook ((org-mode . gas/org-setup))
-        ;; (org-mode . adaptive-wrap-prefix-mode)
+	;; (org-mode . adaptive-wrap-prefix-mode)
   :hook  ((org-capture-mode org-src-mode) . discard-history)
   :commands (org-check-agenda-file
-             org-link-set-parameters)
+	           org-link-set-parameters)
   :custom-face
   (org-block ((t (:extend t))))
   (org-block-begin-line ((t ( :slant unspecified
-                              :weight normal
-                              :background unspecified
-                              :inherit org-block
-                              :extend t))))
+				                      :weight normal
+				                      :background unspecified
+				                      :inherit org-block
+				                      :extend t))))
   (org-block-end-line ((t ( :slant unspecified
-                            :weight normal
-                            :background unspecified
-                            :inherit org-block-begin-line
-                            :extend t))))
+			                      :weight normal
+			                      :background unspecified
+			                      :inherit org-block-begin-line
+			                      :extend t))))
   (org-drawer ((t (:foreground nil :inherit shadow))))
   :custom
   (org-ellipsis "…")
   :init
   ;; This is where my ~heart~ org files are.
   (setq org-directory
-       ;; (if IS_TERMUX?
-       ;;     "~/storage/shared/org"
-          "~/org")  ;;)
+	      ;; (if IS_TERMUX?
+	      ;;     "~/storage/shared/org"
+	      "~/org")  ;;)
 
   :config
   (require 'org-protocol)
-  ;;;; general settings
+    ;;;; general settings
   (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
   ;; Prevent auto insertion of blank lines before headings and list items
   (setq org-blank-before-new-entry '((heading)
-                                     (plain-list-item)))
+				                             (plain-list-item)))
   ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
   (setq org-special-ctrl-a/e nil)
   (setq org-special-ctrl-k nil)
@@ -4669,14 +4675,15 @@ Org mode defaults for consistency
   (setq org-hide-leading-stars nil)
   (setq org-cycle-separator-lines 0)
   (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
-        '(("s" . "src")
-          ("E" . "src emacs-lisp")
-          ("e" . "example")
-          ("q" . "quote")
-          ("v" . "verse")
-          ("V" . "verbatim")
-          ("c" . "center")
-          ("C" . "comment")))
+	      '(("s" . "src")
+	        ("b" . "src bash")
+	        ("E" . "src emacs-lisp")
+	        ("e" . "example")
+	        ("q" . "quote")
+	        ("v" . "verse")
+	        ("V" . "verbatim")
+	        ("c" . "src clojure")
+	        ("C" . "comment")))
   (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
   (setq org-return-follows-link t)
   (setq org-loop-over-headlines-in-active-region 'start-level)
@@ -4691,10 +4698,10 @@ Org mode defaults for consistency
   (setq org-pretty-entities-include-sub-superscripts t)
   (setq org-insert-heading-respect-content t)
 
-  ;;;; code blocks
+    ;;;; code blocks
   (setq org-hide-block-startup nil)
   (setq org-fontify-quote-and-verse-blocks t
-        org-fontify-whole-heading-line t)
+	      org-fontify-whole-heading-line t)
   (setq org-confirm-babel-evaluate nil)
   (setq org-src-window-setup 'current-window)
   (setq org-edit-src-persistent-message nil)
@@ -4704,11 +4711,11 @@ Org mode defaults for consistency
   (setq org-edit-src-content-indentation 0) ;; remove 2 space indent in src code blocks
   (setq org-use-property-inheritance t) ;; for tangling
 
-  ;;;; images
+    ;;;; images
   (setq org-startup-with-inline-images t)
   (setq org-image-actual-width '(300))
 
-  ;;;; export
+    ;;;; export
   (setq org-export-with-toc t)
   (setq org-export-headline-levels 8)
   (setq org-export-in-background t)     ; run export processes in external emacs process
@@ -4745,6 +4752,7 @@ Org mode defaults for consistency
      (lisp . t)
      (sqlite . t)
      (python . t)
+     (plantuml . t)
      (latex . t)
      ))
   ;; change CAPITAL Keywords to lowercase
@@ -4754,22 +4762,22 @@ Org mode defaults for consistency
     (save-excursiont
      (goto-char (point-min))
      (let ((count 0)
-           (case-fold-search nil))
-       (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-         (unless (s-matches-p "RESULTS" (match-string 0))
-           (replace-match (downcase (match-string 0)) t)
-           (setq count (1+ count))))
-       (message "Remplacement de %d occurrences" count))))
+	         (case-fold-search nil))
+	     (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+	       (unless (s-matches-p "RESULTS" (match-string 0))
+	         (replace-match (downcase (match-string 0)) t)
+	         (setq count (1+ count))))
+	     (message "Remplacement de %d occurrences" count))))
   (defun discard-history ()
     "Discard undo history of org src and capture blocks."
     (setq buffer-undo-list nil)
     (set-buffer-modified-p nil))
   (define-advice org-return (:around (f &rest args))
     (let ((org-src-preserve-indentation t))
-      (apply f args)))
+	    (apply f args)))
   (define-advice org-cycle (:around (f &rest args))
     (let ((org-src-preserve-indentation t))
-      (apply f args)))
+	    (apply f args)))
   (defun org-babel-edit-prep:emacs-lisp (_)
     "Setup Emacs Lisp buffer for Org Babel."
     (setq lexical-binding t)
@@ -4782,11 +4790,11 @@ Org mode defaults for consistency
   (setq org-indirect-buffer-display 'current-window)
 
   (defun gas/org-setup ()
-  ;;  (org-indent-mode)       ;; turn on org indent
+    ;;  (org-indent-mode)       ;; turn on org indent
     (variable-pitch-mode 1) ;; turn on variable-pitch
     (auto-fill-mode +1)      ;; turn on auto-fill
     (visual-line-mode 1)    ;; turn on visual-line-mode
-   ;; (show-paren-mode 1)     ;; show parentheses
+    ;; (show-paren-mode 1)     ;; show parentheses
     (hl-line-mode +1)
     (auto-fill-mode +1)
     (whitespace-mode -1)
@@ -4796,6 +4804,7 @@ Org mode defaults for consistency
     (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)
     )
   )
+
 #+end_src
 
 ** Org agenda
