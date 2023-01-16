@@ -1,9 +1,9 @@
 ;;; early-init.el --- Early Customisations -*- lexical-binding: t; no-byte-compile: t; -*-
-;; Copyright (C) 2001-2022 Gas
+;; Copyright (C) 2001-2023 Gas
 ;; Timestamp: <>
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
-;; Package-Version: 0.7
+;; Package-Version: 0.8
 ;; Created: Sometime during the Covid-19 lockdown
 ;; Keywords: configuration, emacs
 ;; URL: https://github.com/frap/emacs
@@ -48,12 +48,12 @@
 (defvar gas/gc-cons-threshold (* 100 1024 1024))   ;; 100mb
 
 (add-hook 'emacs-startup-hook
-          #'(lambda () (setq gc-cons-threshold normal-gc-cons-threshold
+          #'(lambda () (setq gc-cons-threshold gas/gc-cons-threshold
                              gc-cons-percentage 0.1)))
 
 ;; file-name-handler-alist is consulted on various I/O functions such as
-;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
-;; to restore when Emacs is finished starting.
+;; REQUIRE, slowing down startup time, so we set it to NIL, and establish
+;; a hook to restore when Emacs is finished starting.
 (unless (or (daemonp) noninteractive)
   (let ((file-name-handler-alist/old file-name-handler-alist))
     (setq file-name-handler-alist nil)
@@ -79,13 +79,19 @@
  initial-frame-alist '((width . 170)
                        (height . 56)
                        (tool-bar-lines . 0)
+                       (tooltip-mode 0)
                        (vertical-scroll-bars . 0)
                        (bottom-divider-width . 0)
                        (right-divider-width . 1)
-                       ;;(font . "Iosevka Slab 14")
+                       (font . "Iosevka Curly 14")
+                       (blink-cursor-mode 0)
+                       (column-number-mode 1)
+                       (display-time-mode 0)
+                       (fringe-mode '(4 . 0))
+                       (window-divider-mode 1)
                        )
  default-frame-alist initial-frame-alist
- frame-inhibit-implied-resize t            ;; dont resize
+ frame-inhibit-implied-resize t           ;; dont resize
  frame-resize-pixelwise t                 ;; as GUI use pixels
  x-gtk-resize-child-frames 'resize-mode
  fringe-indicator-alist (assq-delete-all 'truncation fringe-indicator-alist))
@@ -97,7 +103,6 @@
 
 (when (fboundp #'scroll-bar-mode)
   (scroll-bar-mode -1))
-
 (add-hook 'minibuffer-setup-hook #'(lambda ()
                                      (setq gc-cons-threshold most-positive-fixnum)))
 (add-hook 'minibuffer-exit-hook #'(lambda ()

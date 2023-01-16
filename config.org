@@ -1,4 +1,4 @@
-#+title: Literate Roam Clojure Emacs Config
+#+title: Literate  Clojure Emacs Config
 #+author: Gas
 #+startup: overview
 #+property: header-args :cache yes :results output :mkdirp yes :padline no
@@ -13,7 +13,7 @@ Some scripts to setup whether I am on work computer or not
 
 (if IS-WORK
     (setq
-     user-full-name "Andrew Gasson"
+     user-full-name "Gas"'
      user-mail-address "gasson@somecompany.nz")
   (setq
    user-full-name "Andrés Gasson"
@@ -90,6 +90,9 @@ Need to setup some constants and try to keep state in a "clean" directory struct
 
 #+end_src
 ** Native Compilation for >= Emacs28
+:properties:
+:header-args: noweb-ref native-compile
+:end:
 setting some compliation default settings on early-init
 #+begin_src emacs-lisp
 ;; For the list of native compilation ELN cache directories, delete all but the
@@ -130,8 +133,8 @@ Make startup faster by reducing the frequency of garbage collection and then use
                              gc-cons-percentage 0.1)))
 
 ;; file-name-handler-alist is consulted on various I/O functions such as
-;; REQUIRE, slowing down startup time, so we set it to NIL, and establish a hook
-;; to restore when Emacs is finished starting.
+;; REQUIRE, slowing down startup time, so we set it to NIL, and establish
+;; a hook to restore when Emacs is finished starting.
 (unless (or (daemonp) noninteractive)
   (let ((file-name-handler-alist/old file-name-handler-alist))
     (setq file-name-handler-alist nil)
@@ -153,29 +156,30 @@ Make startup faster by reducing the frequency of garbage collection and then use
 ** Initial frame setup
 :PROPERTIES:
 :header-args: :noweb-ref early-init-frame
-:ID:                     0ae373ff-ee6b-484d-9d03-99ce56f59dc8
 :END:
 
 I don't want the frame to resize when I change fonts and stuff, and I
 want it to resize by pixels -- we /are/ using a GUI, after all.
 
 *** Frame use pixel resize
-:PROPERTIES:
-:ID:                     d054c73f-121a-4155-964e-c4c3d7f1d2ce
-:END:
-
 #+begin_src emacs-lisp
 (setq-default
  initial-frame-alist '((width . 170)
                        (height . 56)
                        (tool-bar-lines . 0)
+                       (tooltip-mode 0)
                        (vertical-scroll-bars . 0)
                        (bottom-divider-width . 0)
                        (right-divider-width . 1)
                        (font . "Iosevka Curly 14")
+                       (blink-cursor-mode 0)
+                       (column-number-mode 1)
+                       (display-time-mode 0)
+                       (fringe-mode '(4 . 0))
+                       (window-divider-mode 1)
                        )
  default-frame-alist initial-frame-alist
- frame-inhibit-implied-resize t            ;; dont resize
+ frame-inhibit-implied-resize t           ;; dont resize
  frame-resize-pixelwise t                 ;; as GUI use pixels
  x-gtk-resize-child-frames 'resize-mode
  fringe-indicator-alist (assq-delete-all 'truncation fringe-indicator-alist))
@@ -183,26 +187,14 @@ want it to resize by pixels -- we /are/ using a GUI, after all.
 (setq truncate-partial-width-windows nil)
 
 #+end_src
- some stuff left off initial-frame-list
-  (blink-cursor-mode 0)
-  (column-number-mode 1)
-  (display-time-mode 0)
-  (fringe-mode '(4 . 0))
-  (tooltip-mode 0)
-  (window-divider-mode 1)
 
-*** Turn off Tool bar
+*** Turn off Tool & scroll bars
 #+begin_src emacs-lisp
 (when (fboundp #'tool-bar-mode)
   (tool-bar-mode -1))
 
-#+end_src
-
-*** Turn off Scroll bars
-#+begin_src emacs-lisp
 (when (fboundp #'scroll-bar-mode)
   (scroll-bar-mode -1))
-
 #+end_src
 
 *** Minibuffer Setup hooks
@@ -284,65 +276,37 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 ;;; ============================================================================
 (require 'config-path)
 
-;;; ============================================================================
+;;;============================================================================
 ;;; Set up the package manager
 ;;; ============================================================================
 (require 'init-elpa)
 
-#+end_src
-
-#+begin_src emacs-lisp
 ;;; core
 ;; sanity settings
 (require 'init-sanity)
 
 ;; startup packages & gcmh
 ;;(require 'init-startup)
+(require 'init-kbd)
 
 ;; navigation & Editor setup
 ;;(require 'init-selection)
-;;(require 'init-editor)
-(use-package corgi-editor)
-(use-package corgi-commands)
+(require 'init-editor)
+;;(use-package corgi-editor)
+;;(use-package corgi-commands)
 
-
-;; Change the color of the modeline based on the Evil state (e.g. green when
-;; in insert state)
-(use-package corgi-stateline
-  :config
-  (global-corgi-stateline-mode))
-
-;; Package which provides corgi-keys and corgi-signals, the two files that
-;; define all Corgi bindings, and the default files that Corkey will look for.
-(use-package corgi-bindings)
-
-;; Corgi's keybinding system, which builds on top of Evil. See the manual, or
-;; visit the key binding and signal files (with `SPC f e k', `SPC f e K', `SPC
-;; f e s' `SPC f e S')
-;; Put this last here, otherwise keybindings for commands that aren't loaded
-;; yet won't be active.
-(use-package corkey
-  :config
-  (corkey-mode 1)
-  ;; Automatically pick up keybinding changes
-  (corkey/load-and-watch))
-
-;;(require 'init-ui)
-;;(require 'init-buffer)
-;;(require 'init-window)
 ;;; utilities
+(require 'init-selection)
 (require 'init-project)
 ;; Powerful Git integration. Corgi already ships with a single keybinding for
 ;; Magit, which will be enabled if it's installed (`SPC g s' or `magit-status').
 (require 'init-vcs)
-;;(require 'enfer-pkg-builtin)
-
-;; Org Note Taking
-(require 'init-notes)
-(require 'init-file-templates)
+;;(require 'ínit-kbd)
 
 ;;; Setup the Theme
 (require 'init-ui)
+;;(require 'init-buffer)
+;;(require 'init-window)
 
 ;;; Coding Setup
 (require 'init-ide)
@@ -357,10 +321,12 @@ The goal of this file is to require all init-xxx files. The structure is trivial
 (require 'init-javascript)
 (require 'init-utils-coding)
 
+;; Org Note Taking
+(require 'init-notes)
+(require 'init-file-templates)
 
 ;;; user config & some defaults
 (require 'init-usersetup)
-;;(require 'init-kbd)
 
 ;; I don't use `customize' interface, but .dir-locals.el put 'safe'
 ;; variables into `custom-file'. And to be honest, I hate to allow
@@ -486,160 +452,6 @@ Use Straight for package Management.
 
 (add-to-list 'straight-recipe-repositories 'corgi-packages)
 
-#+end_src
-** Setup (no pun intended) the Emacs Package Manager
-:PROPERTIES:
-:header-args: :noweb-ref setup-setup
-:END:
-Using [[https://www.emacswiki.org/emacs/SetupEl][setup.el]] by pkal to manage packages as well as use-package for copied config
-#+begin_src emacs-lisp
-;; install setup
-(straight-use-package '(setup :type git :host nil :repo "https://git.sr.ht/~pkal/setup"))
-
-(require 'setup)
-
-(defmacro define-setup-macro (name signature &rest body)
- "Shorthand for 'setup-define'. NAME is the name of the local macro. SIGNATURE
-   is used as the argument list for FN. If BODY starts with a string, use this as
-   the value for :documentation. Any following keywords are passed as OPTS to
-     'setup-define'."
-  (declare (debug defun))
-  (let (opts)
-    (when (stringp (car body))
-      (setq opts (nconc (list :documentation (pop body)) opts)))
-    (while (keywordp (car body))
-      (let ((prop (pop body))
-            (val `',(pop body)))
-        (setq opts (nconc (list prop val) opts))))
-    `(setup-define ,name
-       (cl-function (lambda ,signature ,@body))
-       ,@opts)))
-
-(define-setup-macro :pkg (recipe)
-  "Install RECIPE with 'straight-use-package'. This macro can be used as HEAD,
-      and will replace itself with the first RECIPE's package."
-  :repeatable t
-  :shorthand (lambda (sexp)
-               (let ((recipe (cadr sexp)))
-                 (if (consp recipe)
-                     (car recipe)
-                   recipe)))
-  `(straight-use-package ',recipe))
-
-(defun +setup-warn (message &rest args)
-  "Warn the user that something bad happened in `setup'."
-  (display-warning 'setup (format message args)))
-
-(setup-define :face
-  (lambda (face spec)
-    `(custom-set-faces '(,face ,spec 'now "Customised by `setup'.")))
-  :documentation "Customise FACE with SPEC using `custom-set-faces'."
-  :repeatable t)
-
-(setup-define :pkg-when
-  (lambda (recipe condition)
-    `(if ,condition
-         (straight-use-package ',recipe)
-       ,(setup-quit)))
-  :documentation
-  "Install RECIPE with `straight-use-package' when CONDITION is met.
-    If CONDITION is false, stop evaluating the body.  This macro can
-    be used as HEAD, and will replace itself with the RECIPE's
-    package.  This macro is not repeatable."
-  :repeatable nil
-  :indent 1
-  :shorthand (lambda (sexp)
-               (let ((recipe (cadr sexp)))
-                 (if (consp recipe) (car recipe) recipe))))
-
-(define-setup-macro :hide-mode (&optional mode)
-  "Hide the mode-line lighter of the current mode. Alternatively, MODE can be
-      specified manually, and override the current mode."
-  :after-loaded t
-  (let ((mode (or mode (setup-get 'mode))))
-    `(progn
-       (setq minor-mode-alist
-             (remq (assq ',(intern (format "%s-mode" mode)) minor-mode-alist)
-                   minor-mode-alist))
-       (setq minor-mode-alist
-             (remq (assq ',mode minor-mode-alist)
-                   minor-mode-alist)))))
-
-(define-setup-macro :load-after (features &rest body)
-  "Load the current feature after FEATURES."
-  :indent 1
-  (let ((body `(progn
-                 (require ',(setup-get 'feature))
-                 ,@body)))
-    (dolist (feature (nreverse (doom-enlist features)))
-      (setq body `(with-eval-after-load ',feature ,body)))
-    body))
-
-(define-setup-macro :with-after (features &rest body)
-  "Evaluate BODY after FEATURES are loaded."
-  :indent 1
-  (let ((body `(progn ,@body)))
-    (dolist (feature (nreverse (ensure-list features)))
-      (setq body `(with-eval-after-load ',feature ,body)))
-    body))
-
-(define-setup-macro :with-state (state &rest body)
-  "Change the evil STATE that BODY will bind to. If STATE is a list, apply BODY
-     to all elements of STATE. This is intended to be used with ':bind'."
-  :indent 1
-  :debug '(sexp setup)
-  (let (bodies)
-    (dolist (state (ensure-list state))
-      (push (let ((setup-opts (cons `(state . ,state) setup-opts)))
-              (setup-expand body))
-            bodies))
-    (macroexp-progn (nreverse bodies))))
-
-(define-setup-macro :bind (key command)
-  "Bind KEY to COMMAND in current map, and optionally for current evil states."
-  :after-loaded t
-  :debug '(form sexp)
-  :repeatable t
-  (let* ((state (cdr (assq 'state setup-opts)))
-         (map (setup-get 'map))
-         (map (if (eq map 'global-mode-map) 'global-map map))
-         (key (setup-ensure-kbd key))
-         (command (setup-ensure-function command)))
-    (if state
-        `(with-eval-after-load 'evil
-           (evil-define-key* ',state ,map ,key ,command))
-      `(define-key ,map ,key ,command))))
-
-(define-setup-macro :disable ()
-  "Unconditionally abort the evaluation of the current body."
-  (setup-quit))
-
-(define-setup-macro :delay (seconds)
-  "Require the current FEATURE after SECONDS of idle time."
-  :indent 1
-  `(run-with-idle-timer ,seconds nil #'require ',(setup-get 'feature) nil t))
-
-(define-setup-macro :with-idle-delay (seconds &rest body)
-  "Evaluate BODY after SECONDS of idle time."
-  :indent 1
-  `(run-with-idle-timer ,seconds nil (lambda () ,@body)))
-
-(define-setup-macro :advise (symbol where arglist &rest body)
-  "Add a piece of advice on a function. See 'advice-add' for more details."
-  :after-loaded t
-  :debug '(sexp sexp function-form)
-  :indent 3
-  (let ((name (gensym "setup-advice-")))
-    `(progn
-       (defun ,name ,arglist ,@body)
-       (advice-add ',symbol ,where #',name))))
-
-(setup-define :needs
-  (lambda (executable)
-    `(unless (executable-find ,executable)
-       ,(setup-quit)))
-  :documentation "If EXECUTABLE is not in the path, stop here."
-  :repeatable 1)
 #+end_src
 Sometimes it's good to clean up unused repositories if I've removed packages from my configuration.
 Use =straight-remove-unused-repos= for this purpose.
@@ -776,6 +588,8 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a few 
 
 <<path-config>>
 
+<<native-compile>>
+
 (provide 'config-path)
 ;;; config-path.el ends here
 #+end_src
@@ -785,14 +599,10 @@ Set Up Good Defaults. [[https://github.com/protesilaos][Protesilaos]] has a few 
 :END:
 Setup Builtins and try and get some sane defaults
 #+begin_src emacs-lisp
-  ;; Turn off mouse interface early in startup to avoid momentary display
-  (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-  (if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+(use-package diminish)
 
-  (use-package diminish)
-
-  ;; sanity setting UI
-  (use-package emacs
+;; sanity setting UI
+(use-package emacs
     :straight nil
     :diminish
     abbrev-mode
@@ -998,6 +808,7 @@ Setup Builtins and try and get some sane defaults
 <<sanity>>
 
 <<editor-sanity>>
+
 (provide 'init-sanity)
 ;;; init-sanity.el ends here
 #+end_src
@@ -1263,8 +1074,8 @@ Some Defaults for my preferred appearance
    inhibit-startup-screen t
    inhibit-startup-echo-area-message user-login-name
    inhibit-default-init t
-   initial-major-mode 'fundamental-mode
-   initial-scratch-message nil
+   ;;initial-major-mode 'fundamental-mode
+   ;;initial-scratch-message nil
    use-file-dialog nil
    use-dialog-box nil)
 
@@ -1301,6 +1112,11 @@ Some Defaults for my preferred appearance
   ;; Wait until my *fancy* modeline is loaded -- from Furkan Karataş.
   (setq-default mode-line-format nil)
 
+  (let ((font "Iosevka Term Curly Medium 14"))
+  (add-to-list 'default-frame-alist `(font . ,font))
+  (set-face-attribute 'default t :font font :height 140)
+  (set-face-attribute 'default nil :font font :height 140)
+  (set-frame-font font nil t))
   ;; line numbers
   (setq-default display-line-numbers-widen t)
   (setq-default display-line-numbers-width 3)
@@ -1312,7 +1128,6 @@ Some Defaults for my preferred appearance
 
    ;; make sure that trash is not drawn
    indicate-buffer-boundaries nil
-   indicate-empty-lines nil
 
    ;; don't resize emacs in steps, it looks weird and plays bad with
    ;; window manager.
@@ -1326,19 +1141,43 @@ Some Defaults for my preferred appearance
    ;; truncate lines
    ;;truncate-lines t
 
-   (menu-bar-mode 1)
+   ;; fringes
+   indicate-empty-lines nil  ;; end of buffer indicate
+   indicate-buffer-boundaries 'right
+   ;; continuation lines at keft fringe
+   visual-line-fringe-indicators '(left-curly-arrow nil)
+   )
+   ;; curly arrows - continuation
+   (define-fringe-bitmap 'left-curly-arrow
+     [#b11000000
+      #b01100000
+      #b00110000
+      #b00011000])
 
-   ;; frame setup
-   (unless IS_TERMUX?
-     (set-frame-parameter (selected-frame) 'alpha '(90 . 90))
-     (add-to-list 'default-frame-alist '(alpha . (90 . 90)))
-     (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
-     (add-to-list 'default-frame-alist '(fullscreen . maximized))))
+   (define-fringe-bitmap 'right-curly-arrow
+     [#b00011000
+      #b00110000
+      #b01100000
+      #b11000000])
+   ;; arrows - truncation lines
+   (define-fringe-bitmap 'left-arrow
+     [#b00000000
+      #b01010100
+      #b01010100
+      #b00000000])
+
+   (define-fringe-bitmap 'right-arrow
+     [#b00000000
+      #b00101010
+      #b00101010
+      #b00000000])
+
+  (menu-bar-mode 1)
+  )
 
 
-
-  (use-package form-feed
-    :config (global-form-feed-mode))
+(use-package form-feed
+  :config (global-form-feed-mode))
 
 
 
@@ -1373,22 +1212,16 @@ On Linux, I have a custom build of Iosevka that I like.
 ;;   :config
 ;;   :hook (text-mode org-mode))
 
-(let ((font "Iosevka Term Curly Medium 14"))
-  (add-to-list 'default-frame-alist `(font . ,font))
-  (set-face-attribute 'default t :font font :height 140)
-  (set-face-attribute 'default nil :font font :height 140)
-  (set-frame-font font nil t))
-
 ;; Required for proportional font in posframe
-(use-package company-posframe
-  :diminish company-posframe-mode
-  :config
-  (company-posframe-mode 1))
+;; (use-package company-posframe
+;;   :diminish company-posframe-mode
+;;   :config
+;;   (company-posframe-mode 1))
 
 (use-package default-text-scale
   :bind (( "M--" . default-text-scale-decrease)
-            ( "M-+" . default-text-scale-increase)
-            ( "M-=" . default-text-scale-reset))
+         ( "M-+" . default-text-scale-increase)
+         ( "M-=" . default-text-scale-reset))
   :config
   (setq default-text-scale-mode 1))
 
@@ -1400,13 +1233,6 @@ On Linux, I have a custom build of Iosevka that I like.
   (setq dimmer-use-colorsapce :rgb)
   (dimmer-mode 1))
 
-;; Install it from sources, because ELPA version has invalid
-;; signature.
-;; (use-package spinner
-;;   :straight '( spinner
-;;                :type git
-;;                :host github
-;;                :repo "Malabarba/spinner.el"))
 #+end_src
 
 *** Mouse & scrolling setup
@@ -1414,31 +1240,33 @@ On Linux, I have a custom build of Iosevka that I like.
 #+begin_src emacs-lisp :noweb-ref mouse
 
 (unless IS_TERMUX?
-  (setup mouse
-         (setq focus-follows-mouse t)
-         (setq make-pointer-invisible t)
-         (setq mouse-1-click-follows-link t)
-         (setq mouse-autoselect-window t)
-         (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
-         (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
-         ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
-         (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
-         (setq mouse-wheel-scroll-amount-horizontal 2)
-         (setq mouse-yank-at-point t)
-         (setq scroll-step 1) ;; keyboard scroll one line at a time
-         (setq use-dialog-box nil))) ;; Disable dialog boxes since they weren't working in Mac OSX
+  (use-package mouse
+    :straight nil
+    :config
+    ;; mouse setup
+    (setq focus-follows-mouse t)
+    (setq make-pointer-invisible t)
+    (setq mouse-1-click-follows-link t)
+    (setq mouse-autoselect-window t)
+    (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
+    (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ;; one line at a time
+    ;;(setq mouse-wheel-scroll-amount '(3 ((shift) . hscroll)))
+    (setq mouse-wheel-progressive-speed nil) ;; don't accelerate scrolling
+    (setq mouse-wheel-scroll-amount-horizontal 2)
+    (setq mouse-yank-at-point t)
+    (setq scroll-step 1) ;; keyboard scroll one line at a time
+    (setq use-dialog-box nil) ;; Disable dialog boxes since they weren't working in Mac OSX
+    ;; scrolling
+    (setq auto-hscroll-mode 'current-line)
+    (setq auto-window-vscroll nil)
+    (setq fast-but-imprecise-scrolling t)
+    (setq hscroll-margin 16)
+    (setq hscroll-step 1)
+    (setq scroll-conservatively 101)
+    (setq scroll-margin 8)
+    (setq scroll-preserve-screen-position t)
+    (setq scroll-step 1)))
 
-(unless IS_TERMUX?
-  (setup scrolling
-         (setq auto-hscroll-mode 'current-line)
-         (setq auto-window-vscroll nil)
-         (setq fast-but-imprecise-scrolling t)
-         (setq hscroll-margin 16)
-         (setq hscroll-step 1)
-         (setq scroll-conservatively 101)
-         (setq scroll-margin 8)
-         (setq scroll-preserve-screen-position t)
-         (setq scroll-step 1)))
 
 
 
@@ -1459,13 +1287,13 @@ Load up some themes
   ;; Also check my package configurations for `prot-fonts' because I use
   ;; the `modus-themes-after-load-theme-hook' for some typeface-related
   ;; tweaks (as those are made at the "face" level).
-  ;;:bind ( "<f5>" .  #'modus-themes-toggle)
+  :bind ( "<f5>" .  #'modus-themes-toggle)
   :config
   (setq
    modus-themes-vivendi-color-overrides
    ;; '((bg-region-accent-subtle . "#240f55")) ;; Default
-   ;; '((bg-region-accent-subtle . "#323da2"));; Good candidate
-      '((bg-region-accent-subtle . "#304466"))
+    '((bg-region-accent-subtle . "#323da2")) ;; Good candidate
+   ;;   '((bg-region-accent-subtle . "#304466"))
 
    modus-themes-italic-constructs t
    modus-themes-bold-constructs t
@@ -1595,34 +1423,34 @@ Load up some themes
       (modus-themes-load-vivendi))))
 
 ;; doom themes
-(use-package doom-themes
-  :defer t
-  :config
-  (setq doom-themes-enable-bold t)
-  (setq doom-themes-enable-italic t)
-  (doom-themes-org-config))
+;; (use-package doom-themes
+;;   :defer t
+;;   :config
+;;   (setq doom-themes-enable-bold t)
+;;   (setq doom-themes-enable-italic t)
+;;   (doom-themes-org-config))
 
 #+end_src
 
 modeline stuff
 #+begin_src emacs-lisp :noweb-ref modeline
-(use-package bui
-;; buffer user inetrface - info and buffer layout
-:defer t)
+;; (use-package bui
+;; ;; buffer user interface - info and buffer layout
+;; :defer t)
 
 ;; Mode-line
 ;;Basic Customisation
-;;(setq display-time-format "%l:%M %p %b %y"
-;;      display-time-default-load-average nil)
+(setq display-time-format "%l:%M %p %b %y"
+     display-time-default-load-average nil)
 
 ;; Change the colour of the modeline based on the Evil state (e.g. green when
 ;; in insert state)
-(use-package corgi-stateline
-  :config
-  (global-corgi-stateline-mode))
+;; (use-package corgi-stateline
+;;   :config
+;;   (global-corgi-stateline-mode))
 
 ;; Corgi or Doom Modeline
-(use-package minions
+;;(use-package minions)
    ;; lists enable minor-modes)
 
 #+end_src
@@ -1635,8 +1463,8 @@ setup diff and highlights
 #+begin_src emacs-lisp :noweb-ref highlights
   (use-package highlight-numbers
     :diminish t
-    ;;:hook prog-mode
-     )
+    :hook prog-mode
+    )
 
   (use-package hl-fill-column
     :requires hl-fill-column
@@ -1644,11 +1472,11 @@ setup diff and highlights
 
   (use-package hl-line
     :config
-      (global-hl-line-mode 1))
+    (global-hl-line-mode 1))
 
   (use-package hl-todo
     :config
-     (global-hl-todo-mode 1))
+    (global-hl-todo-mode 1))
 
   (use-package diff-hl
     :after magit
@@ -1792,10 +1620,6 @@ setup diff and highlights
                 window-divider-default-right-width 2)
 #+end_src
 
-#+begin_src emacs-lisp :noweb-ref pkg-uis
- ;; (window-divider-mode +1)
-#+end_src
-
 *** Splitting windows sensibly
 :PROPERTIES:
 :ID:                     43136dd2-3231-485b-89d9-88c8fe9fd6aa
@@ -1868,84 +1692,6 @@ setup olivetti to have a distraction free editing mode
 
 #+end_src
 
-*** Fringes
-:PROPERTIES:
-:ID:                     2d868201-f74e-4308-9326-55ffecb072a3
-:END:
-
-I have grown to love Emacs's little fringes on the side of the
-windows.  In fact, I love them so much that I really went overboard
-and have made a custom fringe bitmap.
-
-**** Indicate empty lines after the end of the buffer
-:PROPERTIES:
-:ID:                     ed5dbc40-17dc-4dc1-afe9-438667404b90
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default indicate-empty-lines t)
-#+end_src
-
-**** Indicate the boundaries of the buffer
-:PROPERTIES:
-:ID:                     18a0a877-886e-4258-9cec-b4c7ade6acb8
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default indicate-buffer-boundaries 'right)
-#+end_src
-
-**** Indicate continuation lines, but only on the left fringe
-:PROPERTIES:
-:ID:                     a9d9c920-70a0-44f8-9a35-e8dbab82ee02
-:END:
-
-#+begin_src emacs-lisp
-  (setq-default visual-line-fringe-indicators '(left-curly-arrow nil))
-#+end_src
-
-**** Customise fringe bitmaps
-:PROPERTIES:
-:ID:                     809ba958-cf27-4d36-91a1-cee523bb164c
-:END:
-
-***** Curly arrows (continuation lines)
-:PROPERTIES:
-:ID:                     a6b18024-eff2-4daa-bff3-37a9b190c6a8
-:END:
-
-#+begin_src emacs-lisp
-  (define-fringe-bitmap 'left-curly-arrow
-    [#b11000000
-     #b01100000
-     #b00110000
-     #b00011000])
-
-  (define-fringe-bitmap 'right-curly-arrow
-    [#b00011000
-     #b00110000
-     #b01100000
-     #b11000000])
-#+end_src
-
-***** Arrows (truncation lines)
-:PROPERTIES:
-:ID:                     34b749d5-dc05-4f04-ad4a-6477dd225bc6
-:END:
-
-#+begin_src emacs-lisp
-  (define-fringe-bitmap 'left-arrow
-    [#b00000000
-     #b01010100
-     #b01010100
-     #b00000000])
-
-  (define-fringe-bitmap 'right-arrow
-    [#b00000000
-     #b00101010
-     #b00101010
-     #b00000000])
-#+end_src
 *** Tangle Emacs UI Appearance
 :PROPERTIES:
 :header-args: :tangle lisp/init-ui.el :noweb yes
@@ -2490,7 +2236,6 @@ Help and which functions
 
 #+end_src
 
-
 ** Typographical stuff
 I also do typos pretty often, and abbrev is handy for those occasions and accents (like "perchè" instead of "perché").
 
@@ -2659,137 +2404,141 @@ n
 
 Finally, we can use Avy to select a candidate from the *Completions* buffer (see Minibuffer configurations and my extras (mct.el)).Setup avy in filter, select, act mode
 #+begin_src emacs-lisp :noweb-ref avy
- (use-package avy
-   :commands (avy-goto-char avy-goto-word-0 avy-goto-line avy-goto-char-time)
-   :bind ("C-." . #'avy-goto-char-time)
-   :config
-  (setq avy-all-windows nil) ; only the current window
-  (setq avy-all-windows-alt t) ; all windows with C-u
-  (setq avy-single-candidate-jump t)
-  (setq avy-background nil)
-  (setq avy-case-fold-search nil) ; case is significant
-  (setq avy-timeout-seconds 0.5)
-  (setq avy-style 'pre) ; prefixes candidate; otherwise use `at-full'
-  )
+(use-package avy
+    :commands (avy-goto-char avy-goto-word-0 avy-goto-line avy-goto-char-time)
+    :bind (("C-."    . #'avy-goto-char-time)
+           ("C-M-s"  . #'isearch-forward-other-window)
+           ("C-M-r" . #'isearch-backward-other-window )
+           )
+    :config
+    (setq avy-keys '(?q ?e ?r ?y ?u ?o ?p
+                        ?a ?s ?d ?f ?g ?h ?j
+                        ?k ?l ?' ?x ?c ?v ?b
+                        ?n ?, ?/))
+    (setq avy-all-windows nil) ; only the current window
+    (setq avy-all-windows-alt t) ; all windows with C-u
+    (setq avy-single-candidate-jump t)
+    (setq avy-background nil)
+    (setq avy-case-fold-search nil) ; case is significant
+    (setq avy-timeout-seconds 0.5)
+    (setq avy-style 'pre) ; prefixes candidate; otherwise use `at-full'
 
- ;; (setup (:pkg avy)
- ;;     (:disable)
- ;;      (:global  "M-j"  'avy-goto-char-timer
- ;;                "C-M-s" 'isearch-forward-other-window
- ;;                "C-M-r" 'isearch-backward-other-window)
- ;;      (setq avy-keys '(?q ?e ?r ?y ?u ?o ?p
- ;;                          ?a ?s ?d ?f ?g ?h ?j
- ;;                          ?k ?l ?' ?x ?c ?v ?b
- ;;                          ?n ?, ?/))
+    (defun avy-show-dispatch-help ()
+      (let* ((len (length "avy-action-"))
+             (fw (frame-width))
+             (raw-strings (mapcar
+                           (lambda (x)
+                             (format "%2s: %-19s"
+                                     (propertize
+                                      (char-to-string (car x))
+                                      'face 'aw-key-face)
+                                     (substring (symbol-name (cdr x)) len)))
+                           avy-dispatch-alist))
+             (max-len (1+ (apply #'max (mapcar #'length raw-strings))))
+             (strings-len (length raw-strings))
+             (per-row (floor fw max-len))
+             display-strings)
+        (cl-loop for string in raw-strings
+                 for N from 1 to strings-len do
+                 (push (concat string " ") display-strings)
+                 (when (= (mod N per-row) 0) (push "\n" display-strings)))
+        (message "%s" (apply #'concat (nreverse display-strings)))))
 
- ;;      (defun avy-show-dispatch-help ()
- ;;        (let* ((len (length "avy-action-"))
- ;;               (fw (frame-width))
- ;;               (raw-strings (mapcar
- ;;                             (lambda (x)
- ;;                               (format "%2s: %-19s"
- ;;                                       (propertize
- ;;                                        (char-to-string (car x))
- ;;                                        'face 'aw-key-face)
- ;;                                       (substring (symbol-name (cdr x)) len)))
- ;;                             avy-dispatch-alist))
- ;;               (max-len (1+ (apply #'max (mapcar #'length raw-strings))))
- ;;               (strings-len (length raw-strings))
- ;;               (per-row (floor fw max-len))
- ;;               display-strings)
- ;;          (cl-loop for string in raw-strings
- ;;                   for N from 1 to strings-len do
- ;;                   (push (concat string " ") display-strings)
- ;;                   (when (= (mod N per-row) 0) (push "\n" display-strings)))
- ;;          (message "%s" (apply #'concat (nreverse display-strings)))))
+    ;; Kill text
+    (defun avy-action-kill-whole-line (pt)
+      (save-excursion
+        (goto-char pt)
+        (kill-whole-line))
+      (select-window
+       (cdr
+        (ring-ref avy-ring 0)))
+      t)
 
- ;;      ;; Kill text
- ;;      (defun avy-action-kill-whole-line (pt)
- ;;        (save-excursion
- ;;          (goto-char pt)
- ;;          (kill-whole-line))
- ;;        (select-window
- ;;         (cdr
- ;;          (ring-ref avy-ring 0)))
- ;;        t)
+    (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
+          (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
 
- ;;   ;; (:option avy-dispatch-alist (append (?k avy-action-kill-stay)))
- ;;  ;;    (add-to-list 'avy-dispatch-alist '(?k . avy-action-kill-stay))
- ;;      (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
- ;;            (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
+    ;; Copy text
+    (defun avy-action-copy-whole-line (pt)
+      (save-excursion
+        (goto-char pt)
+        (cl-destructuring-bind (start . end)
+            (bounds-of-thing-at-point 'line)
+          (copy-region-as-kill start end)))
+      (select-window
+       (cdr
+        (ring-ref avy-ring 0)))
+      t)
 
- ;;      ;; Copy text
- ;;      (defun avy-action-copy-whole-line (pt)
- ;;        (save-excursion
- ;;          (goto-char pt)
- ;;          (cl-destructuring-bind (start . end)
- ;;              (bounds-of-thing-at-point 'line)
- ;;            (copy-region-as-kill start end)))
- ;;        (select-window
- ;;         (cdr
- ;;          (ring-ref avy-ring 0)))
- ;;        t)
+    (setf (alist-get ?w avy-dispatch-alist) 'avy-action-copy
+          (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line)
 
- ;;      (setf (alist-get ?w avy-dispatch-alist) 'avy-action-copy
- ;;            (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line)
+    ;; Yank text
+    (defun avy-action-yank-whole-line (pt)
+      (avy-action-copy-whole-line pt)
+      (save-excursion (yank))
+      t)
 
- ;;      ;; Yank text
- ;;      (defun avy-action-yank-whole-line (pt)
- ;;        (avy-action-copy-whole-line pt)
- ;;        (save-excursion (yank))
- ;;        t)
+    (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
+          (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
 
- ;;      (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
- ;;            (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
+    ;; Transpose/Move text
+    (defun avy-action-teleport-whole-line (pt)
+      (avy-action-kill-whole-line pt)
+      (save-excursion (yank)) t)
 
- ;;      ;; Transpose/Move text
- ;;      (defun avy-action-teleport-whole-line (pt)
- ;;        (avy-action-kill-whole-line pt)
- ;;        (save-excursion (yank)) t)
+    (setf (alist-get ?t avy-dispatch-alist) 'avy-action-teleport
+          (alist-get ?T avy-dispatch-alist) 'avy-action-teleport-whole-line)
 
- ;;      (setf (alist-get ?t avy-dispatch-alist) 'avy-action-teleport
- ;;            (alist-get ?T avy-dispatch-alist) 'avy-action-teleport-whole-line)
+    ;; Mark text
+    (defun avy-action-mark-to-char (pt)
+      (activate-mark)
+      (goto-char pt))
 
- ;;      ;; Mark text
- ;;      (defun avy-action-mark-to-char (pt)
- ;;        (activate-mark)
- ;;        (goto-char pt))
+    (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
 
- ;;      (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
+    ;; Avy + Isearch
+    (define-key isearch-mode-map (kbd "M-j") 'avy-isearch)
 
- ;;      ;; Avy + Isearch
- ;;      (define-key isearch-mode-map (kbd "M-j") 'avy-isearch)
+    ;; Isearch in other windows
+    (defun isearch-forward-other-window (prefix)
+      "Function to isearch-forward in other-window."
+      (interactive "P")
+      (unless (one-window-p)
+        (save-excursion
+          (let ((next (if prefix -1 1)))
+            (other-window next)
+            (isearch-forward)
+            (other-window (- next))))))
 
- ;;      ;; Isearch in other windows
- ;;      (defun isearch-forward-other-window (prefix)
- ;;        "Function to isearch-forward in other-window."
- ;;        (interactive "P")
- ;;        (unless (one-window-p)
- ;;          (save-excursion
- ;;            (let ((next (if prefix -1 1)))
- ;;              (other-window next)
- ;;              (isearch-forward)
- ;;              (other-window (- next))))))
+    (defun isearch-backward-other-window (prefix)
+      "Function to isearch-backward in other-window."
+      (interactive "P")
+      (unless (one-window-p)
+        (save-excursion
+          (let ((next (if prefix 1 -1)))
+            (other-window next)
+            (isearch-backward)
+            (other-window (- next))))))
 
- ;;      (defun isearch-backward-other-window (prefix)
- ;;        "Function to isearch-backward in other-window."
- ;;        (interactive "P")
- ;;        (unless (one-window-p)
- ;;          (save-excursion
- ;;            (let ((next (if prefix 1 -1)))
- ;;              (other-window next)
- ;;              (isearch-backward)
- ;;              (other-window (- next))))))
+    (setq avy-all-windows t))
 
- ;;      (setq avy-all-windows t))
+  ;; (setup (:pkg avy)
+  ;;     (:disable)
+  ;;      (:global  "M-j"  'avy-goto-char-timer
+  ;;                "C-M-s" 'isearch-forward-other-window
+  ;;                "C-M-r" 'isearch-backward-other-window)
 
-    ;; (setup (:pkg avy-zap)
-    ;;   ;; : my-laptop-p
-    ;;   (setq avy-zap-forward-only t)
-    ;;   ;; (setq avy-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
-    ;;   :global
-    ;;   (("M-z" . avy-zap-up-to-char-dwim)
-    ;;    ("M-Z" . avy-zap-to-char-dwim)))
+  ;;   ;; (:option avy-dispatch-alist (append (?k avy-action-kill-stay)))
+  ;;  ;;    (add-to-list 'avy-dispatch-alist '(?k . avy-action-kill-stay))
+  ;;)
+
+  ;; (setup (:pkg avy-zap)
+  ;;   ;; : my-laptop-p
+  ;;   (setq avy-zap-forward-only t)
+  ;;   ;; (setq avy-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
+  ;;   :global
+  ;;   (("M-z" . avy-zap-up-to-char-dwim)
+  ;;    ("M-Z" . avy-zap-to-char-dwim)))
 
 #+end_src
 ** Search
@@ -2874,7 +2623,7 @@ loccur is similar, but instead of using a separate buffer, it visually hides all
   :bind (("C-c O" . loccur)))
 #+end_src
 With wgrep we can directly edit the results of a grep and save the changes to all affected buffers. In principle, this is the same as what the built-in occur offers. We can use it to operate on a list of matches by leveraging the full power of Emacs’ editing capabilities (e.g. keyboard macros, query and replace a regexp…).
-,#+begin_src emacs-lisp :noweb-ref wgrep
+#+begin_src emacs-lisp :noweb-ref wgrep
 ;;; wgrep (writable grep)
 (setup (:require wgrep)
   (setq wgrep-auto-save-buffer t)
@@ -2905,43 +2654,43 @@ The configuration below enables Flyspell for all text modes and sets Hunspell as
 
 A more productive method is to use the C-; function. This function provides the most likely correction of the first spelling error before the cursor is. Emacs will show the list of possible corrections in the mini buffer. Repeatedly pressing C-; will cycle through the options until you get back to the original. This function prevents you from having to jump to your spelling mistakes.
 #+begin_src emacs-lisp :noweb-ref spell
-    (setup flyspell
-      (:needs (or "hunspell"
-                  "aspell"))
-      (:load-after avy
-        (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
-        (:bind "M-<f7>"  flyspell-buffer
-               "<f7>"    flyspell-word
-               "C-;"     flyspell-auto-correct-previous-word
-               )
-        (progn
-          (cond
-           ((executable-find "aspell")
-            (setq ispell-program-name "aspell")
-            (setq ispell-extra-args   '("--sug-mode=ultra"
-                                        "--lang=en_AU")))
-           ((executable-find "hunspell")
-            (setq ispell-program-name "hunspell")
-            (setq ispell-extra-args   '("-d en_AU"))))
+(setup flyspell
+       (:needs (or "hunspell"
+                   "aspell"))
+       (:load-after avy
+                    (:hook-into org-mode-hook git-commit-mode-hook markdown-mode-hook)
+                    (:bind "M-<f7>"  flyspell-buffer
+                           "<f7>"    flyspell-word
+                           "C-;"     flyspell-auto-correct-previous-word
+                           )
+                    (progn
+                      (cond
+                       ((executable-find "aspell")
+                        (setq ispell-program-name "aspell")
+                        (setq ispell-extra-args   '("--sug-mode=ultra"
+                                                    "--lang=en_AU")))
+                       ((executable-find "hunspell")
+                        (setq ispell-program-name "hunspell")
+                        (setq ispell-extra-args   '("-d en_AU"))))
 
-          ;; Save a new word to personal dictionary without asking
-          (setq ispell-silently-savep t)
-          (setq ispell-default-dictionary "en_AU"))
+                      ;; Save a new word to personal dictionary without asking
+                      (setq ispell-silently-savep t)
+                      (setq ispell-default-dictionary "en_AU"))
 
-        (defun avy-action-flyspell (pt)
-          (save-excursion
-            (goto-char pt)
-            (when (require 'flyspell nil t)
-              (flyspell-auto-correct-word)))
-          (select-window
-           (cdr (ring-ref avy-ring 0)))
-          t)
+                    (defun avy-action-flyspell (pt)
+                      (save-excursion
+                        (goto-char pt)
+                        (when (require 'flyspell nil t)
+                          (flyspell-auto-correct-word)))
+                      (select-window
+                       (cdr (ring-ref avy-ring 0)))
+                      t)
 
-        ;; Bind to semicolon (flyspell uses C-;)
-        (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
+                    ;; Bind to semicolon (flyspell uses C-;)
+                    (setf (alist-get ?\; avy-dispatch-alist) 'avy-action-flyspell)
 
-        (:when-loaded
-          (:hide-mode))))
+                    (:when-loaded
+                     (:hide-mode))))
 #+end_src
 
 I use the dictionary package for Emacs, and I’m lazy about it:
@@ -2977,15 +2726,6 @@ I use the dictionary package for Emacs, and I’m lazy about it:
     (autoload 'dictionary-search "dictionary"
       "Ask for a word and search it in all dictionaries" t)
     (:hook #'reading-mode))
-
-#+end_src
-
-** Colour previewing
-The following package reads a colour value, such as hexadecimal RGB, and sets the background for the value in that colour. Quite useful when reviewing my themes (rainbow-mode is activated manually).
-#+begin_src emacs-lisp :noweb-ref colours
-(setup (:pkg rainbow-mode)
-    (setq rainbow-ansi-colors nil)
-    (setq rainbow-x-colors nil))
 
 #+end_src
 ** Conveniences
@@ -3061,92 +2801,100 @@ I bind the former to M-z as I use it more often and leave its counterpart on M-Z
 
 Setup undo , whitespace, expand, indentation
 
-Undo is a key function of an editor - bind to Ctrl-Z - disabled
+Undo is a key function of an editor - bind to Ctrl-Z
 #+begin_src emacs-lisp :noweb-ref undo
   ;; Setup undo-tree mode
-  (use-package undo-tree
-      :diminish t
-      :bind (( "C-z"  .  undo-tree-undo)
-             ("C-S-z" . undo-tree-redo))
-      :config
-      (setq undo-tree-auto-save-history nil)
-      (global-undo-tree-mode 1))
+  ;; (use-package undo-tree
+  ;;   :diminish t
+  ;;   :bind (( "C-z"  .  undo-tree-undo)
+  ;;          ("C-S-z" . undo-tree-redo))
+  ;;   :config
+  ;;   (setq undo-tree-auto-save-history nil)
+  ;;   (global-undo-tree-mode 1))
 
-    (use-package undo-fu
-      ;; :bind ( :map (prog-mode-map text-mode-map)
-      ;;        ( "u"   . undo-fu-only-undo)
-      ;;        ( "C-r" . undo-fu-only-redo))
-  )
+  (use-package undo-fu
+    :config
+    (global-unset-key (kbd "C-z"))
+    (global-set-key (kbd "C-z")   'undo-fu-only-undo)
+    (global-set-key (kbd "C-S-z") 'undo-fu-only-redo)
+    (setq undo-limit 6710886400) ;; 64mb.
+    (setq undo-strong-limit 100663296) ;; 96mb.
+    (setq undo-outer-limit 1006632960)) ;; 960mb.
 
-    ;; (use-package unfo-fu-session
-    ;;   :config
-    ;;   (setq undo-fu-session-incompatible-files
-    ;;         '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
-    ;;   (global-undo-fu-session-mode 1))
 
-    #+end_src
+  (use-package undo-fu-session
+    :config
+    (setq undo-fu-session-incompatible-files
+          '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+    (global-undo-fu-session-mode 1))
+
+#+end_src
 
 #+begin_src emacs-lisp :noweb-ref undo
-(use-package aggressive-indent
-  :diminish aggressive-indent-mode
-  :hook ((clojurex-mode
-          clojurescript-mode
-          clojurec-mode
-          clojure-mode
-          emacs-lisp-mode
-          lisp-data-mode)
-         . aggressive-indent-mode))
+;; (use-package aggressive-indent
+;;   :diminish aggressive-indent-mode
+;;   :hook ((clojurex-mode
+;;           clojurescript-mode
+;;           clojurec-mode
+;;           clojure-mode
+;;           emacs-lisp-mode
+;;           lisp-data-mode)
+;;          . aggressive-indent-mode))
 
-;; (setup (:pkg hungry-delete)
-;;   (:load-after smartparens
-;;     (setq hungry-delete-join-reluctantly t)
-;;     (global-hungry-delete-mode 1)
-;;     (:hook-into smartparens-enabled)
-;;     (:hide-mode)))
+(use-package hungry-delete
+  :after smartparens
+  :diminish
+  :config
+  (setq hungry-delete-join-reluctantly t)
+  (global-hungry-delete-mode 1)
+  ;;  (:hook-into smartparens-enabled)
+ )
 
-(use-package dumb-jump)
+;; (use-package dumb-jump)
 
-(use-package goto-last-change)
+;; (use-package goto-last-change)
 
-(use-package expand-region)
+;; (use-package expand-region)
 
-(use-package string-edit)
+;; (use-package string-edit)
 #+end_src
 
 ** Corgi Editor buffers
 #+begin_src emacs-lisp :noweb-ref corgi-ed-buffers
-(when (and (not (display-graphic-p))
-           (executable-find "xclip"))
-  (use-package xclip
-    :config
-    (when (executable-find xclip-program)
-      (with-no-warnings
-        (xclip-mode t)))))
+  (when (and (not (display-graphic-p))
+             (executable-find "xclip"))
+    (use-package xclip
+      :config
+      (when (executable-find xclip-program)
+        (with-no-warnings
+          (xclip-mode t)))))
 
-;; Offer to create parent directories if they do not exist
-;; http://iqbalansari.github.io/blog/2014/12/07/automatically-create-parent-directories-on-visiting-a-new-file-in-emacs/
-(defun magnars/create-non-existent-directory ()
-  (let ((parent-directory (file-name-directory buffer-file-name)))
-    (when (and (not (file-exists-p parent-directory))
-               (y-or-n-p (format "Le répertoire `%s' n'existe pas! Créez-le?" parent-directory)))
-      (make-directory parent-directory t))))
+  ;; Offer to create parent directories if they do not exist
+  ;; http://iqbalansari.github.io/blog/2014/12/07/automatically-create-parent-directories-on-visiting-a-new-file-in-emacs/
+  (defun magnars/create-non-existent-directory ()
+    (let ((parent-directory (file-name-directory buffer-file-name)))
+      (when (and (not (file-exists-p parent-directory))
+                 (y-or-n-p (format "Le répertoire `%s' n'existe pas! Créez-le?" parent-directory)))
+        (make-directory parent-directory t))))
 
-(add-to-list 'find-file-not-found-functions #'magnars/create-non-existent-directory)
+  (add-to-list 'find-file-not-found-functions #'magnars/create-non-existent-directory)
 
-(defvar corgi-editor--last-buffer
-  nil
-  "The last current buffer.")
+  ;; (defvar corgi-editor--last-buffer
+  ;;   nil
+  ;;   "The last current buffer.")
 
-(defun corgi-editor/-on-buffer-change (&optional _win)
-  (unless (or (and (minibufferp) (not evil-want-minibuffer))
-              (eq (current-buffer) corgi-editor--last-buffer))
-    (setq corgi-editor--last-buffer (current-buffer))
-    (evil-emacs-state)))
+  ;; ;; (
+ ;; defun corgi-editor/-on-buffer-change (&optional _win)
+  ;;   (unless (or (and (minibufferp) (not evil-want-minibuffer))
+  ;;               (eq (current-buffer) corgi-editor--last-buffer))
+  ;;     (setq corgi-editor--last-buffer (current-buffer))
+  ;;     (evil-emacs-state)))
 
-(if (boundp 'window-buffer-change-functions)
-    ;; Emacs 27.1+ only
-    (add-hook 'window-buffer-change-functions #'corgi-editor/-on-buffer-change)
-  (add-hook 'post-command-hook #'corgi-editor/-on-buffer-change))
+  ;; (if (boundp 'window-buffer-change-functions)
+  ;;     ;; Emacs 27.1+ only
+  ;;     (add-hook 'window-buffer-change-functions #'corgi-editor/-on-buffer-change)
+  ;;   (add-hook 'post-command-hook #'corgi-editor/-on-buffer-change))
+
 #+end_src
 ** Buffers in Emacs
 :PROPERTIES:
@@ -3375,6 +3123,7 @@ Bindings will be enabled next time region is highlighted."
   (provide 'region-bindings)
   :init
   (region-bindings-mode-enable))
+
 #+end_src
 *** Ibuffer and extras
 ibuffer.el ships with Emacs and it provides a drop-in replacement for list-buffers. Compared to its counterpart, it allows for granular control over the buffer list and is more powerful overall. For this reason I bind it to C-x C-b.
@@ -3446,7 +3195,7 @@ The default way Emacs makes buffer names unique is really ugly and,
 Setup Editor functions
 
 #+begin_src emacs-lisp
-;;; init-editor.el --- Editor  -*- lexical-binding: t -*-
+;;; init-editor.el --- Editor Setup  -*- lexical-binding: t -*-
 <<disclaimer>>
 ;;; Code:
 
@@ -3457,9 +3206,7 @@ Setup Editor functions
 
 <<editor-sanity>>
 
-<<nolittering>>
-
-<<evil>>
+;;<<evil>>
 
 <<abbrev>>
 
@@ -3477,6 +3224,8 @@ Setup Editor functions
 
 ;;<<mwim>>
 
+<<occur>>
+
 <<undo>>
 
 <<timestamp>>
@@ -3485,7 +3234,7 @@ Setup Editor functions
 
 <<corgi-ed-buffers>>
 
-;;<<buffers>>
+<<buffers>>
 
 (provide 'init-editor)
 ;;; init-editor.el ends here
@@ -3549,6 +3298,7 @@ DIR must include a .project file to be considered a project."
   :init
   (defalias 'project-find-regexp #'rg-project))
 )
+
 #+end_src
 ** VCS
 :PROPERTIES:
@@ -3556,109 +3306,109 @@ DIR must include a .project file to be considered a project."
 :END:
 Setup of magit for cool git
 #+begin_src emacs-lisp
-    ;; (remove-hook 'find-file-hook #'vc-refresh-state)
-    ;; (hook-with-delay 'find-file-hook 1 #'vc-refresh-state)
+;; (remove-hook 'find-file-hook #'vc-refresh-state)
+;; (hook-with-delay 'find-file-hook 1 #'vc-refresh-state)
 
-    (use-package magit
-      :defer t
-      :defines (magit-status-mode-map
-        magit-revision-show-gravatars
-        magit-display-buffer-function
-        magit-diff-refine-hunk)
-      :commands (magit-display-buffer-same-window-except-diff-v1
-         magit-stage-file
-         magit-unstage-file)
-      :init
-      (setq-default magit-git-executable (executable-find "git"))
-      :config
-      (setq-default vc-follow-symlinks t)
-      ;; properly kill leftover magit buffers on quit
-      (define-key magit-status-mode-map
+(use-package magit
+  :defer t
+  :defines (magit-status-mode-map
+            magit-revision-show-gravatars
+            magit-display-buffer-function
+            magit-diff-refine-hunk)
+  :commands (magit-display-buffer-same-window-except-diff-v1
+             magit-stage-file
+             magit-unstage-file)
+  :init
+  (setq-default magit-git-executable (executable-find "git"))
+  :config
+  (setq-default vc-follow-symlinks t)
+
+  (defun vcs-quit (&optional _kill-buffer)
+    "Clean up magit buffers after quitting `magit-status'.
+    And don't forget to refresh version control in all buffers of
+    current workspace."
+    (interactive)
+    (quit-window)
+    (unless (cdr
+             (delq nil
+                   (mapcar (lambda (win)
+                             (with-selected-window win
+                               (eq major-mode 'magit-status-mode)))
+                           (window-list))))
+      (when (fboundp 'magit-mode-get-buffers)
+        (mapc #'vcs--kill-buffer (magit-mode-get-buffers)))))
+
+  (defun vcs--kill-buffer (buffer)
+    "Gracefully kill `magit' BUFFER.
+    If any alive process is related to this BUFFER, wait for 5
+    seconds before nuking BUFFER and the process. If it's dead -
+    don't wait at all."
+    (when (and (bufferp buffer) (buffer-live-p buffer))
+      (let ((process (get-buffer-process buffer)))
+        (if (not (processp process))
+            (kill-buffer buffer)
+          (with-current-buffer buffer
+            (if (process-live-p process)
+                (run-with-timer 5 nil #'vcs--kill-buffer buffer)
+              (kill-process process)
+              (kill-buffer buffer)))))))
+
+  ;; properly kill leftover magit buffers on quit
+  (define-key magit-status-mode-map
     [remap magit-mode-bury-buffer]
     #'vcs-quit)
 
-      (setq magit-revision-show-gravatars
+  (setq magit-revision-show-gravatars
         '("^Author:     " . "^Commit:     ")
         magit-display-buffer-function
         #'magit-display-buffer-same-window-except-diff-v1
         ;; show word-granularity on selected hunk
         magit-diff-refine-hunk t)
-      (setq git-commit-summary-max-length 120)
-      (setq magit-commit-show-diff nil)
-      (setq magit-delete-by-moving-to-trash nil)
-      (setq magit-display-buffer-function
+  (setq git-commit-summary-max-length 120)
+  (setq magit-commit-show-diff nil)
+  (setq magit-delete-by-moving-to-trash nil)
+  (setq magit-display-buffer-function
         #'magit-display-buffer-same-window-except-diff-v1)
-      (setq magit-log-auto-more t)
-      (setq magit-log-margin-show-committer-date t)
-      (setq magit-revert-buffers 'silent)
-      (setq magit-save-repository-buffers 'dontask)
-      (setq magit-wip-after-apply-mode t)
-      (setq magit-wip-after-save-mode t)
-      (setq magit-wip-before-change-mode t)
-      (setq transient-values
+  (setq magit-log-auto-more t)
+  (setq magit-log-margin-show-committer-date t)
+  (setq magit-revert-buffers 'silent)
+  (setq magit-save-repository-buffers 'dontask)
+  (setq magit-wip-after-apply-mode t)
+  (setq magit-wip-after-save-mode t)
+  (setq magit-wip-before-change-mode t)
+  (setq transient-values
         '((magit-log:magit-log-mode "--graph" "--color" "--decorate"))))
 
-  ;;(use-package forge
-    ;;      :commands forge-create-pullreq forge-create-issue
-    ;;      :init
-    ;;      (setq-default forge-database-file
-    ;;                    (expand-file-name "forge/forge-database.sqlite"
-    ;;                                      EMACS_ETC/)))
+;;(use-package forge
+;;      :commands forge-create-pullreq forge-create-issue
+;;      :init
+;;      (setq-default forge-database-file
+;;                    (expand-file-name "forge/forge-database.sqlite"
+;;                                      EMACS_ETC/)))
 
-    ;;(setup (:pkg git-timemachine)
-    ;;          (:bind
-    ;;           "[" git-timemachine-show-previous-revision
-    ;;           "]" git-timemachine-show-next-revision
-    ;;           "b" git-timemachine-blame))
+;; (use-package git-timemachine
+;;   :bind  (( "[" .  #'git-timemachine-show-previous-revision
+;;            "]"  .  #'git-timemachine-show-next-revision
+;;            "b" .   #'git-timemachine-blame)))
 
-    (use-package ediff-wind
-      :straight nil
-      :defer t
-      :init
-      (setq ediff-window-setup-function 'ediff-setup-windows-plain
+(use-package ediff-wind
+  :straight nil
+  :defer t
+  :init
+  (setq ediff-window-setup-function 'ediff-setup-windows-plain
         ediff-split-window-function 'split-window-horizontally))
 
-    (use-package diff-hl
-      :defer t
-      :hook ((prog-mode . turn-on-diff-hl-mode)
+(use-package diff-hl
+  :defer t
+  :hook ((prog-mode . turn-on-diff-hl-mode)
          (text-mode . turn-on-diff-hl-mode)
          (vc-dir-mode . turn-on-diff-hl-mode)
          (dired-mode . diff-hl-dired-mode)))
 
-    (defun vcs-quit (&optional _kill-buffer)
-      "Clean up magit buffers after quitting `magit-status'.
-    And don't forget to refresh version control in all buffers of
-    current workspace."
-      (interactive)
-      (quit-window)
-      (unless (cdr
-           (delq nil
-             (mapcar (lambda (win)
-                   (with-selected-window win
-                 (eq major-mode 'magit-status-mode)))
-                 (window-list))))
-    (when (fboundp 'magit-mode-get-buffers)
-      (mapc #'vcs--kill-buffer (magit-mode-get-buffers)))))
-
-    (defun vcs--kill-buffer (buffer)
-      "Gracefully kill `magit' BUFFER.
-    If any alive process is related to this BUFFER, wait for 5
-    seconds before nuking BUFFER and the process. If it's dead -
-    don't wait at all."
-      (when (and (bufferp buffer) (buffer-live-p buffer))
-    (let ((process (get-buffer-process buffer)))
-      (if (not (processp process))
-          (kill-buffer buffer)
-        (with-current-buffer buffer
-          (if (process-live-p process)
-          (run-with-timer 5 nil #'vcs--kill-buffer buffer)
-        (kill-process process)
-        (kill-buffer buffer)))))))
-
-    ;; (use-package  magit-todos
-    ;; :after magit
-    ;; :config
-    ;; (magit-todos-mode 1))
+;; (use-package  magit-todos
+;; :after magit
+;; :config
+;; (magit-todos-mode 1))
 
 #+end_src
 ** Completion & Selection
@@ -3743,6 +3493,7 @@ Marginalia provides helpful annotations for various types of minibuffer completi
            '(marginalia-annotators-heavy marginalia-annotators-light nil))
   :init (marginalia-mode)
   :config
+  (setq marginalia-max-relative-age 0)  ; time is absolute here!
   (define-key minibuffer-local-map (kbd "M-A") #'marginalia-cycle))
 
  ;; (setup (:pkg marginalia)
@@ -3789,7 +3540,6 @@ Marginalia provides helpful annotations for various types of minibuffer completi
 *** Vertico
 Vertico is just like selectrum or icomplete-vertical.
 #+begin_src emacs-lisp vertico
-
 (use-package vertico
   :straight '(vertico :host github
                       :repo "minad/vertico"
@@ -3833,7 +3583,7 @@ folder, otherwise delete a word"
 ;;           ("DEL" . vertico-directory-delete-char)
 ;;           ("M-DEL" . vertico-directory-delete-word))
 ;; Tidy shadowed file names
-:hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+;; :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
 #+end_src
 *** Minibuffer Configurations
 The minibuffer is the epicentre of extended interactivity with all sorts of Emacs workflows: to select a buffer, open a file, provide an answer to some prompt, such as a number, regular expression, password, and so on.
@@ -3865,8 +3615,8 @@ Emacs has built-in capabilities to perform two distinct tasks related to such in
     The minibuffer-depth-indicate-mode will show a recursion indicator, represented as a number, next to the minibuffer prompt, if a recursive edit is in progress (also check Mode line recursion indicators).
 
 #+begin_src emacs-lisp :noweb-ref minibuffer
-    ;;; Minibuffer configurations and my extras (mct.el)
-  (use-package  minibuffer
+;;; Minibuffer configurations and my extras (mct.el)
+(use-package  minibuffer
     :straight nil
     :config
     (setq completion-styles '(basic orderless)) ; also see `completion-category-overrides'
@@ -4036,6 +3786,8 @@ Consult, which provides a suite of useful commands using completing-read
          ("C-c h" . consult-history)
          ("C-c m" . consult-mode-command)
          ("C-c k" . consult-kmacro)
+         ;; C-s bindings
+         ;;("C-s" . consult-find)
          ;; C-x bindings (ctl-x-map)
          ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
          ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
@@ -4367,68 +4119,101 @@ the directory.  `REST' is passed to the `CONSULT-RIPGREP-FUNCTION'."
 Tangle embark, vertico and consult
 
 #+begin_src emacs-lisp
-  ;;; init-selection.el --- Completion -*- lexical-binding: t -*-
-  <<disclaimer>>
-  ;;; Code:
+;;; init-selection.el --- Completion -*- lexical-binding: t -*-
+<<disclaimer>>
+;;; Code:
 
-  ;; <<orderless>>
+<<orderless>>
 
-  ;; <<completion-hist>>
+<<completion-hist>>
 
-  ;; <<annotations>>
+<<annotations>>
 
-  ;; <<vertico>>
+<<vertico>>
 
-  ;; <<minibuffer>>
+<<minibuffer>>
 
-  ;; <<consult>>
+<<consult>>
 
-  ;; <<actions>>
+<<actions>>
 
-  ;; <<corfu>>
+<<corfu>>
 
-  ;; <<cape>>
+<<cape>>
 
-  <<corgi-nav>>
+;;<<corgi-nav>>
 
-  (provide 'init-selection)
-  ;;; init-selection.el ends here
+(provide 'init-selection)
+;;; init-selection.el ends here
 #+end_src
 ** Emacs keyboard Setting
 *** Emacs default bindings
 
 #+begin_src emacs-lisp :noweb-ref emacs-bindings
-   (use-package bind-key)
-   (require 'bind-key)
-   (require 'diminish)
+(use-package bind-key)
+(require 'bind-key)
+(require 'diminish)
 
-   (use-package bindings
-     :straight nil
-     :ensure nil
-     :bind ( :map ctl-x-map
-         ("C-d" . dired-jump)
-         :map narrow-map
-         ("i d" . indirect-narrow-to-defun)
-         ("i n" . indirect-narrow-to-region)
-         ("]" . narrow-next-page)
-         ("[" . narrow-prev-page))
-     :init
-     (setq mode-line-end-spaces nil)
-   ;;   (define-advice keyboard-quit (:around (quit))
-   ;;     "Quit the current context.
-   ;;  When there is an active minibuffer and we are not inside it close
-   ;;  it.  When we are inside the minibuffer use the regular
-   ;;  `minibuffer-keyboard-quit' which quits any active region before
-   ;;  exiting.  When there is no minibuffer `keyboard-quit' unless we
-   ;;  are defining or executing a macro."
-   ;;     (if (active-minibuffer-window)
-   ;;         (if (minibufferp)
-   ;;             (minibuffer-keyboard-quit)
-   ;;           (abort-recursive-edit))
-   ;;       (unless (or defining-kbd-macro
-   ;;                   executing-kbd-macro)
-   ;;         (funcall-interactively quit))))
-    )
+;; BETTER-DEFAULTS
+
+(global-set-key (kbd "C-x C-b") 'ibuffer)
+(global-set-key (kbd "M-/") 'hippie-expand)
+
+;; MATCHING BRACKET LIKE VIM's "%"
+
+(defun forward-or-backward-sexp (&optional arg)
+  "Go to the matching parenthesis character if one is adjacent to point."
+  (interactive "^p")
+  (cond ((looking-at "\\s(") (forward-sexp arg))
+        ((looking-back "\\s)" 1) (backward-sexp arg))
+        ;; Now, try to succeed from inside of a bracket
+        ((looking-at "\\s)") (forward-char) (backward-sexp arg))
+        ((looking-back "\\s(" 1) (backward-char) (forward-sexp arg))))
+
+(global-set-key (kbd "C-%") 'forward-or-backward-sexp)
+
+(use-package bindings
+    :straight nil
+    :ensure nil
+    :bind ( :map ctl-x-map
+            ("C-d" . dired-jump)
+            :map narrow-map
+            ("i d" . indirect-narrow-to-defun)
+            ("i n" . indirect-narrow-to-region)
+            ("]" . narrow-next-page)
+            ("[" . narrow-prev-page))
+    :init
+    (setq mode-line-end-spaces nil)
+    ;; (define-advice keyboard-quit (:around (quit))
+    ;;   "Quit the current context.
+    ;;   When there is an active minibuffer and we are not inside it close
+    ;;   it.  When we are inside the minibuffer use the regular
+    ;;   `minibuffer-keyboard-quit' which quits any active region before
+    ;;   exiting.  When there is no minibuffer `keyboard-quit' unless we
+    ;;   are defining or executing a macro."
+    ;;   (if (active-minibuffer-window)
+    ;;       (if (minibufferp)
+    ;;           (minibuffer-keyboard-quit)
+    ;;         (abort-recursive-edit))
+    ;;     (unless (or defining-kbd-macro
+    ;;                 executing-kbd-macro)
+    ;;       (funcall-interactively quit))))
+)
+
+(use-package crux
+:config
+  (global-set-key (kbd "C-a") 'crux-move-beginning-of-line)
+  (global-set-key (kbd "C-o") 'crux-smart-open-line)
+  (global-set-key (kbd "C-c C-l") 'crux-duplicate-current-line-or-region)
+  (global-set-key (kbd "C-c C--") 'crux-kill-whole-line)
+  (global-set-key (kbd "C-c ;") 'crux-duplicate-and-comment-current-line-or-region))
+
+;; REGEXP SEARCH
+
+(global-set-key (kbd "C-s") 'isearch-forward-regexp)
+(global-set-key (kbd "C-M-s") 'isearch-forward)
+(global-set-key (kbd "C-r") 'isearch-backward-regexp)
+(global-set-key (kbd "C-M-r") 'isearch-backward)
 
 #+end_src
 *** Prot simple
@@ -4567,18 +4352,15 @@ Change the Mac modifiers to my liking. I also disable passing Control characters
 
 #+end_src
 ***  tangle Keyboard
-:PROPERTIES:
+:properties:
 :header-args: :tangle lisp/init-kbd.el :noweb yes
 :end:
-    Setup keyboard
+Setup keyboard
+
 
 #+begin_src emacs-lisp
 ;;; init-kbd.el --- Setup Keyboard -*- lexical-binding: t -*-
-
 <<disclaimer>>
-;;
-;; This module sets up keyboard
-;;
 ;;; Code:
 
 (require 'init-elpa)
@@ -4589,10 +4371,6 @@ Change the Mac modifiers to my liking. I also disable passing Control characters
 <<emacs-bindings>>
 
 <<hydra>>
-
-<<corgi-bindings>>
-
-<<corgi-keys>>
 
 (provide 'init-kbd)
 ;;; init-kbd.el ends here
@@ -4605,205 +4383,200 @@ Couched in those terms, Org is at once a distribution of well integrated librari
 ** Org mode Use-package Defaults
 Org mode defaults for consistency
 #+begin_src emacs-lisp :noweb-ref org-defaults
-(add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
-(setq org-plantuml-jar-path
-      (expand-file-name "~/.local/bin/plantuml.jar"))
+  (setq org-plantuml-jar-path
+        (expand-file-name "~/.local/bin/plantuml.jar"))
 
+  (use-package org
+    :straight (:type built-in)
+    :diminish t
+    :preface
+    ;; Set my default org-export backends. This variable needs to be set before
+    ;; org.el is loaded.
+    (setq org-export-backends '(ascii html latex md))
+    ;; Do not open links of mouse left clicks.
+    ;; Default behavior caused inline images in Org buffers to pop up in their
+    ;; own buffers when left clicked on by mistake. I can still intentionally
+    ;; open links and such images in new buffers by doing C-c C-o.
+    (setq org-mouse-1-follows-link nil)
+    :bind (("C-c c" . org-capture)
+           ("C-c a" . org-agenda)
+           ("<f7> s" . org-store-link)
+           :map org-src-mode-map
+           ("C-x w" . org-edit-src-exit)
+           ("C-x C-s" . org-edit-src-exit))
+    :mode ("\\.org\\'" . org-mode)
+    :hook ((org-mode . gas/org-setup))
+    :hook  ((org-capture-mode org-src-mode) . discard-history)
+    :commands (org-check-agenda-file
+               org-link-set-parameters)
+    :custom-face
+    (org-block ((t (:extend t))))
+    (org-block-begin-line ((t ( :slant unspecified
+                                :weight normal
+                                :background unspecified
+                                :inherit org-block
+                                :extend t))))
+    (org-block-end-line ((t ( :slant unspecified
+                              :weight normal
+                              :background unspecified
+                              :inherit org-block-begin-line
+                              :extend t))))
+    ;;(org-drawer ((t (:foreground nil :inherit shadow))))
+    :custom
+    (org-ellipsis "…")
+    :init
+    ;; This is where my ~heart~ org files are.
+    (setq org-directory
+          (if IS_TERMUX?
+              "~/storage/shared/org"
+            "~/org"))
+    :config
+    (require 'org-protocol)
+      ;;;; general settings
+    (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
+    ;; Prevent auto insertion of blank lines before headings and list items
+    (setq org-blank-before-new-entry '((heading)
+                                       (plain-list-item)))
+    ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
+    (setq org-special-ctrl-a/e nil)
+    (setq org-special-ctrl-k nil)
+    (setq org-M-RET-may-split-line '((default . nil)))
+    ;; Single key command execution when at beginning of a headline
+    (setq org-use-speed-commands t)     ;? speed-key opens Speed Keys help
+    (setq org-speed-commands-user '(("m" . org-mark-subtree)))
+    (setq org-hide-emphasis-markers nil)  ;; so dont see text markers aka bold italic
+    (setq org-hide-macro-markers nil)
+    (setq org-hide-leading-stars nil)
+    (setq org-cycle-separator-lines 0)
+    (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
+          '(("s" . "src")
+            ("b" . "src bash")
+            ("E" . "src emacs-lisp")
+            ("e" . "example")
+            ("q" . "quote")
+            ("v" . "verse")
+            ("V" . "verbatim")
+            ("c" . "src clojure")
+            ("C" . "comment")))
+    (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
+    (setq org-return-follows-link t)
+    (setq org-loop-over-headlines-in-active-region 'start-level)
+    ;; Setup list of Org modules that should always be loaded together
+    ;; with Org.
+    (setq org-modules '(org-id org-attach ol-info))
+    ;; Allow _ and ^ characters to sub/super-script strings but only when
+    ;; string is wrapped in braces
+    (setq org-use-sub-superscripts '{}) ; In-buffer rendering
+    (setq org-pretty-entities t)        ; special symbols, latex
+    ;; Render subscripts and superscripts in Org buffers
+    (setq org-pretty-entities-include-sub-superscripts t)
+    (setq org-insert-heading-respect-content t)
 
-(use-package org
-  :straight (:type built-in)
-  :diminish t
-  :preface
-  ;; Set my default org-export backends. This variable needs to be set before
-  ;; org.el is loaded.
-  (setq org-export-backends '(ascii html latex md))
-  ;; Do not open links of mouse left clicks.
-  ;; Default behavior caused inline images in Org buffers to pop up in their
-  ;; own buffers when left clicked on by mistake. I can still intentionally
-  ;; open links and such images in new buffers by doing C-c C-o.
-  (setq org-mouse-1-follows-link nil)
-  :bind (("C-c c" . org-capture)
-	       ("C-c a" . org-agenda)
-	       ("<f7> s" . org-store-link)
-	       :map org-src-mode-map
-	       ("C-x w" . org-edit-src-exit)
-	       ("C-x C-s" . org-edit-src-exit))
-  :mode ("\\.org\\'" . org-mode)
-  :hook ((org-mode . gas/org-setup))
-	;; (org-mode . adaptive-wrap-prefix-mode)
-  :hook  ((org-capture-mode org-src-mode) . discard-history)
-  :commands (org-check-agenda-file
-	           org-link-set-parameters)
-  :custom-face
-  (org-block ((t (:extend t))))
-  (org-block-begin-line ((t ( :slant unspecified
-				                      :weight normal
-				                      :background unspecified
-				                      :inherit org-block
-				                      :extend t))))
-  (org-block-end-line ((t ( :slant unspecified
-			                      :weight normal
-			                      :background unspecified
-			                      :inherit org-block-begin-line
-			                      :extend t))))
-  (org-drawer ((t (:foreground nil :inherit shadow))))
-  :custom
-  (org-ellipsis "…")
-  :init
-  ;; This is where my ~heart~ org files are.
-  (setq org-directory
-	      ;; (if IS_TERMUX?
-	      ;;     "~/storage/shared/org"
-	      "~/org")  ;;)
+    ;; code blocks
+    (setq org-hide-block-startup nil)
+    (setq org-fontify-quote-and-verse-blocks t
+          org-fontify-whole-heading-line t)
+    (setq org-confirm-babel-evaluate nil)
+    (setq org-src-window-setup 'current-window)
+    (setq org-edit-src-persistent-message nil)
+    (setq org-src-fontify-natively t) ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
+    (setq org-src-preserve-indentation t)
+    (setq org-src-tab-acts-natively t) ;; TAB as if code tab settings
+    (setq org-edit-src-content-indentation 0) ;; remove 2 space indent in src code blocks
+    (setq org-use-property-inheritance t) ;; for tangling
 
-  :config
-  (require 'org-protocol)
-    ;;;; general settings
-  (setq org-adapt-indentation nil)      ; No, non, nein, όχι!
-  ;; Prevent auto insertion of blank lines before headings and list items
-  (setq org-blank-before-new-entry '((heading)
-				                             (plain-list-item)))
-  ;; http://emacs.stackexchange.com/a/17513/115, values: nil, t, 'reverse
-  (setq org-special-ctrl-a/e nil)
-  (setq org-special-ctrl-k nil)
-  (setq org-M-RET-may-split-line '((default . nil)))
-  ;; Single key command execution when at beginning of a headline
-  (setq org-use-speed-commands t)     ;? speed-key opens Speed Keys help
-  (setq org-speed-commands-user '(("m" . org-mark-subtree)))
-  (setq org-hide-emphasis-markers nil)  ;; so dont see text markers aka bold italic
-  (setq org-hide-macro-markers nil)
-  (setq org-hide-leading-stars nil)
-  (setq org-cycle-separator-lines 0)
-  (setq org-structure-template-alist    ; CHANGED in Org 9.3, Emacs 27.1
-	      '(("s" . "src")
-	        ("b" . "src bash")
-	        ("E" . "src emacs-lisp")
-	        ("e" . "example")
-	        ("q" . "quote")
-	        ("v" . "verse")
-	        ("V" . "verbatim")
-	        ("c" . "src clojure")
-	        ("C" . "comment")))
-  (setq org-catch-invisible-edits 'smart) ;; try not to accidently do wierd stuff in invisible regions : show smart, error
-  (setq org-return-follows-link t)
-  (setq org-loop-over-headlines-in-active-region 'start-level)
-  ;; Setup list of Org modules that should always be loaded together
-  ;; with Org.
-  (setq org-modules '(org-id org-attach ol-info))
-  ;; Allow _ and ^ characters to sub/super-script strings but only when
-  ;; string is wrapped in braces
-  (setq org-use-sub-superscripts '{}) ; In-buffer rendering
-  (setq org-pretty-entities t)        ; special symbols, latex
-  ;; Render subscripts and superscripts in Org buffers
-  (setq org-pretty-entities-include-sub-superscripts t)
-  (setq org-insert-heading-respect-content t)
+    ;; images
+    (setq org-startup-with-inline-images t)
+    (setq org-image-actual-width '(300))
 
-    ;;;; code blocks
-  (setq org-hide-block-startup nil)
-  (setq org-fontify-quote-and-verse-blocks t
-	      org-fontify-whole-heading-line t)
-  (setq org-confirm-babel-evaluate nil)
-  (setq org-src-window-setup 'current-window)
-  (setq org-edit-src-persistent-message nil)
-  (setq org-src-fontify-natively t) ;; Display entities like \tilde, \alpha, etc in UTF-8 characters
-  (setq org-src-preserve-indentation t)
-  (setq org-src-tab-acts-natively t) ;; TAB as if code tab settings
-  (setq org-edit-src-content-indentation 0) ;; remove 2 space indent in src code blocks
-  (setq org-use-property-inheritance t) ;; for tangling
+    ;; export
+    (setq org-export-with-toc t)
+    (setq org-export-headline-levels 8)
+    (setq org-export-in-background t)     ; run export processes in external emacs process
+    (setq org-export-with-section-numbers nil)
+    (setq org-export-with-smart-quotes t)
+    (setq org-export-with-sub-superscripts '{}) ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+    (setq org-export-dispatch-use-expert-ui nil)
+    (setq org-html-coding-system 'utf-8-unix)
+    (setq org-html-todo-kwd-class-prefix "keyword ")
+    (setq org-html-htmlize-output-type nil)
+    (setq org-html-head-include-default-style nil)
+    (setq org-html-head-include-scripts nil)
+    (require 'ox-texinfo)
+    (require 'ox-md)
 
-    ;;;; images
-  (setq org-startup-with-inline-images t)
-  (setq org-image-actual-width '(300))
+    ;; fold / overview  - collapse everything, show only level 1 headlines
+    ;; content          - show only headlines
+    ;; nofold / showall - expand all headlines except the ones with :archive:
+    ;;                    tag and property drawers
+    ;; showeverything   - same as above but without exceptions
+    (setq org-startup-folded 'content)
 
-    ;;;; export
-  (setq org-export-with-toc t)
-  (setq org-export-headline-levels 8)
-  (setq org-export-in-background t)     ; run export processes in external emacs process
-  (setq org-export-with-section-numbers nil)
-  (setq org-export-with-smart-quotes t)
-  (setq org-export-with-sub-superscripts '{}) ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
-  (setq org-export-dispatch-use-expert-ui nil)
-  (setq org-html-coding-system 'utf-8-unix)
-  (setq org-html-todo-kwd-class-prefix "keyword ")
-  (setq org-html-htmlize-output-type nil)
-  (setq org-html-head-include-default-style nil)
-  (setq org-html-head-include-scripts nil)
-  (require 'ox-texinfo)
-  (require 'ox-md)
+    ;; https://orgmode.org/manual/Clean-view.html
+    (setq org-startup-indented t)       ;;; removed leading * for nicer view
+    (with-eval-after-load 'org-indent
+      (setq org-indent-indentation-per-level 1)) ;Default = 2
 
-  ;; fold / overview  - collapse everything, show only level 1 headlines
-  ;; content          - show only headlines
-  ;; nofold / showall - expand all headlines except the ones with :archive:
-  ;;                    tag and property drawers
-  ;; showeverything   - same as above but without exceptions
-  (setq org-startup-folded 'content)
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (clojure . t)
+       (shell . t)
+       (R . t)
+       (lisp . t)
+       (sqlite . t)
+       (python . t)
+       (plantuml . t)
+       (latex . t)
+       ))
+    ;; change CAPITAL Keywords to lowercase
+    (defun org-syntax-convert-keyword-case-to-lower ()
+      "Convert all #+KEYWORDS to #+keywords."
+      (interactive)
+      (save-excursion t
+                      (goto-char (point-min))
+                      (let ((count 0)
+                            (case-fold-search nil))
+                        (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+                          (unless (s-matches-p "RESULTS" (match-string 0))
+                            (replace-match (downcase (match-string 0)) t)
+                            (setq count (1+ count))))
+                        (message "Remplacement de %d occurrences" count))))
+    (defun discard-history ()
+      "Discard undo history of org src and capture blocks."
+      (setq buffer-undo-list nil)
+      (set-buffer-modified-p nil))
+    (define-advice org-return (:around (f &rest args))
+      (let ((org-src-preserve-indentation t))
+        (apply f args)))
+    (define-advice org-cycle (:around (f &rest args))
+      (let ((org-src-preserve-indentation t))
+        (apply f args)))
+    (defun org-babel-edit-prep:emacs-lisp (_)
+      "Setup Emacs Lisp buffer for Org Babel."
+      (setq lexical-binding t)
+      (setq-local flycheck-disabled-checkers '(emacs-lisp-checkdoc)))
+    ;; open directory links in `dired'
+    (add-to-list 'org-file-apps '(directory . emacs))
 
-  ;; https://orgmode.org/manual/Clean-view.html
-  (setq org-startup-indented t)       ;;; removed leading * for nicer view
-  (with-eval-after-load 'org-indent
-    (setq org-indent-indentation-per-level 1)) ;Default = 2
+    ;; open files in the same window
+    (add-to-list 'org-link-frame-setup '(file . find-file))
+    (setq org-indirect-buffer-display 'current-window)
 
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (clojure . t)
-     (shell . t)
-     (R . t)
-     (lisp . t)
-     (sqlite . t)
-     (python . t)
-     (plantuml . t)
-     (latex . t)
-     ))
-  ;; change CAPITAL Keywords to lowercase
-  (defun org-syntax-convert-keyword-case-to-lower ()
-    "Convert all #+KEYWORDS to #+keywords."
-    (interactive)
-    (save-excursiont
-     (goto-char (point-min))
-     (let ((count 0)
-	         (case-fold-search nil))
-	     (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
-	       (unless (s-matches-p "RESULTS" (match-string 0))
-	         (replace-match (downcase (match-string 0)) t)
-	         (setq count (1+ count))))
-	     (message "Remplacement de %d occurrences" count))))
-  (defun discard-history ()
-    "Discard undo history of org src and capture blocks."
-    (setq buffer-undo-list nil)
-    (set-buffer-modified-p nil))
-  (define-advice org-return (:around (f &rest args))
-    (let ((org-src-preserve-indentation t))
-	    (apply f args)))
-  (define-advice org-cycle (:around (f &rest args))
-    (let ((org-src-preserve-indentation t))
-	    (apply f args)))
-  (defun org-babel-edit-prep:emacs-lisp (_)
-    "Setup Emacs Lisp buffer for Org Babel."
-    (setq lexical-binding t)
-    (setq-local flycheck-disabled-checkers '(emacs-lisp-checkdoc)))
-  ;; open directory links in `dired'
-  (add-to-list 'org-file-apps '(directory . emacs))
-
-  ;; open files in the same window
-  (add-to-list 'org-link-frame-setup '(file . find-file))
-  (setq org-indirect-buffer-display 'current-window)
-
-  (defun gas/org-setup ()
-    ;;  (org-indent-mode)       ;; turn on org indent
-    (variable-pitch-mode 1) ;; turn on variable-pitch
-    (auto-fill-mode +1)      ;; turn on auto-fill
-    (visual-line-mode 1)    ;; turn on visual-line-mode
-    ;; (show-paren-mode 1)     ;; show parentheses
-    (hl-line-mode +1)
-    (auto-fill-mode +1)
-    (whitespace-mode -1)
-    (electric-indent-local-mode -1)
-    (setq-local cursor-type 'bar)
-    (setq-local delete-trailing-lines t)
-    (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)
-    )
-  )
+    (defun gas/org-setup ()
+      ;;  (org-indent-mode)       ;; turn on org indent
+      (variable-pitch-mode 1) ;; turn on variable-pitch
+      (auto-fill-mode +1)      ;; turn on auto-fill
+      (visual-line-mode 1)    ;; turn on visual-line-mode
+      ;; (show-paren-mode 1)     ;; show parentheses
+      (hl-line-mode +1)
+      (auto-fill-mode +1)
+      (whitespace-mode -1)
+      (electric-indent-local-mode -1)
+      (setq-local cursor-type 'bar)
+      (setq-local delete-trailing-lines t)
+      (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)
+      ))
 
 #+end_src
 
@@ -5077,127 +4850,8 @@ Org mode defaults for consistency
 
 
 
-;; (with-eval-after-load 'org
-
-;;     ;; (add-to-list 'org-after-todo-state-change-hook
-;;     ;;              (lambda ()
-;;     ;;                (when (equal org-state "FINI")
-;;     ;;                  (my/org-roam-copy-todo-to-today))))
-
-
-
-;;     (defun dw/org-roam-goto-month ()
-;;       (interactive)
-;;       (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y-%B")) '(4))
-;;                          :node (org-roam-node-create)
-;;                          :templates '(("m" "month" plain "\n* Objectifs\n\n%?* Résumé\n\n"
-;;                                        :if-new (file+head "%<%Y-%B>.org"
-;;                                                           "#+title: %<%Y-%B>\n#+filetags: projet\n")
-;;                                        :unnarrowed t))))
-
-;;     (defun dw/org-roam-goto-year ()
-;;       (interactive)
-;;       (org-roam-capture- :goto (when (org-roam-node-from-title-or-alias (format-time-string "%Y")) '(4))
-;;                          :node (org-roam-node-create)
-;;                          :templates '(("y" "year" plain "\n* Objectifs\n\n%?* Résumé\n\n"
-;;                                        :if-new (file+head "%<%Y>.org"
-;;                                                           "#+title: %<%Y>\n#+filetags:projet\n")
-;;                                        :unnarrowed t))))
-
-;;   (setup (:pkg org-roam)
-;;     (setq org-roam-v2-ack t)
-;;     (setq dw/daily-note-filename "%<%Y-%m-%d>.org"
-;;           dw/daily-note-header "#+title: %<%Y-%m-%d %a>\n\n[[roam:%<%Y-%B>]]\n\n")
-
-
-;;     (:when-loaded
-;;       (org-roam-db-autosync-mode)
-;;       )
-
-;;     (:option
-;;      org-roam-directory "~/org/roam/"
-;;      org-roam-dailies-directory "journal/"
-;;      org-roam-completion-everywhere t
-;;      org-roam-capture-templates
-;;      '(("d" "default" plain "%?"
-;;         :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-;;                            "#+title: ${title}\n")
-;;         :unnarrowed t))
-;;      org-roam-dailies-capture-templates
-;;      `(("d" "default" entry
-;;         "* %?"
-;;         :if-new (file+head ,dw/daily-note-filename
-;;                            ,dw/daily-note-header))
-;;        ("t" "tâche" entry
-;;         "* TODO %?\n  %U\n  %a\n  %i"
-;;         :if-new (file+head+olp ,dw/daily-note-filename
-;;                                ,dw/daily-note-header
-;;                                ("Tâches"))
-;;         :empty-lines 1)
-;;        ("l" "log entry" entry
-;;         "* %<%I:%M %p> - %?"
-;;         :if-new (file+head+olp ,dw/daily-note-filename
-;;                                ,dw/daily-note-header
-;;                                ("Log")))
-;;        ("j" "journal" entry
-;;         "* %<%I:%M %p> - Journal  :journal:\n\n%?\n\n"
-;;         :if-new (file+head+olp ,dw/daily-note-filename
-;;                                ,dw/daily-note-header
-;;                                ("Log")))
-;;        ("m" "meeting" entry
-;;         "* %<%I:%M %p> - %^{Meeting Title}  :meetings:\n\n%?\n\n"
-;;         :if-new (file+head+olp ,dw/daily-note-filename
-;;                                ,dw/daily-note-header
-;;                                ("Log")))))
-;;    )
-
-
 #+end_src
-** Vulpea
-Setup d12frosted's vulpea's helper for org-roam
-#+begin_src emacs-lisp  :noweb-ref vulpea
-(setup (:pkg org-cliplink))
 
-(use-package vulpea
-  :straight (vulpea
-             :type git
-             :host github
-             :repo "d12frosted/vulpea")
-  :defer t
-  :general
-  (leader-def
-   "n" '(nil :which-key "vulpea...")
-   "nd" '(nil :which-key "by date...")
-   "ndd" '(vulpea-dailies-date :which-key "arbitrary date")
-   "ndt" '(vulpea-dailies-today :which-key "today")
-   "ndn" '(vulpea-dailies-next :which-key "next")
-   "ndp" '(vulpea-dailies-prev :which-key "previous")
-   "nf" '(vulpea-find :which-key "find")
-   "nF" '(vulpea-find-backlink :which-key "find backlink")
-   "ni" '(vulpea-insert :which-key "insert")
-   "nt" '(vulpea-tags-add :which-key "tag")
-   "nT" '(vulpea-tags-delete :which-key "untag")
-   "na" '(vulpea-alias-add :which-key "alias")
-   "nA" '(vulpea-alias-delete :which-key "unalias")
-   "ol" '(litnotes :which-key "litnotes"))
-  :hook ((before-save . vulpea-pre-save-hook)
-         (org-roam-db-autosync-mode . vulpea-db-autosync-enable))
-  :init
-  (add-to-list 'window-buffer-change-functions
-               #'vulpea-setup-buffer)
-  (add-hook 'vulpea-insert-handle-functions
-            #'vulpea-insert-handle)
-  (setq-default
-   vulpea-find-default-filter
-   (lambda (note)
-     (= (vulpea-note-level note) 0))
-   vulpea-insert-default-filter
-   (lambda (note)
-     (= (vulpea-note-level note) 0))))
-
-
-
-#+end_src
 ** Org Setup /org-setup/
 use Setup to setup Org Mode
 
@@ -5274,28 +4928,6 @@ use Setup to setup Org Mode
 
 #+end_src
 
-** Org Capture /vulp-capture/
-#+begin_src emacs-lisp :noweb-ref vulp-capture
-(use-package org-capture
-  :straight nil
-  :defer t
-  :general
-  (leader-def
-   "c" '(nil :which-key "capture...")
-   "cX" '(org-capture :which-key "dispatch")
-   "ca" '(vulpea-capture-article :which-key "article")
-   "cj" '(vulpea-capture-journal :which-key "journal")
-   "cl" '(org-store-link :which-key "link")
-   "cm" '(vulpea-capture-meeting :which-key "meeting")
-   "cx" '(vulpea-capture-task :which-key "task"))
-  :init
-  (setq-default org-capture-bookmark nil)
-  :config
-  (vulpea-capture-setup))
-
-
-
-#+end_src
 ** Org Vulpea Agenda /agenda-vulpea/
 org-capture provides a generic and extensible interface to capturing things into org-mode in
 different formats
@@ -5508,23 +5140,23 @@ documentation page.
 
 #+begin_src emacs-lisp :noweb-ref templates
 ;; This is needed as of Org 9.2
-(with-eval-after-load 'org
-  (use-package org-tempo
-    :straight nil
-    :unless (version<= org-version "9.1.9")
-    :after org
-    :config
-    (add-to-list 'org-structure-template-alist '("sh" . "src sh"))
-    (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-    (add-to-list 'org-structure-template-alist '("li" . "src lisp"))
-    (add-to-list 'org-structure-template-alist '("cli" . "src common-lisp"))
-    (add-to-list 'org-structure-template-alist '("sc" . "src scheme"))
-    (add-to-list 'org-structure-template-alist '("cl" . "src clojure"))
-    (add-to-list 'org-structure-template-alist '("ts" . "src typescript"))
-    (add-to-list 'org-structure-template-alist '("py" . "src python"))
-    (add-to-list 'org-structure-template-alist '("go" . "src go"))
-    (add-to-list 'org-structure-template-alist '("yaml" . "src yaml"))
-    (add-to-list 'org-structure-template-alist '("json" . "src json"))))
+;; (with-eval-after-load 'org
+;;   (use-package org-tempo
+;;     :straight nil
+;;     :unless (version<= org-version "9.1.9")
+;;     :after org
+;;     :config
+;;     (add-to-list 'org-structure-template-alist '("sh" . "src sh"))
+;;     (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+;;     (add-to-list 'org-structure-template-alist '("li" . "src lisp"))
+;;     (add-to-list 'org-structure-template-alist '("cli" . "src common-lisp"))
+;;     (add-to-list 'org-structure-template-alist '("sc" . "src scheme"))
+;;     (add-to-list 'org-structure-template-alist '("cl" . "src clojure"))
+;;     (add-to-list 'org-structure-template-alist '("ts" . "src typescript"))
+;;     (add-to-list 'org-structure-template-alist '("py" . "src python"))
+;;     (add-to-list 'org-structure-template-alist '("go" . "src go"))
+;;     (add-to-list 'org-structure-template-alist '("yaml" . "src yaml"))
+;;     (add-to-list 'org-structure-template-alist '("json" . "src json"))))
 
 (defvar file-templates-dir
   (expand-file-name "templates/" EMACS_CONFIG/ )
@@ -5830,8 +5462,10 @@ Setup smartparens and rainbow delimiters
 ;;       clojure-mode))
 
 ;; C-c @ C-d or C-s hide or show blocks
-;; (setup hideshow
-;;  (defun +hs-cycle (&optional level)
+;; (use-package hideshow
+;;    :straight nil
+;;  :config
+;;    (defun +hs-cycle (&optional level)
 ;;    (interactive "p")
 ;;    (let (message-log-max
 ;;      (inhibit-message t))
@@ -5891,65 +5525,65 @@ Setup smartparens and rainbow delimiters
          ;;(common-lisp-modes-mode . smartparens-strict-mode)
          (eval-expression-minibuffer-setup . minibuffer-enable-sp))
   :bind (:map smartparens-mode-map
-                ("C-M-f" . sp-forward-sexp)
-                ("C-M-b" . sp-backward-sexp)
+              ("C-M-f" . sp-forward-sexp)
+              ("C-M-b" . sp-backward-sexp)
 
-                ("C-M-a" . sp-beginning-of-sexp)
-                ("C-M-e" . sp-end-of-sexp)
-                ("C-M-n" . sp-next-sexp)
-                ("C-M-p" . sp-previous-sexp)
+              ("C-M-a" . sp-beginning-of-sexp)
+              ("C-M-e" . sp-end-of-sexp)
+              ("C-M-n" . sp-next-sexp)
+              ("C-M-p" . sp-previous-sexp)
 
-                ("C-(" . sp-forward-barf-sexp)
-                ("C-)" . sp-forward-slurp-sexp)
-                ("C-{" . sp-backward-barf-sexp)
-                ("C-}" . sp-backward-slurp-sexp)
+              ("C-(" . sp-forward-barf-sexp)
+              ("C-)" . sp-forward-slurp-sexp)
+              ("C-{" . sp-backward-barf-sexp)
+              ("C-}" . sp-backward-slurp-sexp)
 
-                ("C-k" . sp-kill-hybrid-sexp)
+              ("C-k" . sp-kill-hybrid-sexp)
 
-                ("C-," . sp-rewrap-sexp)
+              ("C-," . sp-rewrap-sexp)
 
-                :map emacs-lisp-mode-map
-                (";" . sp-comment)
+              :map emacs-lisp-mode-map
+              (";" . sp-comment)
 
-                :map lisp-mode-map
-                (";" . sp-comment)
+              :map lisp-mode-map
+              (";" . sp-comment)
 
-                :map clojure-mode-map
-                (";" . sp-comment)
+              :map clojure-mode-map
+              (";" . sp-comment)
 
-               ;; :map common-lisp-modes-mode-map
-               ;; (";" . sp-comment)
-                )
-          :custom
-          (sp-highlight-pair-overlay nil)
-          (sp-highlight-wrap-overlay nil)
-          (sp-highlight-wrap-tag-overlay nil)
-          (sp-echo-match-when-invisible nil)
-          :config
-          (add-to-list 'sp-lisp-modes 'lisp-data-mode t)
-          (require 'smartparens-config)
-          (sp-use-paredit-bindings)
-          ;; needs to be set manually, because :bind section runs before :config
-          (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
+              ;; :map common-lisp-modes-mode-map
+              ;; (";" . sp-comment)
+              )
+  :custom
+  (sp-highlight-pair-overlay nil)
+  (sp-highlight-wrap-overlay nil)
+  (sp-highlight-wrap-tag-overlay nil)
+  (sp-echo-match-when-invisible nil)
+  :config
+  (add-to-list 'sp-lisp-modes 'lisp-data-mode t)
+  (require 'smartparens-config)
+  (sp-use-paredit-bindings)
+  ;; needs to be set manually, because :bind section runs before :config
+  (define-key smartparens-mode-map (kbd "M-r") 'sp-rewrap-sexp)
 
-          (sp-with-modes 'org-mode
-            (sp-local-pair "=" "=" :wrap "C-="))
+  (sp-with-modes 'org-mode
+    (sp-local-pair "=" "=" :wrap "C-="))
 
-          (defun op/sp-web-mode ()
-            (setq web-mode-enable-auto-pairing nil))
+  (defun op/sp-web-mode ()
+    (setq web-mode-enable-auto-pairing nil))
 
-          (defun minibuffer-enable-sp ()
-            "Enable `smartparens-strict-mode' during `eval-expression'."
-            (setq-local comment-start ";")
-            (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
-            (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
-            (sp-update-local-pairs 'minibuffer-pairs)
-            (smartparens-strict-mode 1)))
+  (defun minibuffer-enable-sp ()
+    "Enable `smartparens-strict-mode' during `eval-expression'."
+    (setq-local comment-start ";")
+    (sp-local-pair 'minibuffer-pairs "'" nil :actions nil)
+    (sp-local-pair 'minibuffer-pairs "`" nil :actions nil)
+    (sp-update-local-pairs 'minibuffer-pairs)
+    (smartparens-strict-mode 1)))
 
-  ;; We don't actually enable cleverparens, because most of their bindings we
-  ;; don't want, we install our own bindings for specific sexp movements
-  (use-package evil-cleverparens
-    :after (evil smartparens))
+;; We don't actually enable cleverparens, because most of their bindings we
+;; don't want, we install our own bindings for specific sexp movements
+(use-package evil-cleverparens
+  :after (evil smartparens))
 
 #+end_src
 *** setup flycheck & flymake
@@ -6023,7 +5657,7 @@ nil."
     (add-to-list 'load-path dir)))
 
 #+end_src
-*** Coding IDE Setup
+*** Tangle Coding IDE Setup
 :properties:
 :header-args: :tangle lisp/init-ide.el :noweb yes
 :end:
@@ -6862,7 +6496,7 @@ The add-node-modules-path package is great for automatically detecting and using
 
 (use-package prettier-js
   :defer t
-  :delight prettier-js-mode
+  :diminish prettier-js-mode
   :hook (((js2-mode rjsx-mode typescript-mode) . prettier-js-mode))
   ;; :init
   ;; (evil-leader/set-key-for-mode 'rjsx-mode
@@ -7250,13 +6884,12 @@ Setup utility packages
 :PROPERTIES:
 :header-args: :noweb-ref disclaimer
 :END:
-
 #+begin_src emacs-lisp
-;; Copyright (C) 2001-2022 Gas
+;; Copyright (C) 2001-2023 Gas
 ;; Timestamp: <>
 ;; Author: Gas <gas@tuatara.red>
 ;; Version: 1.0
-;; Package-Version: 0.7
+;; Package-Version: 0.8
 ;; Created: Sometime during the Covid-19 lockdown
 ;; Keywords: configuration, emacs
 ;; URL: https://github.com/frap/emacs
@@ -7680,7 +7313,6 @@ Bind it to =C-z i= because =C-z C-c= is taken for capture.
 *** Ease of reloading
 :PROPERTIES:
 :header-args: :tangle no
-:ID:       510ef849-87e9-4def-abb8-a28f040752a4
 :END:
 
 #+begin_src emacs-lisp :noweb-ref functions
@@ -7839,7 +7471,7 @@ Bind it to =C-z i= because =C-z C-c= is taken for capture.
 (provide 'lib-string)
 ;;; lib-string.el ends here
 #+end_src
-*** orgmode config
+*** Orgmode config
 :PROPERTIES:
 :header-args: :tangle lisp/config-orgmode.el :noweb yes
 :ID:       7df49a2c-aad7-472a-a186-c8db756aeb44
@@ -7928,7 +7560,7 @@ Useful for temporarily disabling a function.")
 :ID:       05d0ed58-40b0-49a0-829b-7436db557594
 :END:
 #+begin_src emacs-lisp
-;;; lib-vcs.el --- Libaray -*- lexical-binding: t -*-
+;;; lib-vcs.el --- Librray -*- lexical-binding: t -*-
 <<disclaimer>>
 ;;; Code:
 
@@ -7999,7 +7631,7 @@ part of format is omitted."
   ;;; lib-vcs.el ends here
 #+end_src
 
-*** File Templates aka YASnippett
+*** File Templates aka YASnippet
 :PROPERTIES:
 :header-args: :tangle lisp/init-file-templates.el :noweb yes
 :ID:       68ae83b4-14d3-4eb7-9c99-fd05cb6d9053
@@ -8054,7 +7686,7 @@ part of format is omitted."
 :ID:       544ee924-beef-403c-b654-6fc255528de9
 :END:
 
-Copyright © 2021 Gas <gas@somewhere.red>
+Copyright © 2023 Gas <gas@somewhere.red>
 
 This work is free.  You can redistribute it and/or modify it under the
 terms of the Do What the Fuck You Want To Public License, Version 2,
@@ -8066,7 +7698,7 @@ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
 
 Version 2, December 2004
 
-Copyright (C) 2001-2021 Gas <gas@somewhere.red>
+Copyright (C) 2001-2023 Gas <gas@somewhere.red>
 
 Everyone is permitted to copy and distribute verbatim or modified copies of
 this license document, and changing it is allowed as long as the name is changed.
@@ -8078,1564 +7710,3 @@ TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 0. You just DO WHAT THE FUCK YOU WANT TO.
 #+end_src
 ***
-
-* No tangle
-
-**** Vulpea Setup
-#+begin_src emacs-lisp :tangle no
-;;; lib-vulpea.el --- Vulpea utilities -*- lexical-binding: t; -*-
-<<disclaimer>>
-(require 'init-elpa)
-
-(require 'config-orgmode)
-(require 'lib-directory)
-(require 'lib-litnotes)
-
-(require 'vulpea)
-(require 'org-roam)
-(require 'org-roam-db)
-(require 'org-roam-dailies)
-
-(defun vulpea-buffer-p ()
-  "Return non-nil if the currently visited buffer is a note."
-  (and buffer-file-name
-       (eq major-mode 'org-mode)
-       (string-suffix-p "org" buffer-file-name)
-       (string-prefix-p
-        (expand-file-name (file-name-as-directory vulpea-directory))
-        (file-name-directory buffer-file-name))))
-
-
-
-(defun vulpea-project-p ()
-  "Return non-nil if current buffer has any todo entry.
-TODO entries marked as done are ignored, meaning the this
-function returns nil if current buffer contains only completed
-tasks. The only exception is headings tagged as REFILE."
-  (org-element-map
-      (org-element-parse-buffer 'headline)
-      'headline
-    (lambda (h)
-      (or (eq 'todo (org-element-property :todo-type h))
-          (seq-contains-p (org-element-property :tags h)
-                          "REFILE")))
-    nil 'first-match))
-
-;;;###autoload
-(defun vulpea-project-files ()
-  "Return a list of note files containing 'projet' tag." ;
-  (seq-uniq
-   (seq-map
-    #'car
-    (org-roam-db-query
-     [:select [nodes:file]
-              :from tags
-              :left-join nodes
-              :on (= tags:node-id nodes:id)
-              :where (like tag (quote "%\"projet\"%"))]))))
-
-
-
-;;;###autoload
-(defun vulpea-insert-handle (note)
-  "Hook to be called on NOTE after `vulpea-insert'."
-  (when-let* ((title (vulpea-note-title note))
-              (tags (vulpea-note-tags note)))
-    (when (seq-contains-p tags "people")
-      (save-excursion
-        (ignore-errors
-          (org-back-to-heading)
-          (when (eq 'todo (org-element-property
-                           :todo-type
-                           (org-element-at-point)))
-            (org-set-tags
-             (seq-uniq
-              (cons
-               (vulpea--title-to-tag title)
-               (org-get-tags nil t))))))))))
-
-
-
-;;;###autoload
-(defun vulpea-tags-add ()
-  "Add a tag to current note."
-  (interactive)
-  (org-with-point-at 1
-    (when (call-interactively #'org-roam-tag-add)
-      (vulpea-ensure-filetag))))
-
-;;;###autoload
-(defun vulpea-tags-delete ()
-  "Delete a tag from current note."
-  (interactive)
-  (call-interactively #'org-roam-tag-remove))
-
-;;;###autoload
-(defun vulpea-ensure-filetag ()
-  "Add missing FILETAGS to the current note."
-  (let* ((file (buffer-file-name))
-         (path-tags
-          (when file
-            (seq-filter
-             (lambda (x) (not (string-empty-p x)))
-             (split-string
-              (string-remove-prefix
-               vulpea-directory
-               (file-name-directory file))
-              "/"))))
-         (original-tags (vulpea-buffer-tags-get))
-         (tags (append original-tags path-tags)))
-
-    ;; process people
-    (when (seq-contains-p tags "people")
-      (let ((tag (vulpea--title-as-tag)))
-        (unless (seq-contains-p tags tag)
-          (setq tags (cons tag tags)))))
-
-    ;; process litnotes
-    (setq tags (litnotes-ensure-filetags tags))
-
-    ;; process projects
-    (if (vulpea-project-p)
-        (setq tags (cons "projet" tags))
-      (setq tags (remove "projet" tags)))
-
-    (setq tags (seq-uniq tags))
-
-    ;; update tags if changed
-    (when (or (seq-difference tags original-tags)
-              (seq-difference original-tags tags))
-      (apply #'vulpea-buffer-tags-set (seq-uniq tags)))))
-
-
-
-;;;###autoload
-(defun vulpea-alias-add ()
-  "Add an alias to current note."
-  (interactive)
-  (call-interactively #'org-roam-alias-add))
-
-;;;###autoload
-(defun vulpea-alias-delete ()
-  "Delete an alias from current note."
-  (interactive)
-  (call-interactively #'org-roam-alias-remove))
-
-;;;###autoload
-(defun vulpea-alias-extract ()
-  "Extract an alias from current note as a separate note.
-Make all the links to this alias point to newly created note."
-  (interactive)
-  (if-let* ((node (org-roam-node-at-point 'assert))
-            (aliases (org-roam-node-aliases node)))
-      (let* ((alias (completing-read
-                     "Alias: " aliases nil 'require-match))
-             (backlinks (seq-map
-                         #'org-roam-backlink-source-node
-                         (org-roam-backlinks-get node)))
-             (id-old (org-roam-node-id node)))
-        (org-roam-alias-remove alias)
-        (org-roam-db-update-file (org-roam-node-file node))
-        (let* ((note (vulpea-create
-                      alias
-                      "%<%Y%m%d%H%M%S>-${slug}.org"
-                      :immediate-finish t
-                      :unnarrowed t)))
-          (seq-each
-           (lambda (node)
-             (vulpea-utils-with-file (org-roam-node-file node)
-                                     (goto-char (point-min))
-                                     (let ((link-old
-                                            (org-link-make-string
-                                             (concat "id:" id-old)
-                                             alias))
-                                           (link-new
-                                            (vulpea-utils-link-make-string note)))
-                                       (while (search-forward link-old nil 'noerror)
-                                         (replace-match link-new))))
-             (org-roam-db-update-file (org-roam-node-file node)))
-           backlinks)))
-    (user-error "Pas d'alias à extraire")))
-
-
-
-;;;###autoload
-(defun vulpea-setup-buffer (&optional _)
-  "Setup current buffer for notes viewing and editing."
-  (when (and (not (active-minibuffer-window))
-             (vulpea-buffer-p))
-    (org-with-point-at 1
-      (org-hide-drawer-toggle 'off))
-    (setq-local tab-width 1)
-    (vulpea-ensure-filetag)))
-
-;;;###autoload
-(defun vulpea-pre-save-hook ()
-  "Do all the dirty stuff when file is being saved."
-  (when (and (not (active-minibuffer-window))
-             (vulpea-buffer-p))
-    (vulpea-ensure-filetag)))
-
-
-
-;;;###autoload
-(defun vulpea-dailies-today ()
-  "Find a daily note for today."
-  (interactive)
-  (org-roam-dailies-goto-today))
-
-;;;###autoload
-(defun vulpea-dailies-date ()
-  "Find a daily note for date specified using calendar."
-  (interactive)
-  (org-roam-dailies-goto-date))
-
-;;;###autoload
-(defun vulpea-dailies-prev ()
-  "Find a daily note that comes before current."
-  (interactive)
-  (org-roam-dailies-goto-previous-note))
-
-;;;###autoload
-(defun vulpea-dailies-next ()
-  "Find a daily note that comes after current."
-  (interactive)
-  (org-roam-dailies-goto-next-note))
-
-
-
-;;;###autoload
-(defun vulpea-db-build ()
-  "Update notes database."
-  (when (file-directory-p vulpea-directory)
-    (org-roam-db-sync)
-    (org-roam-update-org-id-locations)))
-
-
-
-;;;###autoload
-(defun vulpea-subdir-select ()
-  "Select notes subdirectory."
-  (interactive)
-  (let ((dirs (cons
-               "."
-               (seq-map
-                (lambda (p)
-                  (string-remove-prefix vulpea-directory p))
-                (directory-subdirs vulpea-directory 'recursive)))))
-    (completing-read "Subdir: " dirs nil t)))
-
-
-
-(defun vulpea--title-as-tag ()
-  "Return title of the current note as tag."
-  (vulpea--title-to-tag (vulpea-buffer-prop-get "title")))
-
-(defun vulpea--title-to-tag (title)
-  "Convert TITLE to tag."
-  (concat "@" (s-replace " " "" title)))
-
-
-
-;;;###autoload
-;; org-check-agenda-file
-(defun vulpea-check-agenda-file (&rest _)
-  "A noop advice for `org-check-agenda-file'.
-Since this function is called from multiple places, it is very
-irritating to answer this question every time new note is created.
-Also, it doesn't matter if the file in question is present in the
-list of `org-agenda-files' or not, since it is built dynamically
-via `vulpea-agenda-files-update'.")
-
-
-
-;;;###autoload
-(defun vulpea-activate-link (start end path _brackets)
-  "Activate a link between START and END for PATH."
-  (let ((visible-start (or (match-beginning 3)
-                           (match-beginning 2)))
-        (visible-end (or (match-end 3) (match-end 2))))
-    (when-let* ((uuid-p (string-match-p string-uuid-regexp path))
-                (note (vulpea-db-get-by-id path))
-                (tags (vulpea-note-tags note))
-                (icon (cond
-                       ((seq-contains-p tags litnotes-tag)
-                        (litnotes-content-display
-                         (litnotes-entry-content
-                          (litnotes-entry note))
-                         :height 0.8 :v-adjust 0.04))
-                       ((seq-contains-p tags "people")
-                        (concat
-                         (all-the-icons-material
-                          "person" :height 0.8 :v-adjust 0.04)
-                         "\t"))
-                       ((seq-contains-p tags "grape")
-                        (concat "🍇" "\t"))
-                       ((seq-contains-p tags "cellar")
-                        (concat "🍷" "\t"))
-                       ((seq-contains-p tags "aroma")
-                        (concat
-                         (all-the-icons-material
-                          "local_florist" :height 0.8 :v-adjust 0.04)
-                         "\t"))))
-                (desc (buffer-substring visible-start visible-end))
-                (desc (concat icon desc))
-                (desc (s-truncate (- end start) desc))
-                (l (length desc))
-                (hidden `(invisible
-                          ,(or (org-link-get-parameter "id" :display)
-                               'org-link))))
-      (remove-text-properties start visible-start hidden)
-      (remove-text-properties visible-end end hidden)
-      (add-text-properties (+ start l) end hidden)
-      (put-text-property start end 'display desc))))
-
-
-
-(provide 'lib-vulpea)
-;;; lib-vulpea.el ends here
-#+end_src
-**** Directory Utilities /tangle no/
-#+begin_src emacs-lisp :tangle no
-;;; lib-directory.el --- Directory utilities -*- lexical-binding: t; -*-
-<<disclaimer>>
-;;; Commentary:
-;;
-;; Various utilities for files and directories.
-;;
-;;; Code:
-
-(defun directory-subdirs (directory &optional rec)
-  "Return subdirs or files of DIRECTORY.
-If REC is non-nil then do recursive search."
-  (let ((res
-         (seq-map
-          #'file-name-as-directory
-          (seq-remove
-           (lambda (file)
-             (or (string-match "\\`\\."
-                               (file-name-nondirectory file))
-                 (string-match "\\`#.*#\\'"
-                               (file-name-nondirectory file))
-                 (string-match "~\\'"
-                               (file-name-nondirectory file))
-                 (not (file-directory-p file))))
-           (directory-files directory t)))))
-    (if rec
-        (apply
-         #'append
-         (seq-map (lambda (p) (cons p (directory-subdirs p)))
-                  res))
-      res)))
-
-(provide 'lib-directory)
-;;; lib-directory.el ends here
-#+end_src
-**** Literature Notes /tangle no/
-:PROPERTIES:
-:header-args: :tangle no  :noweb yes
-:ID:       7b61e449-59c1-4bf8-a3b4-464f9d9b4306
-:END:
-#+begin_src emacs-lisp
-;;; lib-litnotes.el --- Utilities for working with litnotes -*- lexical-binding: t; -*-
-<<disclaimer>>
-;;; Commentary:
-;;
-;; This module provides various utilities for viewing and managing
-;; litnotes.
-;;
-;;; Code:
-
-(require 'vulpea)
-(require 'lister)
-(require 'lister-highlight)
-(require 'all-the-icons)
-
-
-
-(defconst litnotes-tag "litnotes"
-  "Tag of all them litnotes.")
-
-
-
-(defface litnotes-group-title-face
-  '((t (:inherit org-roam-header-line)))
-  "Face for displaying group title."
-  :group 'litnotes)
-
-(defface litnotes-group-counter-face
-  '((t (:inherit font-lock-comment-face)))
-  "Face for displaying group counter."
-  :group 'litnotes)
-
-(defface litnotes-entry-title-face
-  '((t (:inherit org-document-title)))
-  "Face for displaying entry title."
-  :group 'litnotes)
-
-(defface litnotes-entry-authors-face
-  '((t (:inherit font-lock-comment-face)))
-  "Face for displaying entry authors."
-  :group 'litnotes)
-
-
-
-(defvar litnotes-status-values '("ongoing" "new" "done" "dropped")
-  "List with all valid values of status.")
-
-(defun litnotes-status-compare (a b)
-  "Compare status A with status B."
-  (< (seq-position litnotes-status-values a)
-     (seq-position litnotes-status-values b)))
-
-(defun litnotes-status-display (status &rest icon-args)
-  "Display STATUS.
-ICON-ARGS are properties that are passed to `all-the-icons'
-functions. You may use it to pass :height and :v-adjust."
-  (let ((icon-fn (pcase status
-                   (`"ongoing" #'all-the-icons-faicon)
-                   (`"new" #'all-the-icons-faicon)
-                   (`"done" #'all-the-icons-faicon)
-                   (`"dropped" #'all-the-icons-faicon)))
-        (icon-name (pcase status
-                     (`"ongoing" "spinner")
-                     (`"new" "inbox")
-                     (`"done" "check")
-                     (`"dropped" "times"))))
-    (if (featurep 'all-the-icons)
-        (concat
-         (apply icon-fn icon-name icon-args)
-         ;; this way we align everything horizontally
-         "\t"
-         status)
-      "")))
-
-(defconst litnotes-status-tag-prefix "status/"
-  "Prefix of the status tag.")
-
-(defun litnotes-status-to-tag (status)
-  "Return a tag representing STATUS."
-  (concat litnotes-status-tag-prefix status))
-
-(defun litnotes-status-from-tag (tag)
-  "Return a status representing as TAG."
-  (string-remove-prefix litnotes-status-tag-prefix tag))
-
-(defun litnotes-status-tag-p (tag)
-  "Return non-nil when TAG represents a status."
-  (string-prefix-p litnotes-status-tag-prefix tag))
-
-(defun litnotes-status-read (&optional old-status)
-  "Read a status excluding OLD-STATUS."
-  (completing-read
-   "Status: "
-   (-remove-item old-status litnotes-status-values)))
-
-
-
-(defvar litnotes-content-types '("book"
-                                 "article"
-                                 "video"
-                                 "course"
-                                 "game")
-  "List with all valid content types.")
-
-(defun litnotes-content-compare (a b)
-  "Compare content A with content B."
-  (< (seq-position litnotes-content-types a)
-     (seq-position litnotes-content-types b)))
-
-(defun litnotes-content-display (content &rest icon-args)
-  "Display CONTENT.
-ICON-ARGS are properties that are passed to `all-the-icons'
-functions. You may use it to pass :height and :v-adjust."
-  (let ((icon-fn (pcase content
-                   (`"book" #'all-the-icons-material)
-                   (`"article" #'all-the-icons-material)
-                   (`"video" #'all-the-icons-material)
-                   (`"game" #'all-the-icons-material)
-                   (`"course" #'all-the-icons-material)))
-        (icon-name (pcase content
-                     (`"book" "local_library")
-                     (`"article" "insert_drive_file")
-                     (`"video" "videocam")
-                     (`"game" "videogame_asset")
-                     (`"course" "school"))))
-    (if (featurep 'all-the-icons)
-        (concat
-         (apply icon-fn icon-name icon-args)
-         ;; this way we align everything horizontally
-         "\t")
-      "")))
-
-(defconst litnotes-content-tag-prefix "content/"
-  "Prefix of the content tag.")
-
-(defun litnotes-content-to-tag (content)
-  "Return a tag representing CONTENT."
-  (concat litnotes-content-tag-prefix content))
-
-(defun litnotes-content-from-tag (tag)
-  "Return a content representing as TAG."
-  (string-remove-prefix litnotes-content-tag-prefix tag))
-
-(defun litnotes-content-tag-p (tag)
-  "Return non-nil when TAG represents a content."
-  (string-prefix-p litnotes-content-tag-prefix tag))
-
-
-
-(cl-defstruct litnotes-entry
-  note
-  title
-  status
-  content
-  authors)
-
-(defun litnotes-entry (note)
-  "Create a `litnotes-entry' from NOTE."
-  (make-litnotes-entry
-   :note note
-   :title (vulpea-note-title note)
-   :status (litnotes-status-from-tag
-            (seq-find
-             #'litnotes-status-tag-p
-             (vulpea-note-tags note)))
-   :content (string-remove-prefix
-             "content/"
-             (seq-find
-              (lambda (x)
-                (string-prefix-p "content/" x))
-              (vulpea-note-tags note)))
-   :authors (vulpea-note-meta-get-list note "authors" 'note)))
-
-(defun litnotes-entry-compare (a b)
-  "Compare entries A and B by title."
-  (string< (litnotes-entry-title a)
-           (litnotes-entry-title b)))
-
-(defun litnotes-entry-visit (entry &optional other-window)
-  "Visit a litnote ENTRY possible in OTHER-WINDOW."
-  (org-roam-node-visit
-   (org-roam-node-from-id
-    (vulpea-note-id (litnotes-entry-note entry)))
-   other-window))
-
-
-
-(defun litnotes-entries ()
-  "Fetch a list of `litnotes-entry' entries."
-  (seq-map
-   #'litnotes-entry
-   (seq-remove
-    #'vulpea-note-primary-title
-    (vulpea-db-query
-     (lambda (x)
-       (seq-contains-p (vulpea-note-tags x)
-                       litnotes-tag))))))
-
-
-
-(defvar-local litnotes-buffer-data nil
-  "Associative list of all litnotes grouped by status.")
-
-;;;###autoload
-(define-derived-mode litnotes-mode
-  lister-mode "litnotes"
-  "Major mode for browsing litnotes."
-  (lister-setup (current-buffer) #'litnotes-buffer-mapper))
-
-(defconst litnotes-mode-map
-  (let ((map (make-sparse-keymap)))
-    ;; inherit standard key bindings:
-    (set-keymap-parent map lister-mode-map)
-    (define-key map "\t"          #'litnotes-buffer-expand)
-    (define-key map (kbd "<RET>") #'litnotes-buffer-visit)
-    (define-key map (kbd "g")     #'litnotes-buffer-refresh)
-    (define-key map (kbd "s")     #'litnotes-buffer-set-status)
-    map)
-  "Key map for `litnotes-mode'.")
-
-;;;###autoload
-(defun litnotes ()
-  "Display a list of litnotes."
-  (interactive)
-  (let* ((name "*litnotes*")
-         (buffer (buffer-generate name 'unique)))
-    (with-current-buffer buffer
-      (litnotes-mode)
-      (setq litnotes-buffer-data (litnotes-buffer-data))
-      (setq-local tab-width 4)
-      (lister-highlight-mode 1)
-      (lister-insert-sequence
-       buffer (point) litnotes-status-values)
-      (lister-goto buffer :first)
-      (litnotes-buffer-expand-sublist buffer (point)))
-    (switch-to-buffer buffer)))
-
-(defun litnotes-buffer-data ()
-  "Get data for litnotes buffer."
-  (seq-sort-by
-   #'car
-   #'litnotes-status-compare
-   (seq-group-by #'litnotes-entry-status
-                 (seq-sort
-                  #'litnotes-entry-compare
-                  (litnotes-entries)))))
-
-(defun litnotes-buffer-mapper (data)
-  "DATA mapper for `litnotes-mode'."
-  (if (stringp data)
-      (concat
-       (propertize
-        (litnotes-status-display data)
-        'face 'litnotes-group-title-face)
-       " "
-       (propertize
-        (concat "("
-                (number-to-string
-                 (length (cdr (assoc data litnotes-buffer-data))))
-                ")")
-        'face 'litnotes-group-counter-face))
-    (concat
-     (litnotes-content-display
-      (litnotes-entry-content data))
-     (propertize
-      (litnotes-entry-title data)
-      'face 'litnotes-entry-title-face)
-     (when (litnotes-entry-authors data)
-       (concat
-        " by "
-        (string-join
-         (seq-map
-          (lambda (note)
-            (propertize
-             (vulpea-note-title note)
-             'face 'litnotes-entry-authors-face))
-          (litnotes-entry-authors data))
-         ", "))))))
-
-(defun litnotes-buffer-groups-refresh (buffer)
-  "Refresh groups in litnotes BUFFER."
-  (lister-walk-all
-   buffer
-   (lambda (data)
-     (lister-replace buffer (point) data))
-   #'stringp))
-
-(defun litnotes-buffer-refresh ()
-  "Refresh litnotes buffer."
-  (interactive)
-  (let ((pos (point)))
-    (litnotes)
-    (goto-char pos)))
-
-(defun litnotes-buffer-expand (buffer pos)
-  "Perform expansion on item at POS in litnotes BUFFER."
-  (interactive (list (current-buffer) (point)))
-  (let ((item (lister-get-data buffer pos)))
-    (cond
-     ((litnotes-entry-p item)
-      (litnotes-entry-visit item 'other-window))
-
-     ((ignore-errors (lister-sublist-below-p buffer pos))
-      (lister-remove-sublist-below buffer pos))
-
-     (t (litnotes-buffer-expand-sublist buffer pos)))))
-
-(defun litnotes-buffer-expand-sublist (buffer pos)
-  "Expand litnotes in the current list.
-BUFFER must be a valid lister buffer populated with litnotes
-items. POS can be an integer or the symbol `:point'."
-  (interactive (list (current-buffer) (point)))
-  (let* ((position
-          (pcase pos
-            ((and (pred integerp) pos) pos)
-            (:point (with-current-buffer buffer (point)))
-            (_ (error "Valeur invalide pour POS: %s" pos))))
-         (item (lister-get-data buffer position))
-         (sublist (cdr (assoc item litnotes-buffer-data))))
-    (if sublist
-        (with-temp-message "Insertion des résultats d'expansion..."
-          (lister-insert-sublist-below buffer position sublist))
-      (user-error "Aucune extension trouvée"))))
-
-(defun litnotes-buffer-visit (buffer pos)
-  "Visit a litnote at POS from BUFFER."
-  (interactive (list (current-buffer) (point)))
-  (let* ((item (lister-get-data buffer pos)))
-    (if (litnotes-entry-p item)
-        (litnotes-entry-visit item)
-      (user-error "Not a litnote"))))
-
-(defun litnotes-buffer-set-status ()
-  "Set status of a litnote at point."
-  (interactive)
-  (let* ((buffer (current-buffer))
-         (pos (point))
-         (item (lister-get-data buffer pos)))
-    (if (litnotes-entry-p item)
-        (let* ((old-status (litnotes-entry-status item))
-               (status (litnotes-status-read old-status))
-               (note (litnotes-entry-note item))
-               (file (vulpea-note-path note)))
-          (vulpea-utils-with-file file
-                                  (litnotes-status-set status))
-          (setf (litnotes-entry-status item) status)
-          (setq litnotes-buffer-data
-                (litnotes-buffer-data-change-group
-                 item old-status status))
-          (litnotes-buffer-change-group buffer pos item status)
-          (litnotes-buffer-groups-refresh buffer))
-      (user-error "Not a litnote"))))
-
-(defun litnotes-buffer-change-group (buffer pos item new-group)
-  "Move ITEM at POS to NEW-GROUP in litnotes BUFFER."
-  ;; basically, remove whatever is in point
-  (lister-remove buffer pos)
-
-  ;; add to new group if it's expanded
-  (lister-walk-all
-   buffer
-   (lambda (_)
-     (let ((pos (point)))
-       (when (ignore-errors
-               (lister-sublist-below-p buffer pos))
-         (let* ((next-item (lister-end-of-lines buffer pos))
-                (next-level (lister-get-level-at buffer next-item)))
-           (lister-insert
-            buffer
-            next-item
-            item
-            next-level)))))
-   (lambda (data)
-     (and (stringp data)
-          (string-equal new-group data)))))
-
-(defun litnotes-buffer-data-change-group (item old-group new-group)
-  "Move ITEM from OLD-GROUP to NEW-GROUP in cached data."
-  (seq-map
-   (lambda (kvs)
-     (cond
-      ((string-equal old-group (car kvs))
-       (cons (car kvs)
-             (seq-remove
-              (lambda (x)
-                (string-equal
-                 (vulpea-note-id (litnotes-entry-note x))
-                 (vulpea-note-id (litnotes-entry-note item))))
-              (cdr kvs))))
-      ((string-equal new-group (car kvs))
-       (cons (car kvs)
-             (cons item (cdr kvs))))
-      (t kvs)))
-   litnotes-buffer-data))
-
-;; TODO: add filtering
-;; TODO: add other groupings
-
-
-
-;;;###autoload
-(defun litnotes-ensure-filetags (tags)
-  "Ensure that TAGS contain the right set of tags."
-  (when (seq-contains-p tags litnotes-tag)
-    (unless (seq-find #'litnotes-status-tag-p tags)
-      (setq tags (cons (litnotes-status-to-tag "new") tags)))
-    (unless (seq-find #'litnotes-content-tag-p tags)
-      (setq tags (cons
-                  (litnotes-content-to-tag
-                   (completing-read
-                    "Content:"
-                    litnotes-content-types))
-                  tags))))
-  tags)
-
-
-
-;;;###autoload
-(defun litnotes-status-set (&optional status)
-  "Change STATUS tag of the current litnote."
-  (interactive)
-  (when-let*
-      ((file (buffer-file-name (buffer-base-buffer)))
-       (id (vulpea-db-get-id-by-file file))
-       (tags (vulpea-buffer-tags-get))
-       (old-status (litnotes-status-from-tag
-                    (seq-find #'litnotes-status-tag-p tags)))
-       (status (or status (litnotes-status-read old-status)))
-       (new-tags (litnotes-tags-set-status tags status)))
-    (vulpea-buffer-prop-set-list "filetags" new-tags)
-    (org-time-stamp-format (current-time) 'interactive)
-    (unless (vulpea-meta-get id "added")
-      (vulpea-meta-set
-       id "added"
-       (litnotes-format-time (current-time) t 'inactive)
-       'append))
-    (pcase status
-      (`"ongoing"
-       (vulpea-meta-remove id "completed")
-       (vulpea-meta-remove id "dropped")
-       (vulpea-meta-set
-        id "started"
-        (litnotes-format-time (current-time) 'with-hm 'inactive)
-        'append))
-      (`"done"
-       (vulpea-meta-remove id "dropped")
-       (vulpea-meta-set
-        id "completed"
-        (litnotes-format-time (current-time) 'with-hm 'inactive)
-        'append))
-      (`"dropped"
-       (vulpea-meta-remove id "completed")
-       (vulpea-meta-set
-        id "dropped"
-        (litnotes-format-time (current-time) 'with-hm 'inactive)
-        'append)))
-    (org-roam-db-update-file file)
-    (save-buffer)))
-
-
-
-(defun litnotes-tags-set-status (tags status)
-  "Add STATUS to TAGS and return result.
-STATUS is converted into proper tag, an any other status tag is
-removed from TAGS."
-  (cons
-   (litnotes-status-to-tag status)
-   (seq-remove
-    #'litnotes-status-tag-p
-    tags)))
-
-
-
-(defun litnotes-format-time (time &optional with-hm inactive extra)
-  "Format a date stamp for the date given by the internal TIME.
-See `format-time-string' for the format of TIME.
-WITH-HM means use the stamp format that includes the time of the
-day.
-INACTIVE means use square brackets instead of angular ones, so
-that the stamp will not contribute to the agenda.
-EXTRA is unknown thing."
-  (let ((fmt (funcall (if with-hm 'cdr 'car)
-                      org-time-stamp-formats)))
-    (when inactive
-      (setq fmt (concat "[" (substring fmt 1 -1) "]")))
-    (when (listp extra)
-      (setq extra (car extra))
-      (if (and (stringp extra)
-               (string-match "\\([0-9]+\\):\\([0-9]+\\)" extra))
-          (setq extra (format
-                       "-%02d:%02d"
-                       (string-to-number (match-string 1 extra))
-                       (string-to-number (match-string 2 extra))))
-        (setq extra nil)))
-    (when extra
-      (setq fmt (concat (substring fmt 0 -1)
-                        extra
-                        (substring fmt -1))))
-    (concat (format-time-string fmt time))))
-
-
-
-(provide 'lib-litnotes)
-;;; lib-litnotes.el ends here
-#+end_src
-**** Vulpea Refile /tangle no/
-:PROPERTIES:
-:header-args: :tangle no :noweb yes
-:END:
-#+begin_src emacs-lisp
-;;; lib-vulpea-refile.el --- Note refiling utilities -*- lexical-binding: t; -*-
-<<disclaimer>>
-;;; Commentary:
-;;
-;; This module provides utilities for refiling vulpea notes.
-;;
-;;; Code:
-
-(require 'org)
-
-(defvar vulpea-refile-ignored-tags '("JOURNAL" "REFILE")
-  "List of tags to ignore during refile.")
-
-;;;###autoload
-(defun vulpea-refile-verify-target ()
-  "Exclude todo keywords with a done state from refile targets."
-  (let ((tags-at (org-get-tags)))
-    (and
-     ;; doesn't have done keyword
-     (not (member (nth 2 (org-heading-components)) org-done-keywords))
-
-     ;; doesn't have blacklisted tag
-     (or (null tags-at)
-         (cl-member-if-not
-          (lambda (x)
-            (member (if (listp x) (car x) x)
-                    vulpea-refile-ignored-tags))
-          tags-at)))))
-
-(provide 'lib-vulpea-refile)
-;;; lib-vulpea-refile.el ends here
-#+end_src
-**** Vulpea Capture /tangel no/
-:PROPERTIES:
-:header-args: :tangle no :noweb yes
-:END:
-#+begin_src emacs-lisp
-;;; lib-vulpea-capture.el --- Capturing tasks and notes -*- lexical-binding: t; -*-
-<<disclaimer>>
-;;; Commentary:
-;;
-;; Various utilities for capturing tasks and notes.
-;;
-;;; Code:
-
-(require 'init-env)
-(require 'config-orgmode)
-(require 'lib-fun)
-
-;; external dependencies
-(require 'vulpea)
-(require 'org)
-(require 'org-capture)
-(require 'org-roam)
-(require 'org-cliplink)
-
-(defvar vulpea-capture-inbox-file
-  "inbox.org"   ;; (format "inbox-%s.org" *hostname*)
-  "The path to the inbox file.
-It is relative to `vulpea-directory', unless it is absolute.")
-
-;;;###autoload
-(defun vulpea-capture-setup ()
-  "Wire all bits for capturing."
-  (dolist (var '(vulpea-capture-inbox-file))
-    (set var (expand-file-name (symbol-value var) vulpea-directory)))
-  (unless org-default-notes-file
-    (setq org-default-notes-file vulpea-capture-inbox-file))
-  (setq
-   org-capture-templates
-   '(("t" "Tâches" plain (file+headline vulpea-capture-inbox-file "Boîte de Réception")
-      "** TODO %?\n%U\n" :clock-in t :clock-resume t)
-
-     ("m" "Reunion" entry
-      (function vulpea-capture-meeting-target)
-      (function vulpea-capture-meeting-template)
-      :clock-in t
-      :clock-resume t))
-   org-roam-capture-templates
-   '(("d" "default" plain "%?"
-      :if-new (file+head
-               "%(vulpea-subdir-select)/%<%Y%m%d%H%M%S>-${slug}.org"
-               "#+title: ${title}\n\n")
-      :unnarrowed t))
-   org-roam-dailies-capture-templates
-   `(("d" "default" entry
-      "* %<%H:%M>\n\n%?"
-      :if-new (file+head
-               ,(expand-file-name "%<%Y-%m-%d>.org"
-                                  org-roam-dailies-directory)
-               ,(string-join '("#+title: %<%A, %d %B %Y>"
-                               "#+filetags: journal"
-                               "\n")
-                             "\n"))))))
-
-;;;###autoload
-(defun vulpea-capture-task ()
-  "Capture a task."
-  (interactive)
-  (org-capture nil "t"))
-
-(defun vulpea-capture-meeting ()
-  "Capture a meeting."
-  (interactive)
-  (org-capture nil "m"))
-
-(defun vulpea-capture-projet ()
-  "Capture a projet."
-  (interactive)
-  (org-capture nil "p"))
-
-(defun vulpea-capture-meeting-target ()
-  "Return a target for a meeting capture."
-  (let ((person (org-capture-get :meeting-person)))
-    ;; unfortunately, I could not find a way to reuse
-    ;; `org-capture-set-target-location'
-    (if (vulpea-note-id person)
-        (let ((path (vulpea-note-path person))
-              (headline "Reuniones"))
-          (set-buffer (org-capture-target-buffer path))
-          ;; Org expects the target file to be in Org mode, otherwise
-          ;; it throws an error. However, the default notes files
-          ;; should work out of the box. In this case, we switch it to
-          ;; Org mode.
-          (unless (derived-mode-p 'org-mode)
-            (org-display-warning
-             (format
-              "Capture requirement: switching buffer %S to Org mode"
-              (current-buffer)))
-            (org-mode))
-          (org-capture-put-target-region-and-position)
-          (widen)
-          (goto-char (point-min))
-          (if (re-search-forward
-               (format org-complex-heading-regexp-format
-                       (regexp-quote headline))
-               nil t)
-              (beginning-of-line)
-            (goto-char (point-max))
-            (unless (bolp) (insert "\n"))
-            (insert "* " headline "\n")
-            (beginning-of-line 0)))
-      (let ((path vulpea-capture-inbox-file))
-        (set-buffer (org-capture-target-buffer path))
-        (org-capture-put-target-region-and-position)
-        (widen)))))
-
-(defun vulpea-capture-meeting-template ()
-  "Return a template for a meeting capture."
-  (let ((person (vulpea-select-from
-                 "Person"
-                 (vulpea-db-query-by-tags-every '("people")))))
-    (org-capture-put :meeting-person person)
-    (if (vulpea-note-id person)
-        "* RÉUNION [%<%Y-%m-%d %a>] :REFILE:RÉUNION:\n%U\n\n%?"
-      (concat "* RÉUNION avec "
-              (vulpea-note-title person)
-              " on [%<%Y-%m-%d %a>] :RÉUNION:\n%U\n\n%?"))))
-
-;;;###autoload
-(defun vulpea-capture-article ()
-  "Capture an article using `vulpea-capture-article-template'.
-User is asked to provide an URL, title and authors of the article
-being captured.
-Title is inferred from URL, but user may edit it.
-Stored under roam-directory/litnotes
-Authors can be created on the fly. See
-`vulpea-capture-person-template' for more information."
-  (interactive)
-  (when-let*
-      ((url (read-string "URL: "))
-       (title (org-cliplink-retrieve-title-synchronously url))
-       (title (read-string "Title: " title))
-       (people (fun-collect-while
-                (lambda ()
-                  (let ((person
-                         (vulpea-select-from
-                          "Person"
-                          (vulpea-db-query-by-tags-every '("people")))))
-                    (if (vulpea-note-id person)
-                        person
-                      (vulpea-create
-                       (vulpea-note-title person)
-                       "people/%<%Y%m%d%H%M%S>-${slug}.org"
-                       :immediate-finish t))))
-                nil))
-       (note (vulpea-crea
-              title
-              "litnotes/%<%Y%m%d%H%M%S>-${slug}.org"
-              :tags '("litnotes" "content/article")
-              :properties (list (cons "ROAM_REFS" url))
-              :immediate-finish t)))
-    (vulpea-meta-set note "authors" people t)
-    (find-file (vulpea-note-path note))
-    (litnotes-status-set "new")
-    (save-buffer)))
-
-(defun vulpea-capture-journal ()
-  "Capture a journal entry.
-By default it uses current date to find a daily. With
-\\[universal-argument] user may select the date."
-  (interactive)
-  (cond
-   ((equal current-prefix-arg '(4))     ; select date
-    (org-roam-dailies-capture-date))
-   (t
-    (org-roam-dailies-capture-today))))
-
-(provide 'lib-vulpea-capture)
-;;; lib-vulpea-capture.el ends here
-#+end_src
-**** Vulpea Agenda
-:PROPERTIES:
-:header-args: :tangle no :noweb yes
-:END:
-#+begin_src emacs-lisp
-   ;;; lib-vulpea-agenda.el --- Utilities for building agenda -*- lexical-binding: t; -*-
-   ;;; Commentary:
-;;
-;; This module provides various utilities for building agenda buffer.
-;;
-   ;;; Code:
-
-(require 'init-elpa)
-(require 'lib-vulpea)
-(require 'lib-compat)
-
-(require 'org)
-(require 'org-habit)
-(require 'vulpea)
-
-
-
-(defvar vulpea-agenda-hide-scheduled-and-waiting-next-tasks t
-  "Non-nil means to hide scheduled and waiting tasks.
-   Affects the following commands:
-   - `vulpea-agenda-cmd-focus'
-   - `vulpea-agenda-cmd-waiting'")
-
-(defvar vulpea-agenda-main-buffer-name "*agenda:main*"
-  "Name of the main agenda buffer."))
-
-
-
-    ;;;###autoload
-(defhydra dw/org-roam-jump-menu (:hint nil)
-  "
-  ^Dailies^        ^Capture^       ^Jump^                  ^^^^^^^^-------------------------------------------------
-  _t_: today       _T_: today       _m_: current month
-  _r_: tomorrow    _R_: tomorrow    _e_: current year
-  _y_: yesterday   _Y_: yesterday   ^ ^
-  _d_: date        ^ ^              ^ ^
-                              "
-  ("t" org-roam-dailies-goto-today)
-  ("r" org-roam-dailies-goto-tomorrow)
-  ("y" org-roam-dailies-goto-yesterday)
-  ("d" org-roam-dailies-goto-date)
-  ("T" org-roam-dailies-capture-today)
-  ("R" org-roam-dailies-capture-tomorrow)
-  ("Y" org-roam-dailies-capture-yesterday)
-  ("m" dw/org-roam-goto-month)
-  ("e" dw/org-roam-goto-year)
-  ("c" nil "cancel"))
-
-
-
-   ;;;###autoload
-(defun vulpea-agenda-main ()
-  "Show main `org-agenda' view."
-  (interactive)
-  (org-agenda nil " "))
-
-   ;;;###autoload
-(defun vulpea-agenda-person ()
-  "Show main `org-agenda' view."
-  (interactive)
-  (let* ((person (vulpea-select-from
-                  "Person"
-                  (vulpea-db-query-by-tags-some '("people"))))
-         (node (org-roam-node-from-id (vulpea-note-id person)))
-         (names (cons (org-roam-node-title node)
-                      (org-roam-node-aliases node)))
-         (tags (seq-map #'vulpea--title-to-tag names))
-         (query (string-join tags "|")))
-    (let ((org-agenda-overriding-arguments (list t query)))
-      (org-agenda nil "M"))))
-
-
-
-   ;;;###autoload
-(defun vulpea-agenda-files-update (&rest _)
-  "Update the value of `org-agenda-files'."
-  (setq org-agenda-files (vulpea-project-files)))
-
-
-;; Commands
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-refile
-  '(tags
-    "REFILE"
-    ((org-agenda-overriding-header "Tâches à la Representer")
-     (org-tags-match-list-sublevels nil))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-today
-  '(agenda
-    ""
-    ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
-     (org-agenda-span 'day)
-     (org-agenda-log-mode-items '(clock state))
-     (org-agenda-skip-deadline-prewarning-if-scheduled t)
-     (org-agenda-sorting-strategy '(habit-down
-                                    time-up
-                                    category-keep
-                                    todo-state-down
-                                    priority-down)))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-eisen
-  '(agenda
-    ""
-    ((org-agenda-overriding-header "Calendrier d'Eisenhower:")
-     (org-agenda-show-log t)
-     (org-agenda-log-mode-items '(clock state))
-     (org-agenda-span 5)
-     (org-agenda-start-on-weekday t)
-     ;;            (org-agenda-ndays 5)
-     (org-agenda-start-day "-1d")
-     (org-deadline-warning-days 30))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-focus
-  '(tags-todo
-    "FOCUS"
-    ((org-agenda-overriding-header
-      (concat "Pour se concentrer sur"
-              (if vulpea-agenda-hide-scheduled-and-waiting-next-tasks
-                  ""
-                " (y compris les tâches ATTENDRE et PROGRAMMÉES)")))
-     (org-agenda-skip-function 'vulpea-agenda-skip-habits)
-     (org-tags-match-list-sublevels t)
-     (org-agenda-todo-ignore-scheduled
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-deadlines
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-with-date
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-tags-todo-honor-ignore-options t)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-stuck-projects
-  '(tags-todo
-    "PROJET-ANNULÉ-ENATTENTE/!"
-    ((org-agenda-overriding-header "Projets Bloqués")
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-stuck-projects)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-projects
-  '(tags-todo
-    "PROJET-ENATTENTE"
-    ((org-agenda-overriding-header (concat "Projets"))
-     (org-tags-match-list-sublevels t)
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-projects)
-     (org-agenda-tags-todo-honor-ignore-options t)
-     (org-agenda-sorting-strategy
-      '(todo-state-down priority-down effort-up category-keep)))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-cmd-waiting
-  '(tags-todo
-    "-ANNULÉ+ATTENDRE-READING-FOCUS|+ENATTENTE/!"
-    ((org-agenda-overriding-header
-      (concat "Tâches en attente et reportées"
-              (if
-                  vulpea-agenda-hide-scheduled-and-waiting-next-tasks ""
-                " (y compris les tâches ATTENDRE et PROGRAMMÉES)")))
-     (org-agenda-skip-function 'vulpea-agenda-skip-non-tasks)
-     (org-tags-match-list-sublevels nil)
-     ;;(org-agenda-todo-ignore-scheduled vulpea-agenda-hide-scheduled-and-waiting-next-tasks)
-     (org-agenda-todo-ignore-deadlines
-      vulpea-agenda-hide-scheduled-and-waiting-next-tasks))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-eisen-imp-y-urg
-  '(tags-todo
-    "+important+urgent/!"
-    ((org-agenda-overriding-header "Tâches importantes et urgentes")
-     (org-tags-match-list-sublevels nil))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-eisen-imp
-  '(tags-todo
-    "+important-urgent"
-    ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
-     (org-tags-match-list-sublevels nil))))
-
-
-   ;;;###autoload
-(defconst vulpea-agenda-eisen-urg
-  '(tags-todo
-    "-important+urgent"
-    ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
-     (org-tags-match-list-sublevels nil))))
-
-   ;;;###autoload
-(defconst vulpea-agenda-eisen-alltodos
-  ' (tags-todo
-     "-important-urgent/!TODO"
-     ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
-      (org-agenda-category-filter-preset '("-Habitudes"))
-      ;; (org-tags-match-list-sublevels nil)
-      )))
-
-;; Utilities to build agenda commands -- skip
-
-   ;;;###autoload
-(defun vulpea-agenda-skip-habits ()
-  "Skip tasks that are habits."
-  (save-restriction
-    (widen)
-    (let ((subtree-end (save-excursion (org-end-of-subtree t))))
-      (cond
-       ((org-is-habit-p)
-        subtree-end)
-       (t
-        nil)))))
-
-   ;;;###autoload
-(defun vulpea-agenda-skip-non-projects ()
-  "Skip trees that are not projects."
-  (if (save-excursion (vulpea-agenda-skip-non-stuck-projects))
-      (save-restriction
-        (widen)
-        (let ((subtree-end (save-excursion (org-end-of-subtree t))))
-          (cond
-           ((vulpea-agenda-project-p)
-            nil)
-           ((and (vulpea-agenda-project-subtree-p)
-                 (not (vulpea-agenda-task-p)))
-            nil)
-           (t
-            subtree-end))))
-    (save-excursion (org-end-of-subtree t))))
-
-   ;;;###autoload
-(defun vulpea-agenda-skip-non-tasks ()
-  "Show non-project tasks.
-   Skip project and sub-project tasks, habits, and project related
-   tasks."
-  (save-restriction
-    (widen)
-    (let ((next-headline (save-excursion
-                           (or (outline-next-heading)
-                               (point-max)))))
-      (cond
-       ((vulpea-agenda-task-p)
-        nil)
-       (t
-        next-headline)))))
-
-   ;;;###autoload
-(defun vulpea-agenda-skip-non-stuck-projects ()
-  "Skip trees that are not stuck projects."
-  (save-restriction
-    (widen)
-    (let ((next-headline (save-excursion
-                           (or (outline-next-heading)
-                               (point-max)))))
-      (if (vulpea-agenda-project-p)
-          (let* ((subtree-end (save-excursion
-                                (org-end-of-subtree t)))
-                 (has-next ))
-            (save-excursion
-              (forward-line 1)
-              (while (and (not has-next)
-                          (< (point) subtree-end)
-                          (re-search-forward "^\\*+ TODO "
-                                             subtree-end t))
-                (unless (member "ATTENDRE" (org-get-tags))
-                  (setq has-next t))))
-            (if has-next
-                next-headline
-              nil)) ; a stuck project, has subtasks but no next task
-        next-headline))))
-
-
-;; Utilities to build agenda commands -- predicates
-
-   ;;;###autoload
-(defun vulpea-agenda-project-p ()
-  "Return non-nil if the heading at point is a project.
-   Basically, it's any item with some todo keyword and tagged as
-   PROJECT."
-  (let* ((comps (org-heading-components))
-         (todo (nth 2 comps))
-         (tags (split-string (or (nth 5 comps) "") ":")))
-    (and (member todo org-todo-keywords-1)
-         (member "PROJET" tags))))
-
-   ;;;###autoload
-(defun vulpea-agenda-project-subtree-p ()
-  "Any task with a todo keyword that is in a project subtree.
-   Callers of this function already widen the buffer view."
-  (let ((task (save-excursion (org-back-to-heading 'invisible-ok)
-                              (point))))
-    (save-excursion
-      (vulpea-agenda-find-project-task)
-      (if (equal (point) task)
-          nil
-        t))))
-
-   ;;;###autoload
-(defun vulpea-agenda-task-p ()
-  "Any task with a todo keyword and no subtask."
-  (save-restriction
-    (widen)
-    (let ((has-subtask)
-          (subtree-end (save-excursion (org-end-of-subtree t)))
-          (is-a-task (member (nth 2 (org-heading-components))
-                             org-todo-keywords-1)))
-      (save-excursion
-        (forward-line 1)
-        (while (and (not has-subtask)
-                    (< (point) subtree-end)
-                    (re-search-forward "^\\*+ " subtree-end t))
-          (when (member (org-get-todo-state) org-todo-keywords-1)
-            (setq has-subtask t))))
-      (and is-a-task (not has-subtask)))))
-
-
-;; Utilities to build agenda commands -- search
-
-   ;;;###autoload
-(defun vulpea-agenda-find-project-task ()
-  "Move point to the parent (project) task if any."
-  (save-restriction
-    (widen)
-    (let ((parent-task (save-excursion
-                         (org-back-to-heading 'invisible-ok)
-                         (point))))
-      (while (org-up-heading-safe)
-        (when (member (nth 2 (org-heading-components))
-                      org-todo-keywords-1)
-          (setq parent-task (point))))
-      (goto-char parent-task)
-      parent-task)))
-
-
-
-   ;;;###autoload
-(defun vulpea-agenda-category (&optional len)
-  "Get category of item at point for agenda.
-   Category is defined by one of the following items:
-   - CATEGORY property
-   - TITLE keyword
-   - TITLE property
-   - filename without directory and extension
-   When LEN is a number, resulting string is padded right with
-   spaces and then truncated with ... on the right if result is
-   longer than LEN.
-   Usage example:
-     (setq org-agenda-prefix-format
-           '((agenda . \" %(vulpea-agenda-category) %?-12t %12s\")))
-   Refer to `org-agenda-prefix-format' for more information."
-  (let* ((file-name (when buffer-file-name
-                      (file-name-sans-extension
-                       (file-name-nondirectory buffer-file-name))))
-         (title (vulpea-buffer-prop-get "title"))
-         (category (org-get-category))
-         (result
-          (or (if (and
-                   title
-                   (string-equal category file-name))
-                  title
-                category)
-              "")))
-    (if (numberp len)
-        (s-truncate len (s-pad-right len " " result))
-      result)))
-
-
-
-(provide 'lib-vulpea-agenda)
-   ;;; lib-vulpea-agenda.el ends here
-#+end_src
-**** Vulpea org ID
-:PROPERTIES:
-:header-args: :tangle no :noweb yes
-:END:
-#+begin_src emacs-lisp
-;;; lib-vulpea-id.el --- ID utilities -*- lexical-binding: t; -*-
-<<disclaimer>>
-;;; Commentary:
-;;
-;; Various ID utilities.
-;;
-;; Automatic ID generation is controlled by `vulpea-id-auto-targets'.
-;; It can be configured from init.el file, or from .dir-locals.el file
-;; (for example ,to disable automatic generation):
-;;
-;;   ((org-mode . ((vulpea-id-auto-targets . nil))))
-;;
-;;; Code:
-
-(require 'org-id)
-
-(defvar vulpea-id-auto-targets '(file headings)
-  "Targets for automatic ID assignment.
-Each element of this list can be one of the following:
-- file - to automatically set ID on the file level;
-- headings - to automatically set ID for each heading in the file.
-Empty list means no id assignment is needed.")
-
-;;;###autoload
-(defun vulpea-id-auto-assign ()
-  "Add ID property to the current file.
-Targets are defined by `vulpea-id-auto-targets'."
-  (when (and vulpea-id-auto-targets
-             (derived-mode-p 'org-mode)
-             (eq buffer-read-only nil))
-    (save-excursion
-      (widen)
-      (goto-char (point-min))
-      (when (seq-contains-p vulpea-id-auto-targets 'file)
-        (org-id-get-create))
-      (when (seq-contains-p vulpea-id-auto-targets 'headings)
-        (org-map-entries #'org-id-get-create)))))
-
-(provide 'lib-vulpea-id)
-;;; lib-vulpea-id.el ends here
-#+end_src
-
-*** Setup Pkg manager
-:properties:
-:header-args: :tangle lisp/init-setup.el :noweb yes
-:end:
-
-#+begin_src emacs-lisp
-;;; init-setup.el --- Initialise Emacs Pkg Manager Setup -*- lexical-binding: t -*-
-<<disclaimer>>
-;;
-;;; Code:
-
-(require 'config-path)
-
-;;;============================================================================
-;;; Custom setup.el local macros
-;;;============================================================================
-
-<<setup-setup>>
-
-(provide 'init-setup)
-;;; init-setup.el ends here
-#+end_src
-** line number stuff not tangled
-#+begin_src elisp :tangle no
-
-;; enable line-numbers
-(column-number-mode)
-
-;; Enable line numbers for some modes
-(dolist (mode '(text-mode-hook
-                prog-mode-hook
-                conf-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 1))))
-
-;; Override some modes which derive from the above
-(dolist (mode '(org-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
-
-#+end_src
-
-** Setup if exists Executable
-ripgrep and gist
-#+begin_src emacs-lisp :noweb-ref rg-gist-link-hint
-(setup (:pkg rg)
-       (:when-loaded
-    (setq rg-group-result t)
-    (setq rg-ignore-case 'smart)))
-
-(setup (:pkg gist)
-       (setq gist-view-gist t)
-       (:hide-mode))
-
-(setup (:pkg link-hint)
-       (:require link-hint))
-
-#+end_src
