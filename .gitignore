@@ -20,4 +20,6 @@ var/
 places
 projectile-bookmarks.eld
 smex-items
+undo_fu_sessions/
+emojis/
 
