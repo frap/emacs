@@ -1432,7 +1432,8 @@ Load up some themes
 
 #+end_src
 
-modeline stuff
+Modeline stuff
+
 #+begin_src emacs-lisp :noweb-ref modeline
 ;; (use-package bui
 ;; ;; buffer user interface - info and buffer layout
@@ -1448,6 +1449,11 @@ modeline stuff
 ;; (use-package corgi-stateline
 ;;   :config
 ;;   (global-corgi-stateline-mode))
+(use-package mood-line
+  :straight (:host github :repo "benjamin-asdf/mood-line")
+  :config
+  (setf mood-line-show-cursor-point t)
+  (mood-line-mode))
 
 ;; Corgi or Doom Modeline
 ;;(use-package minions)
@@ -4383,8 +4389,18 @@ Couched in those terms, Org is at once a distribution of well integrated librari
 ** Org mode Use-package Defaults
 Org mode defaults for consistency
 #+begin_src emacs-lisp :noweb-ref org-defaults
+(use-package ob-restclient)
+
+(use-package ob-plantuml
+  :straight nil
+  :defer t
+  :defines (org-plantuml-jar-path)
+  :config
   (setq org-plantuml-jar-path
-        (expand-file-name "~/.local/bin/plantuml.jar"))
+        (expand-file-name "~/.local/bin/plantuml.jar")))
+
+
+ 
 
   (use-package org
     :straight (:type built-in)
@@ -4528,6 +4544,7 @@ Org mode defaults for consistency
        (python . t)
        (plantuml . t)
        (latex . t)
+       (restclient . t)
        ))
     ;; change CAPITAL Keywords to lowercase
     (defun org-syntax-convert-keyword-case-to-lower ()
@@ -4557,7 +4574,7 @@ Org mode defaults for consistency
       (setq lexical-binding t)
       (setq-local flycheck-disabled-checkers '(emacs-lisp-checkdoc)))
     ;; open directory links in `dired'
-    (add-to-list 'org-file-apps '(directory . emacs))
+    ;;(add-to-list 'org-file-apps '(directory . emacs))
 
     ;; open files in the same window
     (add-to-list 'org-link-frame-setup '(file . find-file))
@@ -4818,38 +4835,6 @@ Org mode defaults for consistency
    org-attach-auto-tag nil
    org-attach-file-list-property nil
    org-attach-store-link-p 'attached))
-#+end_src
-
-** Org Roam /org-roam/
-#+begin_src emacs-lisp :noweb-ref org-roam
-
-(use-package org-roam
-  :after org
-  :commands (org-roam-db-autosync-enable
-             org-roam-db-sync)
-  :init
-  (setq
-   org-roam-v2-ack t
-   org-roam-directory vulpea-directory
-   org-roam-dailies-directory (expand-file-name
-                               "journal/" org-roam-directory)
-   org-roam-db-location (expand-file-name "org-roam.db" XDG_CACHE/ )
-   org-roam-completion-everywhere t)
-  :config
-  ;; For some reason org-roam is loaded on init and twice! Suspect it
-  ;; is related to the fact that I am loading it from different
-  ;; branch.
-  ;;
-  ;; So since I need a quick remedy, I noop `org-roam-db-sync' during
-  ;; setup, because I sync data base time to time from terminal via
-  ;; eru.
-  (advice-add #'org-roam-db-sync :around #'fun-noop)
-  (ignore-errors
-    (org-roam-db-autosync-enable))
-  (advice-remove #'org-roam-db-sync #'fun-noop))
-
-
-
 #+end_src
 
 ** Org Setup /org-setup/
@@ -5115,13 +5100,6 @@ Setup of latex
   (add-to-list
    'org-beamer-environments-extra
    '("onlyenv" "O" "\\begin{onlyenv}%a" "\\end{onlyenv}")))
-
-
-
-(use-package ob-plantuml
-  :straight nil
-  :defer t
-  :defines (org-plantuml-jar-path))
 
 
 #+end_src
